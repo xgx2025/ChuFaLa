@@ -2,6 +2,7 @@ package com.hope.controller;
 
 import com.hope.constant.ResultCode;
 import com.hope.domain.dto.LoginFormDTO;
+import com.hope.domain.dto.RegisterFormDTO;
 import com.hope.domain.entity.User;
 import com.hope.domain.vo.Result;
 import com.hope.service.IUserService;
@@ -29,7 +30,7 @@ public class AuthController {
     public Result login(@RequestBody LoginFormDTO loginFormDTO) {
         User user = userService.login(loginFormDTO.getEmail(), loginFormDTO.getPassword());
         if (user == null ){
-            return Result.fail(ResultCode.USER_NOT_EXIST);
+            return Result.fail(ResultCode.USERNAME_OR_PASSWORD_ERROR);
         }
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());
@@ -41,12 +42,8 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public Result register(@RequestBody User user) {
-        if (userService.register(user)){
-            return Result.ok(null);
-        }else {
-            return Result.fail(ResultCode.USER_ALREADY_EXISTS);
-        }
+    public Result register(@RequestBody RegisterFormDTO registerFormDTO) {
+       return userService.register(registerFormDTO);
     }
 
     @GetMapping("/sendVerificationCode")

@@ -1,6 +1,8 @@
 package com.hope.service;
 
+import com.hope.domain.dto.RegisterFormDTO;
 import com.hope.domain.entity.User;
+import com.hope.domain.vo.Result;
 
 public interface IUserService {
 
@@ -19,5 +21,5 @@ public interface IUserService {
      */
     User getUserById(Long id);
 
-    boolean register(User user);
+    Result register(RegisterFormDTO registerFormDTO);
 }
