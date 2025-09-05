@@ -22,6 +22,7 @@ public class User {
     private String email;
     @JsonIgnore
     private String password;
+    private String phone;
     private String gender;
     private String bio;
     private String avatar;

@@ -18,4 +18,6 @@ public interface IUserService {
      * @return
      */
     User getUserById(Long id);
+
+    boolean register(User user);
 }

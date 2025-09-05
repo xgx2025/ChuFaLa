@@ -25,4 +25,11 @@ public class UserServiceImpl implements IUserService {
     public User getUserById(Long id) {
         return userMapper.selectById(id);
     }
+
+    @Override
+    public boolean register(User user) {
+        String passwordEncrypt = SecureUtil.md5(user.getPassword());
+        user.setPassword(passwordEncrypt);
+        return userMapper.insert(user) > 0;
+    }
 }

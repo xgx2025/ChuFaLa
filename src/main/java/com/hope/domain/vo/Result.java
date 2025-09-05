@@ -22,4 +22,9 @@ public class Result {
         String msg = resultCode.getMessage();
         return new Result(code,msg,null);
     }
+
+    public static Result fail(ResultCode resultCode,String msg){
+        Integer code = resultCode.getCode();
+        return new Result(code,msg,null);
+    }
 }
