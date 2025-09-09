@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class Result {
     private Integer code;
-    private String msg;
+    private String message;
     private Object data;
 
     public static Result ok(Object data) {
@@ -19,12 +19,12 @@ public class Result {
     }
     public static  Result fail(ResultCode resultCode){
         Integer code = resultCode.getCode();
-        String msg = resultCode.getMessage();
-        return new Result(code,msg,null);
+        String message = resultCode.getMessage();
+        return new Result(code,message,null);
     }
 
-    public static Result fail(ResultCode resultCode,String msg){
+    public static Result fail(ResultCode resultCode,String message){
         Integer code = resultCode.getCode();
-        return new Result(code,msg,null);
+        return new Result(code,message,null);
     }
 }
