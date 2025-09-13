@@ -15,12 +15,14 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(loginInterceptor).excludePathPatterns
-                ("/auth/login","/auth/register","/auth/refreshToken","/templates/error", "/auth/sendVerificationCode","/attraction/add");
+                ("/auth/login","/auth/register","/auth/refreshToken","/templates/error", "/auth/sendVerificationCode","/res/hotel/**","/res/user/**");
     }
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // 映射本地路径
-      //  registry.addResourceHandler("/res/music").addResourceLocations("D:\\Service\\xgxmusic\\music-resources");
+        // 映射本地路径, 使用 file: 前缀，并确保路径末尾带斜杠
+        registry.addResourceHandler("/res/hotel/image/**").addResourceLocations("file:D:/Service/chufala/hotel/image/");
+        registry.addResourceHandler("/res/user/avatar/**").addResourceLocations("file:D:/Service/chufala/user/avatar/");
     }
 }
+

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hope.mapper.HotelMapper">
+
+    <!-- 普通分页：查询全部酒店（按ID排序） -->
+    <select id="selectAllByPage" resultType="com.hope.domain.entity.Hotel">
+        SELECT id,name,address,overall_rating,comment_count
+        FROM hotel
+        ORDER BY id ASC
+            LIMIT #{offset}, #{size}
+    </select>
+
+    <!-- 普通分页：按条件、评分排序查询酒店 -->
+    <select id="selectByScoreRankPage" resultType="com.hope.domain.entity.Hotel">
+        SELECT id,name,city,address,price,cover_image,facilities,stars,overall_rating,review_count,longitude,latitude
+        FROM hotel
+        <where>
+            <if test="stars != null" >AND stars = #{stars}</if>
+            <if test="city != null and city != ''">AND city = #{city}</if>
+            <if test="minPrice != null">AND price &gt;= #{minPrice}</if>
+            <if test="maxPrice != null">AND price &lt;= #{maxPrice}</if>
+            <if test="facilities != null and facilities.size() > 0">
+                AND (
+                <foreach collection="facilities" item="facility" separator="OR">
+                     FIND_IN_SET(#{facility}, facilities) > 0
+                </foreach>
+                )
+            </if>
+        </where>
+        ORDER BY overall_rating DESC, id ASC
+            LIMIT #{offset}, #{size}
+    </select>
+
+    <!-- 游标分页：按评分排序（基于上一页最后一条数据） -->
+    <select id="selectByScoreRankCursor" resultType="com.hope.domain.entity.Hotel">
+        SELECT id,name,address,overall_rating
+        FROM hotel
+        <where>
+            <if test="lastAvgScore != null and lastHotelId != null">
+                (overall_rating &lt; #{lastAvgScore})
+                OR
+                (overall_rating = #{lastAvgScore} AND hotel_id &gt; #{lastHotelId})
+            </if>
+        </where>
+        ORDER BY overall_rating DESC, hotel_id ASC
+        LIMIT #{size}
+    </select>
+
+    <!-- 更新酒店评分和评论数 -->
+    <update id="updateScoreAndCount">
+        UPDATE hotel
+        SET
+            overall_rating = #{newAvgScore},
+            comment_count = #{newCommentCount}
+        WHERE hotel_id = #{hotelId}
+    </update>
+
+    <!-- 统计总条数 -->
+    <select id="countTotalByCondition" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM hotel
+        <where>
+            <if test="stars != null">AND stars = #{stars}</if>
+            <if test="city != null and city != ''">AND city = #{city}</if>
+            <if test="minPrice != null">AND price &gt;= #{minPrice}</if>
+            <if test="maxPrice != null">AND price &lt;= #{maxPrice}</if>
+            <if test="facilities != null and facilities.size() > 0">
+                AND (
+                <foreach collection="facilities" item="facility" separator="OR">
+                    FIND_IN_SET(#{facility}, facilities) > 0
+                </foreach>
+                )
+            </if>
+        </where>
+    </select>
+
+    <select id="countTotal" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM hotel
+    </select>
+
+</mapper>

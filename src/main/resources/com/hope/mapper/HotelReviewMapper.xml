@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hope.mapper.HotelReviewMapper">
+
+    <!-- 插入评论 -->
+    <insert id="insertComment" parameterType="com.hope.domain.entity.HotelReview">
+        INSERT INTO hotel_comment (
+            hotel_id,
+            score,
+            user_id,
+            content,
+            create_time
+        ) VALUES (
+                     #{hotelId},
+                     #{score},
+                     #{userId},
+                     #{content},
+                     NOW()
+                 )
+    </insert>
+
+    <!-- 计算酒店的平均评分和评论数 -->
+    <select id="calculateScoreAndCount" parameterType="java.lang.Long" resultType="java.util.Map">
+        SELECT
+            AVG(score) AS new_avg,
+            COUNT(*) AS new_count
+        FROM hotel_comment
+        WHERE hotel_id = #{hotelId}
+    </select>
+
+</mapper>
