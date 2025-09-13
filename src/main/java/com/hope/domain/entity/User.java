@@ -28,8 +28,6 @@ public class User {
     private String avatar;
     @TableField(value = "create_time")
     private LocalDateTime createTime;
-    @TableField(value = "login_time")
-    private LocalDateTime loginTime;
     private int role;
     private int status;
     private int vip;

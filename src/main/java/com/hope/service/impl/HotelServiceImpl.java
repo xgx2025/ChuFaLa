@@ -1,0 +1,219 @@
+package com.hope.service.impl;
+
+import cn.hutool.json.JSONUtil;
+import com.hope.domain.dto.HotelPageQueryDTO;
+import com.hope.domain.entity.Hotel;
+import com.hope.domain.entity.HotelReview;
+import com.hope.domain.vo.PageResult;
+import com.hope.mapper.HotelMapper;
+import com.hope.mapper.HotelReviewMapper;
+import com.hope.service.IHotelService;
+import jakarta.annotation.Resource;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.springframework.util.StringUtils;
+
+@Service
+public class HotelServiceImpl implements IHotelService {
+    @Autowired
+    private HotelMapper hotelMapper;
+    @Autowired
+    private HotelReviewMapper commentMapper;
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
+    private static final Logger log = LoggerFactory.getLogger(HotelServiceImpl.class);
+
+    @Override
+    public boolean addHotel(Hotel hotel) {
+        return hotelMapper.insert(hotel) > 0;
+    }
+
+    // Redis缓存前缀
+    private static final String CACHE_PREFIX_ALL = "hotel:list:all:page:";
+    private static final String CACHE_PREFIX_RANK = "hotel:list:rank:desc:page:";
+    private static final String CACHE_PREFIX_CURSOR = "hotel:list:rank:desc:cursor:";
+    private static final Integer CACHE_TTL = 24 * 3600; // 缓存过期时间（秒）
+
+
+
+    // 普通分页：按评分排名查询
+    @Override
+    public PageResult<Hotel> queryHotelsByScoreRank(HotelPageQueryDTO query) {
+        Integer page = query.getPage();
+        Integer size = query.getSize();
+        Integer stars = query.getStars();
+        String city = query.getCity();
+        Double maxPrice = query.getMaxPrice();
+        Double minPrice = query.getMinPrice();
+        List<String> facilities = query.getFacilities();
+        Double userLat = query.getUserLat();
+        Double userLng = query.getUserLng();
+
+        // 1. 生成缓存Key，包含所有查询参数
+        StringBuilder cacheKeyBuilder = new StringBuilder(CACHE_PREFIX_RANK);
+        cacheKeyBuilder.append("page:").append(page)
+                .append(":size:").append(size);
+
+        // 处理其他参数，注意null值处理
+        if (stars != null) {
+            cacheKeyBuilder.append(":stars:").append(stars);
+        }
+        if (StringUtils.hasText(city)) {
+            cacheKeyBuilder.append(":city:").append(city);
+        }
+        if (maxPrice != null) {
+            cacheKeyBuilder.append(":maxPrice:").append(maxPrice);
+        }
+        if (minPrice != null) {
+            cacheKeyBuilder.append(":minPrice:").append(minPrice);
+        }
+        // 处理集合参数，排序后拼接，确保顺序不影响key
+        if (facilities != null && !facilities.isEmpty()) {
+            List<String> sortedFacilities = new ArrayList<>(facilities);
+            Collections.sort(sortedFacilities);
+            cacheKeyBuilder.append(":facilities:").append(String.join(",", sortedFacilities));
+        }
+
+        String cacheKey = cacheKeyBuilder.toString();
+
+        // 2. 查缓存
+        String cacheValue = redisTemplate.opsForValue().get(cacheKey);
+        if (cacheValue != null) {
+            return JSONUtil.toBean(cacheValue, PageResult.class);
+        }
+
+        // 3. 查数据库
+        int offset = (page - 1) * size;
+        List<Hotel> hotels = hotelMapper.selectByScoreRankPage(offset, size, stars, city, maxPrice, minPrice,facilities,userLat,userLng);
+        Long total = hotelMapper.countTotal();
+
+        // 4. 封装结果
+        PageResult<Hotel> result = new PageResult<>();
+        result.setData(hotels);
+        result.setPage(page);
+        result.setSize(size);
+        result.setTotal(total);
+        result.setHasMore(page * size < total);
+
+        // 5. 回写缓存
+        redisTemplate.opsForValue().set(cacheKey, JSONUtil.toJsonStr(result), CACHE_TTL, TimeUnit.SECONDS);
+
+        return result;
+    }
+
+
+    // 普通分页：查询全部酒店
+    @Override
+    public PageResult<Hotel> queryAllHotels(Integer page, Integer size) {
+        // 1. 生成缓存Key
+        String cacheKey = CACHE_PREFIX_ALL + page + ":size:" + size;
+
+        // 2. 查缓存
+        String cacheValue = redisTemplate.opsForValue().get(cacheKey);
+        if (cacheValue != null) {
+            return JSONUtil.toBean(cacheValue, PageResult.class);
+        }
+
+        // 3. 缓存未命中，查数据库
+        int offset = (page - 1) * size;
+        List<Hotel> hotels = hotelMapper.selectAllByPage(offset, size);
+        Long total = hotelMapper.countTotal();
+
+        // 4. 封装分页结果
+        PageResult<Hotel> result = new PageResult<>();
+        result.setData(hotels);
+        result.setPage(page);
+        result.setSize(size);
+        result.setTotal(total);
+        result.setHasMore(page * size < total);
+
+        // 5. 回写缓存
+        redisTemplate.opsForValue().set(cacheKey, JSONUtil.toJsonStr(result), CACHE_TTL, TimeUnit.SECONDS);
+
+        return result;
+    }
+
+    // 游标分页：按评分排名（适合大页码）
+    @Override
+    public PageResult<Hotel> queryHotelsByScoreRankCursor(
+            Double lastAvgScore,
+            Long lastHotelId,
+            Integer size
+    ) {
+        // 1. 生成缓存Key（lastAvgScore为null时表示第一页）
+        String cacheKey = CACHE_PREFIX_CURSOR +
+                "lastScore:" + (lastAvgScore == null ? "null" : lastAvgScore) +
+                ":lastId:" + (lastHotelId == null ? "null" : lastHotelId) +
+                ":size:" + size;
+
+        // 2. 查缓存
+        String cacheValue = redisTemplate.opsForValue().get(cacheKey);
+        if (cacheValue != null) {
+            return JSONUtil.toBean(cacheValue, PageResult.class);
+        }
+
+        // 3. 查数据库
+        List<Hotel> hotels = hotelMapper.selectByScoreRankCursor(lastAvgScore, lastHotelId, size);
+
+        // 4. 封装结果（设置下一页游标）
+        PageResult<Hotel> result = new PageResult<>();
+        result.setData(hotels);
+        result.setSize(size);
+        result.setHasMore(hotels.size() == size); // 如果返回条数等于size，说明可能有更多
+
+        // 设置下一页的游标（最后一条数据的评分和ID）
+        if (!hotels.isEmpty()) {
+            Hotel lastHotel = hotels.get(hotels.size() - 1);
+            result.setLastHotelId(lastHotel.getId());
+            result.setLastAvgScore(lastHotel.getOverallRating());
+        }
+
+        // 5. 回写缓存
+        redisTemplate.opsForValue().set(cacheKey, JSONUtil.toJsonStr(result), CACHE_TTL, TimeUnit.SECONDS);
+
+        return result;
+    }
+
+    //提交评论并更新酒店评分（带事务）
+    @Override
+    @Transactional
+    public void submitReview(HotelReview review) {
+        // 1. 插入评论
+        commentMapper.insert(review);
+        log.info("评论插入成功，hotelId={}", review.getHotelId());
+
+        // 2. 计算该酒店的新评分和评论数
+        Map<String, Object> scoreInfo = commentMapper.calculateScoreAndCount(review.getHotelId());
+        Double newAvgScore = Double.valueOf(scoreInfo.get("new_avg").toString());
+        Integer newCommentCount = Integer.valueOf(scoreInfo.get("new_count").toString());
+
+        // 3. 更新酒店表的冗余字段
+        hotelMapper.updateScoreAndCount(review.getHotelId(), newAvgScore, newCommentCount);
+        log.info("酒店评分更新成功，hotelId={}, 新评分={}", review.getHotelId(), newAvgScore);
+
+        // 4. 主动删除相关缓存（保证数据一致性）
+        deleteRelatedCache(review.getHotelId());
+    }
+
+
+
+    // 删除与该酒店相关的所有缓存（简化实现：实际可按前缀批量删除）
+    private void deleteRelatedCache(Long hotelId) {
+        // 实际项目中可通过Redis的KEYS命令模糊匹配删除，这里简化逻辑
+        redisTemplate.delete(redisTemplate.keys(CACHE_PREFIX_ALL + "*"));
+        redisTemplate.delete(redisTemplate.keys(CACHE_PREFIX_RANK + "*"));
+        redisTemplate.delete(redisTemplate.keys(CACHE_PREFIX_CURSOR + "*"));
+        log.info("酒店相关缓存已删除，hotelId={}", hotelId);
+    }
+}
