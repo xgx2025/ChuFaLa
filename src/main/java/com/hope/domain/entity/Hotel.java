@@ -9,6 +9,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import java.time.Year;
+import java.util.List;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -24,22 +27,26 @@ public class Hotel {
     @TableField(value = "original_price")
     private Double originalPrice;
     private String phone;
-    @TableField(value = "cover_image")
-    private String coverImage;
+    @TableField(exist = false)
+    private String mainImage;
+    @TableField(exist = false)
+    private List< String> otherImages;
     private String description;
     private String facilities;
     private Double longitude;
     private Double latitude;
-    @TableField(value = "star_rating")
     private Integer stars;
-    private Double rating;
-    @TableField(value = "comment_count")
+    @TableField(value = "overall_rating")
     private Double overallRating;
     @TableField(value = "review_count")
     @JsonSerialize(using = ToStringSerializer.class)
     private Long reviewCount;
+    @TableField(value = "open_year")
+    private Year openYear;
     @TableField(exist = false)
     private String location;
+    @TableField(exist = false)
+    private List<RoomType> roomList;
     @TableField(exist = false)
     private Double distance; // 与用户的距离（公里）
 

@@ -5,9 +5,11 @@ import cn.hutool.json.JSONUtil;
 import com.hope.domain.dto.HotelPageQueryDTO;
 import com.hope.domain.entity.Hotel;
 import com.hope.domain.entity.HotelReview;
+import com.hope.domain.entity.RoomType;
 import com.hope.domain.vo.PageResult;
 import com.hope.mapper.HotelMapper;
 import com.hope.mapper.HotelReviewMapper;
+import com.hope.mapper.RoomTypeMapper;
 import com.hope.service.IHotelService;
 import com.hope.utils.CoordinateTransformUtil;
 import jakarta.annotation.Resource;
@@ -29,6 +31,8 @@ import org.springframework.util.StringUtils;
 public class HotelServiceImpl implements IHotelService {
     @Autowired
     private HotelMapper hotelMapper;
+    @Autowired
+    private RoomTypeMapper roomTypeMapper;
     @Autowired
     private HotelReviewMapper commentMapper;
     @Autowired
@@ -70,7 +74,7 @@ public class HotelServiceImpl implements IHotelService {
         cacheKeyBuilder.append("page:").append(page)
                 .append(":size:").append(size);
 
-        // 处理其他参数，注意null值处理
+        // 处理其他参数
         if (stars != null) {
             cacheKeyBuilder.append(":stars:").append(stars);
         }
@@ -107,7 +111,7 @@ public class HotelServiceImpl implements IHotelService {
         List<Hotel> hotels = hotelMapper.selectByScoreRankPage(
                 offset, size, stars, city, maxPrice, minPrice, facilities);
 
-        // 修复：总条数计算需要带查询条件
+        // 总条数计算需要带查询条件
         Long total = hotelMapper.countTotalByCondition(
                 stars, city, maxPrice, minPrice, facilities);
 
@@ -205,47 +209,6 @@ public class HotelServiceImpl implements IHotelService {
         return result;
     }
 
-    // 游标分页：按评分排名（适合大页码）
-    @Override
-    public PageResult<Hotel> queryHotelsByScoreRankCursor(
-            Double lastAvgScore,
-            Long lastHotelId,
-            Integer size
-    ) {
-        // 1. 生成缓存Key（lastAvgScore为null时表示第一页）
-        String cacheKey = CACHE_PREFIX_CURSOR +
-                "lastScore:" + (lastAvgScore == null ? "null" : lastAvgScore) +
-                ":lastId:" + (lastHotelId == null ? "null" : lastHotelId) +
-                ":size:" + size;
-
-        // 2. 查缓存
-        String cacheValue = redisTemplate.opsForValue().get(cacheKey);
-        if (cacheValue != null) {
-            return JSONUtil.toBean(cacheValue, PageResult.class);
-        }
-
-        // 3. 查数据库
-        List<Hotel> hotels = hotelMapper.selectByScoreRankCursor(lastAvgScore, lastHotelId, size);
-
-        // 4. 封装结果（设置下一页游标）
-        PageResult<Hotel> result = new PageResult<>();
-        result.setData(hotels);
-        result.setSize(size);
-        result.setHasMore(hotels.size() == size); // 如果返回条数等于size，说明可能有更多
-
-        // 设置下一页的游标（最后一条数据的评分和ID）
-        if (!hotels.isEmpty()) {
-            Hotel lastHotel = hotels.get(hotels.size() - 1);
-            result.setLastHotelId(lastHotel.getId());
-            result.setLastAvgScore(lastHotel.getOverallRating());
-        }
-
-        // 5. 回写缓存
-        redisTemplate.opsForValue().set(cacheKey, JSONUtil.toJsonStr(result), CACHE_TTL, TimeUnit.SECONDS);
-
-        return result;
-    }
-
     //提交评论并更新酒店评分（带事务）
     @Override
     @Transactional
@@ -267,6 +230,25 @@ public class HotelServiceImpl implements IHotelService {
         deleteRelatedCache(review.getHotelId());
     }
 
+    @Override
+    public Hotel getHotelDetail(Long id) {
+        Hotel hotel = hotelMapper.selectById(id);
+        List<String> imageList = hotelMapper.findHotelImage(id);
+        hotel.setMainImage(imageList.get(0));
+        hotel.setOtherImages(imageList.subList(1,imageList.size()));
+        List<RoomType> roomList =roomTypeMapper.selectRoomTypeList(id);
+        roomList.forEach(roomType -> {
+            List<String> images = roomTypeMapper.findRoomTypeImage(roomType.getId());
+            roomType.setImageList(images);
+        });
+        hotel.setRoomList(roomList);
+        return hotel;
+    }
+
+    @Override
+    public RoomType getRoomInfo(Long id) {
+        return roomTypeMapper.selectById(id);
+    }
 
 
     // 删除与该酒店相关的所有缓存（简化实现：实际可按前缀批量删除）

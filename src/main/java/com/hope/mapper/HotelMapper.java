@@ -2,6 +2,7 @@ package com.hope.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hope.domain.entity.Hotel;
+import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -45,4 +46,6 @@ public interface HotelMapper extends BaseMapper<Hotel> {
     Long countTotal();
     // 查询符合条件的酒店总数
     Long countTotalByCondition(Integer stars, String city, Double maxPrice, Double minPrice, List<String> facilities);
+
+    List<String> findHotelImage(Long hotelId);
 }

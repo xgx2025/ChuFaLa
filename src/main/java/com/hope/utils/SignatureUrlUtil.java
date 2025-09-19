@@ -16,7 +16,7 @@ import java.util.TreeMap; // 用于对参数名排序，保证签名一致性
  * URL签名生成与验证工具类
  * 用于防止URL参数被篡改（例如：订单ID、用户ID等）
  */
-public class SignatureUrlUtil {
+public final class SignatureUrlUtil {
 
     // 建议将密钥存储在配置中心（如Apollo, Nacos）或环境变量中，硬编码在代码中不安全。
     private static final String DEFAULT_SECRET_KEY = "chufala-key";

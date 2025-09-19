@@ -5,6 +5,7 @@ import com.hope.domain.dto.HotelFormDTO;
 import com.hope.domain.dto.HotelPageQueryDTO;
 import com.hope.domain.entity.Hotel;
 import com.hope.domain.entity.HotelReview;
+import com.hope.domain.entity.RoomType;
 import com.hope.domain.vo.PageResult;
 import com.hope.domain.vo.Result;
 import com.hope.service.IHotelService;
@@ -26,13 +27,26 @@ public class HotelController {
         }
         return Result.ok(null);
     }
+
+    @GetMapping("/detail/{id}")
+    public Result getHotelDetail(@PathVariable Long id) {
+        Hotel hotel = hotelService.getHotelDetail(id);
+        if (hotel == null){
+            return Result.fail(ResultCode.NOT_FOUND);
+        }
+        return Result.ok(hotel);
+    }
     // 普通分页：查询全部酒店
     @GetMapping("/all")
-    public PageResult<Hotel> getAllHotels(
+    public Result getAllHotels(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size
     ) {
-        return hotelService.queryAllHotels(page, size);
+        PageResult<Hotel> pageResult = hotelService.queryAllHotels(page, size);
+        if (pageResult == null){
+            return Result.fail(ResultCode.UNKNOWN_ERROR);
+        }
+        return Result.ok(pageResult);
     }
 
     // 普通分页：按评分排名查询
@@ -45,15 +59,18 @@ public class HotelController {
         return Result.ok(pageResult);
     }
 
-    // 游标分页：按评分排名（适合下拉加载更多）
-    @GetMapping("/rank/cursor")
-    public PageResult<Hotel> getHotelsByScoreRankCursor(
-            @RequestParam(required = false) Double lastAvgScore,
-            @RequestParam(required = false) Long lastHotelId,
-            @RequestParam(defaultValue = "10") Integer size
-    ) {
-        return hotelService.queryHotelsByScoreRankCursor(lastAvgScore, lastHotelId, size);
-    }
+//    @PostMapping("/order")
+//    public Result createHotelOrder(){
+//
+//    }
+
+//    @GetMapping("/submit-order")
+//    public Result submitOrder(){
+//
+//    }
+
+
+
 
     // 提交评论
 //    @PostMapping("/comment")
