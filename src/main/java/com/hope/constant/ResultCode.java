@@ -14,6 +14,7 @@ public enum ResultCode {
     NOT_IMPLEMENTED(5001, "未实现"),
     BAD_GATEWAY(5002, "网关错误"),
     UNKNOWN_ERROR(9999, "未知错误"),
+    SYSTEM_BUSY(9998, "系统繁忙,请重试"),
 
     USERNAME_OR_PASSWORD_ERROR(1000, "用户名或密码错误"),
     USER_NOT_EXIST(1001, "用户不存在"),
@@ -22,6 +23,7 @@ public enum ResultCode {
     USER_NOT_AUTHORIZED(1004, "用户未授权"),
     USER_NOT_PERMITTED(1005, "用户无权限"),
 
+    DATA_NOT_SAFE(2000, "数据不安全，请重试"),
 
     EMAIL_ALREADY_EXISTS(2001, "该邮箱已注册"),
     EMAIL_NOT_VERIFIED(2003, "邮箱未验证"),

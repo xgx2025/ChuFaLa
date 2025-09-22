@@ -67,5 +67,8 @@
     <select id="findHotelImage" resultType="java.lang.String">
         SELECT image FROM hotel_image WHERE hotel_id = #{hotelId} ORDER BY sort_order ASC
     </select>
+    <select id="findHotelNameAndAddress" resultType="java.util.Map">
+        SELECT name,address FROM hotel WHERE id =#{hotelId}
+    </select>
 
 </mapper>

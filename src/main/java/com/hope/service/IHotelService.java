@@ -1,11 +1,12 @@
 package com.hope.service;
 
-import com.hope.domain.dto.HotelFormDTO;
+import com.hope.domain.dto.HotelOrderDTO;
 import com.hope.domain.dto.HotelPageQueryDTO;
 import com.hope.domain.entity.Hotel;
 import com.hope.domain.entity.HotelReview;
 import com.hope.domain.entity.RoomType;
 import com.hope.domain.vo.PageResult;
+import com.hope.domain.vo.Result;
 
 public interface IHotelService {
     /**
@@ -29,4 +30,5 @@ public interface IHotelService {
     Hotel getHotelDetail(Long id);
 
     RoomType getRoomInfo(Long id);
+
 }

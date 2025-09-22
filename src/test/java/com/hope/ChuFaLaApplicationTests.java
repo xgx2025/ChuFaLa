@@ -3,12 +3,15 @@ package com.hope;
 import cn.hutool.crypto.SecureUtil;
 import com.hope.utils.RedisWorker;
 import com.hope.utils.SignaturePriceUtil;
+import com.hope.utils.SimpleRedisLock;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.security.Security;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
@@ -16,6 +19,9 @@ import java.util.Map;
 class ChuFaLaApplicationTests {
     @Autowired
     private RedisWorker redisWorker;
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
     @Test
     void getMD5Value() {
@@ -56,6 +62,30 @@ class ChuFaLaApplicationTests {
         String signature = "HEBm4B7xIea4QXgoJVeVOLm7XToQfKjJqmdImHojxuk=";
         boolean isValid = SignaturePriceUtil.verifyPriceSignature(data, signature);
         System.out.println(isValid);
+    }
+
+    @Test
+    void testRedisLock(){
+        SimpleRedisLock test = new SimpleRedisLock("test", stringRedisTemplate);
+        boolean tryLock = test.tryLock(1000);
+        if (tryLock){
+            try {
+                System.out.println("获取锁成功");
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        try {
+            Thread.sleep(10000L);
+            test.unlock();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void testLocalDateParse(){
+        System.out.println(LocalDate.parse("2025-09-18"));
     }
 
 }

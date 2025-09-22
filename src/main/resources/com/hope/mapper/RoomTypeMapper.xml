@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.hope.mapper.RoomTypeMapper">
+
     <select id="selectRoomTypeList" resultType="com.hope.domain.entity.RoomType">
         SELECT id,name,price,area,facilities,bed,people,floor,breakfast,status,stock
         FROM room_type
@@ -13,5 +14,15 @@
     <select id="selectRoomPrice" resultType="java.lang.Double">
         SELECT price FROM room_type WHERE id = #{roomTypeId}
     </select>
+    <select id="selectHotelIdByRoomTypeId" resultType="java.lang.Long">
+        SELECT hotel_id FROM room_type WHERE id = #{roomTypeId}
+    </select>
 
+    <update id="updateStock">
+        UPDATE room_type SET stock = stock - #{roomCount} WHERE id = #{roomTypeId} AND stock >= #{roomCount}
+    </update>
+
+    <select id="selectNameById" resultType="java.lang.String">
+        SELECT name FROm room_type WHERE id = #{roomTypeId}
+    </select>
 </mapper>

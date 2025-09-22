@@ -2,16 +2,25 @@ package com.hope.service.impl;
 
 import cn.hutool.core.lang.TypeReference;
 import cn.hutool.json.JSONUtil;
+import com.hope.constant.ResultCode;
+import com.hope.domain.dto.HotelOrderDTO;
 import com.hope.domain.dto.HotelPageQueryDTO;
 import com.hope.domain.entity.Hotel;
+import com.hope.domain.entity.HotelOrder;
 import com.hope.domain.entity.HotelReview;
 import com.hope.domain.entity.RoomType;
 import com.hope.domain.vo.PageResult;
+import com.hope.domain.vo.Result;
 import com.hope.mapper.HotelMapper;
+import com.hope.mapper.HotelOrderMapper;
 import com.hope.mapper.HotelReviewMapper;
 import com.hope.mapper.RoomTypeMapper;
 import com.hope.service.IHotelService;
 import com.hope.utils.CoordinateTransformUtil;
+import com.hope.utils.RedisWorker;
+import com.hope.utils.SignaturePriceUtil;
+import com.hope.utils.ThreadLocalUtil;
+import io.jsonwebtoken.Claims;
 import jakarta.annotation.Resource;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +28,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -26,6 +36,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.springframework.util.StringUtils;
+
+import javax.swing.*;
 
 @Service
 public class HotelServiceImpl implements IHotelService {
@@ -48,12 +60,11 @@ public class HotelServiceImpl implements IHotelService {
     // Redis缓存前缀
     private static final String CACHE_PREFIX_ALL = "hotel:list:all:";
     private static final String CACHE_PREFIX_RANK = "hotel:list:rank:desc:";
-    private static final String CACHE_PREFIX_CURSOR = "hotel:list:rank:desc:cursor:";
     private static final Integer CACHE_TTL = 24 * 3600; // 缓存过期时间（秒）
 
 
 
-    // 普通分页：按评分排名查询
+    // 分页查询
     @Override
     public PageResult<Hotel> queryHotelsByScoreRank(HotelPageQueryDTO query) {
         Integer page = query.getPage();
@@ -251,12 +262,12 @@ public class HotelServiceImpl implements IHotelService {
     }
 
 
+
     // 删除与该酒店相关的所有缓存（简化实现：实际可按前缀批量删除）
     private void deleteRelatedCache(Long hotelId) {
         // 实际项目中可通过Redis的KEYS命令模糊匹配删除，这里简化逻辑
         redisTemplate.delete(redisTemplate.keys(CACHE_PREFIX_ALL + "*"));
         redisTemplate.delete(redisTemplate.keys(CACHE_PREFIX_RANK + "*"));
-        redisTemplate.delete(redisTemplate.keys(CACHE_PREFIX_CURSOR + "*"));
         log.info("酒店相关缓存已删除，hotelId={}", hotelId);
     }
 }

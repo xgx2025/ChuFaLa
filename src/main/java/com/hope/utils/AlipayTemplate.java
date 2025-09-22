@@ -74,13 +74,13 @@ public class AlipayTemplate {
 
 
     public String pay(PayParam payParam) throws AlipayApiException {
-        System.out.println(appId);
-        System.out.println(merchantPrivateKey);
-        System.out.println(alipayPublicKey);
-        System.out.println(notifyUrl);
-        System.out.println(charset);
-        System.out.println(timeout);
-        System.out.println(gatewayUrl);
+//        System.out.println(appId);
+//        System.out.println(merchantPrivateKey);
+//        System.out.println(alipayPublicKey);
+//        System.out.println(notifyUrl);
+//        System.out.println(charset);
+//        System.out.println(timeout);
+//        System.out.println(gatewayUrl);
         //1、根据支付宝的配置生成一个支付客户端
         AlipayClient alipayClient = new
                 DefaultAlipayClient(gatewayUrl, appId, merchantPrivateKey,
@@ -91,11 +91,11 @@ public class AlipayTemplate {
         alipayRequest.setReturnUrl(returnUrl);
         alipayRequest.setNotifyUrl(notifyUrl);
 
-        Long id = payParam.getOrderId();
+        Long orderId = payParam.getOrderId();
         String subject = payParam.getSubject();
         Double money = payParam.getMoney();
         String paymentMethod = payParam.getPaymentMethod();
-        alipayRequest.setBizContent(" {\"out_trade_no\":\"" + id + "\","
+        alipayRequest.setBizContent(" {\"out_trade_no\":\"" + orderId + "\","
                 + "\"total_amount\":\"" + money + "\","
                 + "\"subject\":\"" + subject
                 + "\","

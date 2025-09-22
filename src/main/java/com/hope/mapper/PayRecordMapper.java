@@ -8,6 +8,5 @@ import java.io.Serializable;
 
 @Mapper
 public interface PayRecordMapper extends BaseMapper<PayRecord> {
-
     PayRecord selectByOrderId(Long orderId);
 }

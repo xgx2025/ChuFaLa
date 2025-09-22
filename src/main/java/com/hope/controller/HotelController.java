@@ -1,13 +1,11 @@
 package com.hope.controller;
 
 import com.hope.constant.ResultCode;
-import com.hope.domain.dto.HotelFormDTO;
 import com.hope.domain.dto.HotelPageQueryDTO;
 import com.hope.domain.entity.Hotel;
-import com.hope.domain.entity.HotelReview;
-import com.hope.domain.entity.RoomType;
 import com.hope.domain.vo.PageResult;
 import com.hope.domain.vo.Result;
+import com.hope.service.IHotelOrderService;
 import com.hope.service.IHotelService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -59,10 +57,7 @@ public class HotelController {
         return Result.ok(pageResult);
     }
 
-//    @PostMapping("/order")
-//    public Result createHotelOrder(){
-//
-//    }
+
 
 //    @GetMapping("/submit-order")
 //    public Result submitOrder(){

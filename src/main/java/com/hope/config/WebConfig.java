@@ -15,7 +15,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(loginInterceptor).excludePathPatterns
-                ("/auth/login","/auth/register","/auth/refreshToken","/templates/error", "/auth/sendVerificationCode","/res/hotel/**","/res/user/**","/res/room/**","/alipay/pay","/alipay/notify");
+                ("/auth/login","/auth/register","/auth/refreshToken","/templates/error", "/auth/sendVerificationCode","/res/hotel/**","/res/user/**","/res/room/**","/alipay/notify");
     }
 
     @Override
