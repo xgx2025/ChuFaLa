@@ -14,5 +14,11 @@ public interface RoomTypeMapper extends BaseMapper<RoomType> {
 
     Double selectRoomPrice(Long roomTypeId);
 
+    boolean updateStock(Long roomTypeId,int roomCount);
+
+    Long selectHotelIdByRoomTypeId(Long roomTypeId);
+
+    String selectNameById(Long roomTypeId);
+
 
 }

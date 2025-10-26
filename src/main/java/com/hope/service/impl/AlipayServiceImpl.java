@@ -6,16 +6,23 @@ import com.hope.domain.entity.PayParam;
 import com.hope.domain.entity.PayRecord;
 import com.hope.factory.BizAdapterFactory;
 import com.hope.mapper.PayRecordMapper;
+import com.hope.mapper.UserMapper;
 import com.hope.service.IAlipayService;
 import com.hope.service.adapter.BizAdapter;
 import com.hope.utils.AlipayTemplate;
+import com.hope.utils.EmailUtil;
+import com.hope.utils.ThreadLocalUtil;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.mail.MessagingException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -30,6 +37,8 @@ public class AlipayServiceImpl implements IAlipayService {
     private PayRecordMapper payRecordMapper;
 
     private static final Logger log = LoggerFactory.getLogger(AlipayServiceImpl.class);
+    @Autowired
+    private UserMapper userMapper;
 
     @Override
     public String createPay(String bizType, Long orderId) {
@@ -39,6 +48,9 @@ public class AlipayServiceImpl implements IAlipayService {
 
         // 2. 生成支付记录（通用逻辑：记录支付状态）
         PayRecord record = new PayRecord();
+        Claims claims = ThreadLocalUtil.get();
+        Long userId = claims.get("userId", Long.class);
+        record.setUserId(userId);
         record.setBizType(bizType);
         record.setOrderId(orderId);
         record.setMoney(payParam.getMoney());
@@ -47,6 +59,7 @@ public class AlipayServiceImpl implements IAlipayService {
 
         // 3. 调用支付宝接口生成支付表单（通用逻辑）
         try {
+            System.out.println("支付宝参数："+payParam.getOrderId());
             return alipayTemplate.pay(payParam); // 复用之前的支付宝工具类
         } catch (AlipayApiException e) {
             log.error("创建支付宝支付失败", e);
@@ -56,7 +69,7 @@ public class AlipayServiceImpl implements IAlipayService {
 
     @Override
     public String handleNotify(String channel, HttpServletRequest request) {
-        // 1. 验签（通用逻辑）
+        // 1. 验签
         Map<String, String> params = parseParams(request);
         try {
             if (!Factory.Payment.Common().verifyNotify(params)) {
@@ -67,28 +80,39 @@ public class AlipayServiceImpl implements IAlipayService {
             throw new RuntimeException(e);
         }
 
-        // 2. 解析回调参数（通用逻辑）
-        String orderIdStr = params.get("out_trade_no");
+        // 2. 解析回调参数
+        String orderId = params.get("out_trade_no");
+        String subject = params.get("subject");
+        System.out.println("商户订单号: " + orderId);
         String tradeStatus = params.get("trade_status");
         if (!"TRADE_SUCCESS".equals(tradeStatus)) {
             return "success"; // 只处理支付成功状态
         }
 
         // 3. 查询支付记录，校验状态（防重复处理）
-        PayRecord record = payRecordMapper.selectByOrderId(Long.parseLong(orderIdStr));
+        PayRecord record = payRecordMapper.selectByOrderId(Long.parseLong(orderId));
         if (record == null || "SUCCESS".equals(record.getStatus())) {
             return "success";
         }
 
-        // 4. 更新支付记录状态（通用逻辑）
+        // 4. 更新支付记录状态
         record.setStatus("SUCCESS");
-        record.setPayTime(LocalDate.parse(params.get("gmt_payment")));
-        record.setTradeNo(Long.valueOf(params.get("trade_no"))); // 支付宝交易号
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        record.setPayTime(LocalDateTime.parse(params.get("gmt_payment"),formatter));
+        record.setTradeNo(params.get("trade_no")); // 支付宝交易号
         payRecordMapper.updateById(record);
 
-        // 5. 通过业务适配器触发具体业务（隔离业务差异）
+        // 5. 通过业务适配器触发具体业务
         BizAdapter adapter = bizAdapterFactory.getAdapter(record.getBizType());
         adapter.handlePaySuccess(record.getOrderId(), record); // 由业务适配器处理后续逻辑
+        PayRecord payRecord = payRecordMapper.selectByOrderId(record.getOrderId());
+        Long userId = payRecord.getUserId();
+        String email = userMapper.findEmailById(userId);
+        try {
+            EmailUtil.sendEmail(email, "【出发啦】订单通知",  "您已成功订购"+ "，" + subject+"，订单号：" + orderId+"，您可以前往网站的订单中心查看详情。祝您旅途开心！\uD83E\uDD17");
+        } catch (MessagingException e) {
+            throw new RuntimeException(e);
+        }
 
         return "success";
     }

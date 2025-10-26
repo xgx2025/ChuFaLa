@@ -17,6 +17,10 @@ public class Result {
     public static Result ok(Object data) {
         return new Result(0, null, data);
     }
+
+    public static Result ok(Object data,String message){
+        return new Result(0,message,data);
+    }
     public static  Result fail(ResultCode resultCode){
         Integer code = resultCode.getCode();
         String message = resultCode.getMessage();

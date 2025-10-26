@@ -13,9 +13,8 @@
     <!-- 普通分页：按条件、评分排序查询酒店 -->
     <select id="selectByScoreRankPage" resultType="com.hope.domain.entity.Hotel">
         SELECT id,name,city,address,price,facilities,stars,overall_rating,review_count,longitude,latitude,hi.image AS mainImage
-        FROM hotel LEFT JOIN hotel_image AS hi ON hotel.id = hi.hotel_id
+        FROM hotel LEFT JOIN hotel_image AS hi ON hotel.id = hi.hotel_id AND hi.sort_order = 1
         <where>
-            hi.sort_order = 1
             <if test="stars != null" >AND stars = #{stars}</if>
             <if test="city != null and city != ''">AND city = #{city}</if>
             <if test="minPrice != null">AND price &gt;= #{minPrice}</if>
@@ -66,6 +65,12 @@
 
     <select id="findHotelImage" resultType="java.lang.String">
         SELECT image FROM hotel_image WHERE hotel_id = #{hotelId} ORDER BY sort_order ASC
+    </select>
+    <select id="findHotelNameAndAddress" resultType="java.util.Map">
+        SELECT name,address FROM hotel WHERE id =#{hotelId}
+    </select>
+    <select id="findHotelByCity" resultType="com.hope.domain.vo.HotelInfo">
+        SELECT name,price,image,overall_rating AS rating FROM hotel LEFT JOIN hotel_image AS hi ON hotel.id = hi.hotel_id AND hi.sort_order = 1
     </select>
 
 </mapper>

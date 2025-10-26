@@ -13,14 +13,14 @@ public class JwtTokenUtil {
 
     // Access Token密钥和过期时间(30分钟)
     public static final String ACCESS_TOKEN_SECRET = "xgxmusic_access_secret";
-    public static final long ACCESS_TOKEN_EXPIRE = 30 * 60 * 1000;
+    public static final long ACCESS_TOKEN_EXPIRE = 2 * 60 * 60 * 1000;
 
 
 
 
     // Refresh Token密钥和过期时间(7天)
     public static final String REFRESH_TOKEN_SECRET = "xgxmusic_refresh_secret";
-    public static final long REFRESH_TOKEN_EXPIRE = 2 * 60 * 1000;
+    public static final long REFRESH_TOKEN_EXPIRE = 2 * 24 * 60 * 60 * 1000;
 
 
     /**

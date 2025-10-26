@@ -7,10 +7,15 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+
+import java.util.List;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString
 @TableName("attraction")
 public class Attraction {
     @JsonSerialize(using = ToStringSerializer.class)
@@ -28,8 +33,16 @@ public class Attraction {
     private String longitude;
     private String latitude;
     private String phone;
-    private String image;
+    @TableField(exist = false)
+    private String mainImage;
+    @TableField(exist = false)
+    private List<String> otherImages;
     private String description;
+    private Integer stars;
+    private Double rating;
     @TableField(exist = false)
     private String location;
+    private String tags;
+    @TableField(exist = false)
+    private int reviewCount;
 }

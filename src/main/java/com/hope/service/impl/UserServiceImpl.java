@@ -55,4 +55,9 @@ public class UserServiceImpl implements IUserService {
         }
         return Result.fail(ResultCode.UNKNOWN_ERROR);
     }
+
+    @Override
+    public boolean isVip(Long userId) {
+        return userMapper.selectOne(new QueryWrapper<User>().eq("id", userId).eq("vip", 1)) != null;
+    }
 }

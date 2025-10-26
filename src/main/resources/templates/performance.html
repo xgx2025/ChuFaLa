@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>集合性能对比测试 | 数据可视化</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+
+    <!-- 配置Tailwind主题 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#6B7280',
+                        success: '#00B42A',
+                        warning: '#FF7D00',
+                        danger: '#F53F3F',
+                        info: '#86909C',
+                        light: '#F2F3F5',
+                        dark: '#1D2129',
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .card-shadow {
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+            }
+            .animate-float {
+                animation: float 6s ease-in-out infinite;
+            }
+            @keyframes float {
+                0% { transform: translateY(0px); }
+                50% { transform: translateY(-10px); }
+                100% { transform: translateY(0px); }
+            }
+        }
+    </style>
+</head>
+<body class="font-inter bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen p-4 md:p-8">
+<div class="max-w-5xl mx-auto">
+    <!-- 页面标题 -->
+    <header class="text-center mb-10">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 text-primary mb-4 animate-float">
+            <i class="fa fa-line-chart text-3xl"></i>
+        </div>
+        <h1 class="text-[clamp(1.8rem,5vw,3rem)] font-bold text-dark mb-2">集合性能对比分析</h1>
+        <p class="text-secondary text-lg max-w-2xl mx-auto">深入分析 ArrayList、LinkedList 和 SmartList 的插入性能差异</p>
+    </header>
+
+    <!-- 测试数据量输入区域 -->
+    <div class="bg-white rounded-xl p-6 mb-6 card-shadow">
+        <form method="get" action="/performance" class="flex flex-col md:flex-row items-center justify-center gap-4">
+            <div class="flex items-center">
+                <label for="dataSize" class="mr-3 text-dark font-medium">测试数据量：</label>
+                <input
+                        type="number"
+                        id="dataSize"
+                        name="dataSize"
+                        th:value="${dataSize}"
+                        min="1000"
+                        max="10000000"
+                        step="10000"
+                        class="w-48 px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+            </div>
+            <button
+                    type="submit"
+                    class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all duration-300 flex items-center"
+            >
+                <i class="fa fa-play-circle mr-2"></i> 开始测试
+            </button>
+            <p class="text-sm text-secondary">
+                当前数据量：<span th:text="${dataSize}"></span> 条（建议范围：1,000 - 10,000,000）
+            </p>
+        </form>
+    </div>
+
+    <!-- 主要内容卡片 -->
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- 左侧：测试结果卡片 -->
+        <div class="lg:col-span-1 bg-white rounded-xl p-6 card-shadow transform transition-all duration-300 hover:shadow-lg">
+            <div class="flex items-center mb-4">
+                <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mr-3">
+                    <i class="fa fa-database text-primary"></i>
+                </div>
+                <h2 class="text-xl font-semibold text-dark">测试结果</h2>
+            </div>
+
+            <div class="space-y-4">
+                <!-- ArrayList 结果 -->
+                <div class="p-4 rounded-lg bg-slate-50 border border-slate-100 transform transition-all duration-300 hover:border-primary/30 hover:bg-primary/5">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-medium text-dark">ArrayList</span>
+                        <span class="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">标准实现</span>
+                    </div>
+                    <div class="flex items-end">
+                        <span class="text-3xl font-bold text-dark" th:text="${arrayListTime}">-</span>
+                        <span class="text-sm text-secondary ml-1">ms</span>
+                    </div>
+                    <div class="mt-2 h-1 bg-slate-200 rounded-full overflow-hidden">
+                        <div class="h-full bg-primary rounded-full"
+                             th:style="'width:' + ${arrayListTime / (arrayListTime + linkedListTime + smartListTime) * 100} + '%'"></div>
+                    </div>
+                </div>
+
+                <!-- LinkedList 结果 -->
+                <div class="p-4 rounded-lg bg-slate-50 border border-slate-100 transform transition-all duration-300 hover:border-primary/30 hover:bg-primary/5">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-medium text-dark">LinkedList</span>
+                        <span class="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">标准实现</span>
+                    </div>
+                    <div class="flex items-end">
+                        <span class="text-3xl font-bold text-dark" th:text="${linkedListTime}">-</span>
+                        <span class="text-sm text-secondary ml-1">ms</span>
+                    </div>
+                    <div class="mt-2 h-1 bg-slate-200 rounded-full overflow-hidden">
+                        <div class="h-full bg-warning rounded-full"
+                             th:style="'width:' + ${linkedListTime / (arrayListTime + linkedListTime + smartListTime) * 100} + '%'"></div>
+                    </div>
+                </div>
+
+                <!-- SmartList 结果 -->
+                <div class="p-4 rounded-lg bg-slate-50 border border-slate-100 transform transition-all duration-300 hover:border-primary/30 hover:bg-primary/5">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-medium text-dark">SmartList</span>
+                        <span class="text-xs px-2 py-1 rounded-full bg-success/10 text-success">自定义实现</span>
+                    </div>
+                    <div class="flex items-end">
+                        <span class="text-3xl font-bold text-dark" th:text="${smartListTime}">-</span>
+                        <span class="text-sm text-secondary ml-1">ms</span>
+                    </div>
+                    <div class="mt-2 h-1 bg-slate-200 rounded-full overflow-hidden">
+                        <div class="h-full bg-success rounded-full"
+                             th:style="'width:' + ${smartListTime / (arrayListTime + linkedListTime + smartListTime) * 100} + '%'"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-slate-100">
+                <div class="flex items-center text-sm text-secondary">
+                    <i class="fa fa-info-circle mr-2"></i>
+                    <span>数据越小表示性能越好（单位：毫秒）</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：图表和分析 -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- 图表卡片 -->
+            <div class="bg-white rounded-xl p-6 card-shadow">
+                <div class="flex items-center mb-6">
+                    <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mr-3">
+                        <i class="fa fa-bar-chart text-primary"></i>
+                    </div>
+                    <h2 class="text-xl font-semibold text-dark">性能对比</h2>
+                </div>
+
+                <div class="h-80">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 分析卡片 -->
+            <div class="bg-white rounded-xl p-6 card-shadow">
+                <div class="flex items-center mb-4">
+                    <div class="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center mr-3">
+                        <i class="fa fa-lightbulb-o text-success"></i>
+                    </div>
+                    <h2 class="text-xl font-semibold text-dark">性能分析</h2>
+                </div>
+
+                <div class="space-y-4">
+                    <p class="text-secondary">基于测试数据，以下是三种集合类型的性能分析：</p>
+
+                    <div th:if="${smartListTime < arrayListTime and smartListTime < linkedListTime}"
+                         class="p-4 rounded-lg bg-success/5 border border-success/20">
+                        <div class="flex items-start">
+                            <div class="text-success mr-3 mt-1">
+                                <i class="fa fa-trophy text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-dark mb-1">🏆 SmartList 性能最优</h3>
+                                <p class="text-secondary">自定义实现在此场景下表现出色，显著优于标准集合实现。这可能是因为其针对特定使用模式进行了优化。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div th:if="${arrayListTime < linkedListTime and arrayListTime <= smartListTime}"
+                         class="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                        <div class="flex items-start">
+                            <div class="text-primary mr-3 mt-1">
+                                <i class="fa fa-check-circle text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-dark mb-1">📊 ArrayList 性能优秀</h3>
+                                <p class="text-secondary">ArrayList 在顺序插入场景下表现出优秀的性能，这得益于其基于数组的实现方式和高效的随机访问特性。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div th:if="${linkedListTime < arrayListTime and linkedListTime <= smartListTime}"
+                         class="p-4 rounded-lg bg-warning/5 border border-warning/20">
+                        <div class="flex items-start">
+                            <div class="text-warning mr-3 mt-1">
+                                <i class="fa fa-star-half-o text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-dark mb-1">🔗 LinkedList 表现良好</h3>
+                                <p class="text-secondary">LinkedList 在此测试中表现良好，尤其在特定插入模式下可能具有优势，这与其链表结构特性有关。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 rounded-lg bg-slate-50 border border-slate-100">
+                        <h3 class="font-semibold text-dark mb-2">💡 技术要点</h3>
+                        <ul class="space-y-2 text-secondary">
+                            <li class="flex items-start">
+                                <i class="fa fa-angle-right text-primary mr-2 mt-1"></i>
+                                <span>ArrayList 基于动态数组实现，随机访问快，但中间插入/删除慢</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa fa-angle-right text-warning mr-2 mt-1"></i>
+                                <span>LinkedList 基于双向链表实现，插入/删除快，但随机访问慢</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa fa-angle-right text-success mr-2 mt-1"></i>
+                                <span>SmartList 可能结合了两种结构的优点，在特定场景下表现更优</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="mt-10 text-center text-secondary text-sm">
+        <p>© 2025 性能测试系统 | 使用 Spring Boot 与 Thymeleaf 构建</p>
+    </footer>
+</div>
+
+<div id="performanceData"
+     data-array-list-time="${arrayListTime}"
+     data-linked-list-time="${linkedListTime}"
+     data-smart-list-time="${smartListTime}"
+     style="display:none;"></div>
+
+<!-- JavaScript -->
+<script th:inline="javascript">
+    // 等待页面加载完成
+    document.addEventListener('DOMContentLoaded', function() {
+        // 获取性能数据
+        const arrayListTime = /*[[${arrayListTime}]]*/ 0;
+        const linkedListTime = /*[[${linkedListTime}]]*/ 0;
+        const smartListTime = /*[[${smartListTime}]]*/ 0;
+
+        // 计算性能评分 (值越小性能越好，这里反转一下用于颜色渐变)
+        const maxTime = Math.max(arrayListTime, linkedListTime, smartListTime);
+        const arrayListScore = 1 - (arrayListTime / maxTime);
+        const linkedListScore = 1 - (linkedListTime / maxTime);
+        const smartListScore = 1 - (smartListTime / maxTime);
+
+        // 创建图表
+        const ctx = document.getElementById('performanceChart').getContext('2d');
+
+        // 定义渐变背景
+        const arrayListGradient = ctx.createLinearGradient(0, 0, 0, 400);
+        arrayListGradient.addColorStop(0, 'rgba(22, 93, 255, 0.8)');
+        arrayListGradient.addColorStop(1, 'rgba(22, 93, 255, 0.2)');
+
+        const linkedListGradient = ctx.createLinearGradient(0, 0, 0, 400);
+        linkedListGradient.addColorStop(0, 'rgba(255, 125, 0, 0.8)');
+        linkedListGradient.addColorStop(1, 'rgba(255, 125, 0, 0.2)');
+
+        const smartListGradient = ctx.createLinearGradient(0, 0, 0, 400);
+        smartListGradient.addColorStop(0, 'rgba(0, 180, 42, 0.8)');
+        smartListGradient.addColorStop(1, 'rgba(0, 180, 42, 0.2)');
+
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['ArrayList', 'LinkedList', 'SmartList'],
+                datasets: [{
+                    label: '插入耗时 (ms)',
+                    data: [arrayListTime, linkedListTime, smartListTime],
+                    backgroundColor: [
+                        arrayListGradient,
+                        linkedListGradient,
+                        smartListGradient
+                    ],
+                    borderColor: [
+                        'rgba(22, 93, 255, 1)',
+                        'rgba(255, 125, 0, 1)',
+                        'rgba(0, 180, 42, 1)'
+                    ],
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    barThickness: 40,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        titleColor: '#1D2129',
+                        bodyColor: '#4E5969',
+                        borderColor: 'rgba(22, 93, 255, 0.1)',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 8,
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+                        usePointStyle: true,
+                        callbacks: {
+                            label: function(context) {
+                                return `耗时: ${context.raw} ms`;
+                            },
+                            title: function(context) {
+                                return context[0].label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#86909C',
+                            padding: 10
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#4E5969',
+                            padding: 10
+                        }
+                    }
+                },
+                animation: {
+                    duration: 1500,
+                    easing: 'easeOutQuart'
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                elements: {
+                    bar: {
+                        hoverBackgroundColor: [
+                            'rgba(22, 93, 255, 0.9)',
+                            'rgba(255, 125, 0, 0.9)',
+                            'rgba(0, 180, 42, 0.9)'
+                        ]
+                    }
+                }
+            }
+        });
+
+        // 添加悬停效果到结果卡片
+        const resultItems = document.querySelectorAll('.bg-slate-50');
+        resultItems.forEach(item => {
+            item.addEventListener('mouseenter', () => {
+                item.classList.add('shadow-md');
+                item.style.transform = 'translateY(-5px)';
+            });
+
+            item.addEventListener('mouseleave', () => {
+                item.classList.remove('shadow-md');
+                item.style.transform = 'translateY(0)';
+            });
+        });
+    });
+</script>
+</body>
+</html>

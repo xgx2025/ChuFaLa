@@ -6,13 +6,15 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class PayRecord {
     private Long id;
+    @TableField(value = "user_id")
+    private Long userId;
     @TableField(value = "order_id")
     private Long orderId;
     @TableField(value = "biz_type")
@@ -20,9 +22,9 @@ public class PayRecord {
     private String status;
     private Double money;
     @TableField(value = "trade_no")
-    private Long tradeNo;
+    private String tradeNo;
     @TableField(value = "pay_time")
-    private LocalDate payTime;
+    private LocalDateTime payTime;
 
 
 }

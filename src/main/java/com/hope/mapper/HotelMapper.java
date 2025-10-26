@@ -2,11 +2,14 @@ package com.hope.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hope.domain.entity.Hotel;
+import com.hope.domain.vo.HotelInfo;
 import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.MapKey;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 
 @Mapper
 public interface HotelMapper extends BaseMapper<Hotel> {
@@ -29,11 +32,11 @@ public interface HotelMapper extends BaseMapper<Hotel> {
     );
 
     // 游标分页：按评分排序（基于上一页最后一条数据）
-    List<Hotel> selectByScoreRankCursor(
-            @Param("lastAvgScore") Double lastAvgScore,
-            @Param("lastHotelId") Long lastHotelId,
-            @Param("size") Integer size
-    );
+//    List<Hotel> selectByScoreRankCursor(
+//            @Param("lastAvgScore") Double lastAvgScore,
+//            @Param("lastHotelId") Long lastHotelId,
+//            @Param("size") Integer size
+//    );
 
     // 更新酒店评分和评论数
     void updateScoreAndCount(
@@ -48,4 +51,8 @@ public interface HotelMapper extends BaseMapper<Hotel> {
     Long countTotalByCondition(Integer stars, String city, Double maxPrice, Double minPrice, List<String> facilities);
 
     List<String> findHotelImage(Long hotelId);
+//    @MapKey("hotelId")
+    Map<String,String>  findHotelNameAndAddress(Long hotelId);
+
+    List<HotelInfo> findHotelByCity(String city);
 }

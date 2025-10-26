@@ -22,4 +22,6 @@ public interface IUserService {
     User getUserById(Long id);
 
     Result register(RegisterFormDTO registerFormDTO);
+
+    boolean isVip(Long userId);
 }

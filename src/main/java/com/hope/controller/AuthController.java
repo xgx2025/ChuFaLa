@@ -71,9 +71,7 @@ public class AuthController {
             map.put("status",claims.get("status"));
             String newAccessToken = JwtTokenUtil.generateAccessToken(map);
             String newRefreshToken = JwtTokenUtil.generateRefreshToken(map);
-            Map<String,Object> result = new HashMap<>();
-            result.put("accessToken",newAccessToken);
-            result.put("refreshToken",newRefreshToken);
+            Map<String,Object> result = Map.of("accessToken",newAccessToken,"refreshToken",newRefreshToken);
             return Result.ok(result);
         }catch (Exception e){
             response.setStatus(401);
