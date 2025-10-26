@@ -268,6 +268,7 @@ public class HotelServiceImpl implements IHotelService {
     }
 
 
+
     // 删除与该酒店相关的所有缓存（简化实现：实际可按前缀批量删除）
     private void deleteRelatedCache(Long hotelId) {
         // 实际项目中可通过Redis的KEYS命令模糊匹配删除，这里简化逻辑
