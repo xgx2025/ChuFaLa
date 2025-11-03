@@ -33,7 +33,7 @@ public class EmailVerificationCodeUtil {
     private static final String SMTP_HOST = "smtp.qq.com";
     private static final String SMTP_PORT = "465";
     private static final String SMTP_USER = "3757549181@qq.com";
-    private static final String SMTP_PASSWORD = "plcbcdatallvdcbe"; // QQ邮箱授权码
+    private static final String SMTP_PASSWORD = "your-key"; // QQ邮箱授权码
     private static final String SENDER_NAME = "出发啦";
 
     private final StringRedisTemplate stringRedisTemplate;
