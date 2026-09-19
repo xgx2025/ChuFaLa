@@ -38,6 +38,8 @@ public class AlipayServiceImpl implements IAlipayService {
     private PayRecordMapper payRecordMapper;
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private EmailUtils emailUtils;
 
     @Autowired
     @Qualifier("mailExecutor")
@@ -114,7 +116,7 @@ public class AlipayServiceImpl implements IAlipayService {
                 Long userId = latestRecord.getUserId();
                 String email = userMapper.findEmailById(userId);
                 if (email != null && !email.isEmpty()) {
-                    EmailUtils.sendEmail(email, "【出发啦】订单通知",  "您已成功订购"+ "，" + subject+"，订单号：" + orderId+"，您可以前往【出发啦】网站的订单中心查看详情。祝您旅途开心！\uD83E\uDD17");
+                    emailUtils.sendEmail(email, "【出发啦】订单通知",  "您已成功订购"+ "，" + subject+"，订单号：" + orderId+"，您可以前往【出发啦】网站的订单中心查看详情。祝您旅途开心！\uD83E\uDD17");
 
                 }
             } catch (Exception e) {

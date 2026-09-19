@@ -123,6 +123,15 @@ aliyun:
     accessKeySecret: ${ALIYUN_OSS_ACCESS_KEY_SECRET}
     bucketName: chufala
 
+# 邮箱（注册验证码 + 订单通知）
+email:
+  smtp:
+    host: smtp.qq.com
+    port: 465
+    user: ${SMTP_USER}         # QQ 邮箱账号
+    password: ${SMTP_PASSWORD} # QQ 邮箱 SMTP 授权码
+    sender-name: 出发啦         # 发件人显示名
+
 # 大模型
 llm:
   api-key: ${DOUBAO_API_KEY}

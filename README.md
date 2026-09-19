@@ -27,6 +27,7 @@ cp chufala-temp/src/main/resources/mcp-servers-config.json.example chufala-temp/
 ### 2. 设置环境变量
 
 所有敏感值都通过环境变量注入，源码与配置模板中不含任何真实凭据。
+也可以直接把真实值写进本地 `application.yml`（该文件已被 `.gitignore` 排除），效果等同。
 
 | 变量名 | 用途 |
 | --- | --- |
@@ -43,7 +44,7 @@ cp chufala-temp/src/main/resources/mcp-servers-config.json.example chufala-temp/
 | `DEEPSEEK_API_KEY` | DeepSeek API Key |
 | `DOUBAO_API_KEY` | 豆包 API Key |
 | `AMAP_MAPS_API_KEY` | 高德地图 MCP Key |
-| `SMTP_USER` / `SMTP_PASSWORD` | QQ 邮箱账号与 SMTP 授权码 |
+| `SMTP_USER` / `SMTP_PASSWORD` | QQ 邮箱账号与 SMTP 授权码（对应 `email.smtp.user` / `email.smtp.password`） |
 | `JWT_ACCESS_TOKEN_SECRET` / `JWT_REFRESH_TOKEN_SECRET` | JWT 签名密钥 |
 | `PRICE_SIGN_SECRET_KEY` | 价格签名 HMAC 密钥 |
 | `URL_SIGN_SECRET_KEY` | URL 签名 HMAC 密钥 |

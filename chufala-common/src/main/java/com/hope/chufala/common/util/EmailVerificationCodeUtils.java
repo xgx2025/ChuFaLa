@@ -6,6 +6,7 @@ import javax.mail.internet.MimeMessage;
 
 import com.hope.chufala.common.exception.user.VerifyCodeTooFrequentException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import javax.mail.Authenticator;
@@ -33,25 +34,21 @@ public class EmailVerificationCodeUtils {
     // 发送间隔限制（秒）- 防止频繁发送
     private static final long SEND_INTERVAL_SECONDS = 60;
 
-    // 邮件服务器配置
-    private static final String SMTP_HOST = "smtp.qq.com";
-    private static final String SMTP_PORT = "465";
-    // 邮箱账号与授权码通过环境变量注入，不再硬编码在源码中
-    private static final String SMTP_USER = requireEnv("SMTP_USER");
-    private static final String SMTP_PASSWORD = requireEnv("SMTP_PASSWORD"); // QQ邮箱授权码
-    private static final String SENDER_NAME = "出发啦";
+    // ===== 邮件服务器配置（来自 application.yml 的 email.smtp.*）=====
+    @Value("${email.smtp.host:smtp.qq.com}")
+    private String smtpHost;
 
-    /**
-     * 读取必需的环境变量，缺失时立即失败，避免回退到硬编码凭据
-     */
-    private static String requireEnv(String name) {
-        String value = System.getenv(name);
-        if (value == null || value.trim().isEmpty()) {
-            throw new IllegalStateException(
-                    "缺少必需的环境变量 [" + name + "]，请参考 README 配置后重试");
-        }
-        return value;
-    }
+    @Value("${email.smtp.port:465}")
+    private String smtpPort;
+
+    @Value("${email.smtp.user}")
+    private String smtpUser;
+
+    @Value("${email.smtp.password}")
+    private String smtpPassword; // QQ邮箱授权码
+
+    @Value("${email.smtp.sender-name:出发啦}")
+    private String senderName;
 
     private final StringRedisTemplate stringRedisTemplate;
 
@@ -162,8 +159,8 @@ public class EmailVerificationCodeUtils {
         // 配置邮件服务器
         Properties props = new Properties();
         props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.host", SMTP_HOST);
-        props.put("mail.smtp.port", SMTP_PORT);
+        props.put("mail.smtp.host", smtpHost);
+        props.put("mail.smtp.port", smtpPort);
         props.put("mail.smtp.ssl.enable", "true");
         props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
         props.put("mail.smtp.ssl.protocols", "TLSv1.2");
@@ -173,16 +170,16 @@ public class EmailVerificationCodeUtils {
         Session session = Session.getInstance(props, new Authenticator() {
             @Override
             protected PasswordAuthentication getPasswordAuthentication() {
-                return new PasswordAuthentication(SMTP_USER, SMTP_PASSWORD);
+                return new PasswordAuthentication(smtpUser, smtpPassword);
             }
         });
         session.setDebug(false); // 生产环境关闭调试
 
         // 创建邮件消息
        MimeMessage message = new MimeMessage(session);
-        message.setFrom(new InternetAddress(SMTP_USER, SENDER_NAME, "UTF-8"));
+        message.setFrom(new InternetAddress(smtpUser, senderName, "UTF-8"));
         message.setRecipient(MimeMessage.RecipientType.TO, new InternetAddress(toEmail));
-        message.setSubject(SENDER_NAME + "验证码", "UTF-8");
+        message.setSubject(senderName + "验证码", "UTF-8");
         message.setSentDate(new java.util.Date());
 
         // 邮件内容
@@ -190,7 +187,7 @@ public class EmailVerificationCodeUtils {
                 "【%s】您的验证码是：<strong>%s</strong><br/>" +
                         "该验证码10分钟内有效，请尽快完成验证。<br/>" +
                         "如非本人操作，请忽略此邮件。",
-                SENDER_NAME, code
+                senderName, code
         );
         message.setContent(content, "text/html;charset=UTF-8");
 
