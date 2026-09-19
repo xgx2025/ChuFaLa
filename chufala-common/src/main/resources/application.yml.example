@@ -28,3 +28,7 @@ jwt:
 # 业务签名密钥
 sign:
   price-secret-key: ${PRICE_SIGN_SECRET_KEY}
+
+# 高德地图（MCP 工具调用）
+amap:
+  api-key: ${AMAP_MAPS_API_KEY}
