@@ -1,6 +1,6 @@
 package com.hope.chufala.service.impl;
 
-import cn.hutool.crypto.SecureUtil;
+import cn.hutool.crypto.digest.BCrypt;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.hope.chufala.common.exception.user.*;
@@ -28,20 +28,33 @@ public class UserServiceImpl implements IUserService {
     private EmailVerificationCodeUtils emailVerificationCodeUtils;
     @Autowired
     private AliOSSUtils aliOSSUtils;
-    private String salt = "hope";
 
     @Override
     public User login(String email, String password) {
-        QueryWrapper<User> qw = new QueryWrapper<>();
-        String passwordWithSalt= salt + password;
-        String passwordEncrypt = SecureUtil.md5(passwordWithSalt);
-        qw.eq("email", email).eq("password", passwordEncrypt);
-        User user = userMapper.selectOne(qw);
-        if (user == null){
+        User user = userMapper.selectOne(new QueryWrapper<User>().eq("email", email));
+        // 用户不存在与密码错误返回同一提示，避免暴露某个邮箱是否已注册
+        if (user == null || !matches(password, user.getPassword())) {
             log.warn("用户名密码错误，用户邮箱（IP）:{}", email);
             throw new InvalidLoginException("用户名或密码错误");
         }
         return user;
+    }
+
+    /**
+     * 校验明文密码与库中哈希是否匹配。
+     * 兼容历史数据：早期用 MD5(固定盐 + 密码) 存储，格式不是 BCrypt，
+     * 此时直接判定为不匹配，避免解析异常穿透成 500。
+     */
+    private boolean matches(String rawPassword, String storedHash) {
+        if (storedHash == null || storedHash.isEmpty()) {
+            return false;
+        }
+        try {
+            return BCrypt.checkpw(rawPassword, storedHash);
+        } catch (IllegalArgumentException e) {
+            log.warn("库中密码哈希格式无法识别（可能是历史 MD5 数据），已按不匹配处理");
+            return false;
+        }
     }
 
     @Override
@@ -67,9 +80,8 @@ public class UserServiceImpl implements IUserService {
         }
         Long id = SnowFlakeUtils.nextId();
         user.setId(id);
-        String passwordWithSalt= salt + user.getPassword();
-        String passwordEncrypt = SecureUtil.md5(passwordWithSalt);
-        user.setPassword(passwordEncrypt);
+        // BCrypt 自带随机盐，盐随哈希一起存储，无需再用全局固定盐
+        user.setPassword(BCrypt.hashpw(user.getPassword()));
         user.setAvatar("https://chufala.oss-cn-shenzhen.aliyuncs.com/43e4927a-4a9c-4dbc-82cc-82a51f85f6bf.jpg");    //默认头像
         try {
             userMapper.insert(user);
