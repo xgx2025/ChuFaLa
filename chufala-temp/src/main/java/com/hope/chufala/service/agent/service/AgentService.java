@@ -50,6 +50,12 @@ public class AgentService {
         LocalDateTime createTime = LocalDateTime.now();
         long startTime = System.currentTimeMillis();
         AgentTask task = taskQueue.getTask(taskId);
+        if (task == null) {
+            // 任务不存在或已被清理，直接失败退出，避免后续 task.getUserPlan() 抛 NPE
+            log.error("任务不存在或已过期，taskId={}", taskId);
+            sseManager.sendProgress(taskId, "failed", "任务不存在或已过期");
+            return;
+        }
         UserPlanDTO userPlan = task.getUserPlan();
         try {
            var graph = new StateGraph<TravelPlanState>(TravelPlanState.SCHEMA, TravelPlanState::new)
