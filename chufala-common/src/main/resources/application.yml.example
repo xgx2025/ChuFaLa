@@ -1,0 +1,12 @@
+# =====================================================================
+# 配置模板：请复制为 application.yml 后填入真实值
+#   cp application.yml.example application.yml
+# 真实 application.yml 已被 .gitignore 排除，不会进入版本库。
+# =====================================================================
+
+aliyun:
+  oss:
+    endpoint: https://oss-cn-shenzhen.aliyuncs.com
+    accessKeyId: ${ALIYUN_OSS_ACCESS_KEY_ID}
+    accessKeySecret: ${ALIYUN_OSS_ACCESS_KEY_SECRET}
+    bucketName: chufala

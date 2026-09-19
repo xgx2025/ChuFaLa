@@ -1,0 +1,15 @@
+{
+  "_comment": "配置模板：请复制为 mcp-servers-config.json 后填入真实 Key。真实文件已被 .gitignore 排除。",
+  "mcpServers": {
+    "amap-maps": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@amap/amap-maps-mcp-server"
+      ],
+      "env": {
+        "AMAP_MAPS_API_KEY": "${AMAP_MAPS_API_KEY}"
+      }
+    }
+  }
+}

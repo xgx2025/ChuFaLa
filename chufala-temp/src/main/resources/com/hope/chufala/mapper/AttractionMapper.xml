@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hope.chufala.mapper.AttractionMapper">
+    <select id="selectAttractionPage" resultType="com.hope.chufala.domain.entity.Attraction">
+        SELECT id,name,city,country,address,open_time,adult_ticket_price,child_ticket_price,
+        longitude,latitude,phone,description,stars,rating,tags,ai.image AS mainImage
+        FROM attraction
+        LEFT JOIN attraction_image AS ai
+        ON ai.attraction_id = id AND ai.sort_order = 1
+        <where>
+            <!-- 1. 关键词搜索 -->
+            <if test="keyword != null and keyword != ''">
+              (name LIKE CONCAT('%', #{keyword}, '%')
+                OR city LIKE CONCAT('%', #{keyword}, '%')
+                OR country LIKE CONCAT('%', #{keyword}, '%')
+                OR address LIKE CONCAT('%', #{keyword}, '%')
+                OR description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <!-- 2. 城市筛选 -->
+            <if test="city != null and city != ''">
+              AND  city = #{city}
+            </if>
+            <!-- 3. 标签筛选 -->
+            <if test="tags != null and tags.size() > 0">
+               AND (
+                <foreach collection="tags" item="tag" separator="OR">
+                    FIND_IN_SET(#{tag}, tags) > 0
+                </foreach>
+                )
+            </if>
+            <!-- 4. 星级筛选 -->
+            <if test="stars != null">
+               AND stars = #{stars}
+            </if>
+        </where>
+        ORDER BY rating DESC, id DESC
+        <!-- 可以添加排序条件，例如： -->
+        <!-- ORDER BY a.rating DESC, a.id DESC -->
+        <!-- ========== 分页逻辑 ========== -->
+        <if test="offset != null and size != null">
+            LIMIT #{offset}, #{size}
+        </if>
+    </select>
+
+    <select id="selectAttractionCount" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM attraction
+        LEFT JOIN attraction_image AS ai
+        ON ai.attraction_id = id AND ai.sort_order = 1
+        <where>
+            <!-- 复用相同的查询条件 -->
+            <if test="keyword != null and keyword != ''">
+                (name LIKE CONCAT('%', #{keyword}, '%')
+                OR city LIKE CONCAT('%', #{keyword}, '%')
+                OR country LIKE CONCAT('%', #{keyword}, '%')
+                OR address LIKE CONCAT('%', #{keyword}, '%')
+                OR description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="city != null and city != ''">
+                AND city LIKE CONCAT(#{city},'%')
+            </if>
+            <if test="tags != null and tags.size() > 0">
+                AND (
+                <foreach collection="tags" item="tag" separator="OR">
+                    FIND_IN_SET(#{tag}, tags) > 0
+                </foreach>
+                )
+            </if>
+            <if test="stars != null">
+                AND stars = #{stars}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectAttractionByCity" resultType="com.hope.chufala.domain.vo.AttractionInfo">
+        SELECT id,name,city,address,open_time,adult_ticket_price AS price,stars,rating,tags,ai.image AS image
+        FROM attraction LEFT JOIN attraction_image AS ai ON  ai.attraction_id = id AND ai.sort_order = 1
+        <where>
+            <if test="city != null">AND city = #{city}</if>
+        </where>
+    </select>
+
+    <select id="findAttractionImage" resultType="java.lang.String">
+        SELECT image FROM attraction_image WHERE attraction_id = #{attractionId} ORDER BY sort_order ASC
+    </select>
+    <select id="selectAttractionSimpleByCity" resultType="com.hope.chufala.domain.vo.AttractionInfo">
+        SELECT id,name,address,open_time,stars,rating,tags
+        FROM attraction
+    </select>
+    <select id="queryAttractionNameById" resultType="java.lang.String">
+        SELECT name FROM attraction WHERE id = #{id}
+    </select>
+
+    <select id="queryAttractionPositionById" resultType="com.hope.chufala.domain.entity.Point">
+        SELECT longitude,latitude FROM attraction WHERE id = #{id}
+    </select>
+    <select id="queryAttractionInfoById" resultType="com.hope.chufala.domain.vo.AttractionInfo">
+        SELECT id,name,city,address,description,open_time,adult_ticket_price AS price,rating,tags,ai.image AS image
+        FROM attraction LEFT JOIN attraction_image AS ai ON  ai.attraction_id = id AND ai.sort_order = 1
+        WHERE id = #{id}
+    </select>
+
+</mapper>

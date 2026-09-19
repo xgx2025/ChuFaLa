@@ -2,17 +2,27 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.hope.chufala</groupId>
+    <artifactId>chufala</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.5.5</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>com.hope</groupId>
-    <artifactId>chufala</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <name>ChuFaLa</name>
-    <description>ChuFaLa</description>
+
+    <!-- 子模块列表 -->
+    <modules>
+        <module>chufala-common</module>
+        <module>chufala-temp</module>
+    </modules>
+
+
+
     <url/>
     <licenses>
         <license/>
@@ -27,9 +37,26 @@
         <url/>
     </scm>
 
+    <!-- 统一管理所有依赖版本（子模块直接用，无需写版本号） -->
     <properties>
         <java.version>17</java.version>
         <spring-ai.version>1.0.2</spring-ai.version>
+        <langgraph4j.version>1.7.4</langgraph4j.version>
+        <kaptcha.version>2.3.2</kaptcha.version>
+        <aliyun-sdk-oss.version>3.17.4</aliyun-sdk-oss.version>
+        <alipay-easysdk.version>2.2.0</alipay-easysdk.version>
+        <alipay-sdk-java.version>4.9.28.ALL</alipay-sdk-java.version>
+        <commons-email.version>1.4</commons-email.version>
+        <commons-codec.version>1.11</commons-codec.version>
+        <jjwt.version>0.9.1</jjwt.version>
+        <hutool.all.version>5.7.20</hutool.all.version>
+        <mybatis-plus.version>3.5.12</mybatis-plus.version>
+        <mybatis-plus-join.version>1.5.4</mybatis-plus-join.version>
+        <druid.version>1.2.21</druid.version>
+        <jaxb-api.version>2.3.1</jaxb-api.version>
+        <activation.version>1.1.1</activation.version>
+        <jaxb-runtime.version>2.3.3</jaxb-runtime.version>
+        <dashscope.version>1.1.2.0</dashscope.version>
     </properties>
 
     <dependencyManagement>
@@ -66,6 +93,46 @@
     </repositories>
 
     <dependencies>
+        <!-- DashScope 依赖 -->
+        <dependency>
+            <groupId>com.alibaba.cloud.ai</groupId>
+            <artifactId>spring-ai-alibaba-starter-dashscope</artifactId>
+            <version>${dashscope.version}</version>
+        </dependency>
+        <!--Milvus 依赖-->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-vector-store-milvus</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-milvus-store</artifactId>
+        </dependency>
+        <!--Advisor向量存储 依赖-->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-advisors-vector-store</artifactId>
+        </dependency>
+        <!--LangGraph4j-->
+        <dependency>
+            <groupId>org.bsc.langgraph4j</groupId>
+            <artifactId>langgraph4j-core</artifactId>
+            <version>${langgraph4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.bsc.langgraph4j</groupId>
+            <artifactId>langgraph4j-spring-ai</artifactId>
+            <version>${langgraph4j.version}</version>
+        </dependency>
+
+        <!--RabbitMQ依赖-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
+        <!--thymeleaf模板引擎依赖 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
@@ -73,21 +140,31 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-mcp-client</artifactId>
-            <version>1.0.2</version>
+            <version>${spring-ai.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-mcp-client-webflux</artifactId>
-            <version>1.0.2</version>
+            <version>${spring-ai.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-client-chat</artifactId>
         </dependency>
-        <!-- 智普清言-->
+        <!-- 智普清言 -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-model-zhipuai</artifactId>
+        </dependency>
+        <!-- OpenAI -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-openai</artifactId>
+        </dependency>
+        <!-- ollama -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-ollama</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>
@@ -96,21 +173,22 @@
 
 
 
-<!--        <dependency>-->
-<!--            <groupId>org.noear</groupId>-->
-<!--            <artifactId>solon-ai-mcp</artifactId>-->
-<!--            <version>3.3.2</version>-->
-<!--        </dependency>-->
+        <!-- kaptcha验证码 -->
+        <dependency>
+            <groupId>com.github.penggle</groupId>
+            <artifactId>kaptcha</artifactId>
+            <version>${kaptcha.version}</version>
+        </dependency>
         <!--阿里OSS存储-->
         <dependency>
             <groupId>com.aliyun.oss</groupId>
             <artifactId>aliyun-sdk-oss</artifactId>
-            <version>3.17.4</version>
+            <version>${aliyun-sdk-oss.version}</version>
         </dependency>
         <dependency>
             <groupId>javax.xml.bind</groupId>
             <artifactId>jaxb-api</artifactId>
-            <version>2.3.1</version>
+            <version>${jaxb-api.version}</version>
         </dependency>
         <dependency>
             <groupId>javax.activation</groupId>
@@ -121,19 +199,19 @@
         <dependency>
             <groupId>org.glassfish.jaxb</groupId>
             <artifactId>jaxb-runtime</artifactId>
-            <version>2.3.3</version>
+            <version>${jaxb-runtime.version}</version>
         </dependency>
         <!-- 支付宝easy-sdk -->
         <dependency>
             <groupId>com.alipay.sdk</groupId>
             <artifactId>alipay-easysdk</artifactId>
-            <version>2.2.0</version>
+            <version>${alipay-easysdk.version}</version>
         </dependency>
         <!--支付宝SDK核心依赖-->
         <dependency>
             <groupId>com.alipay.sdk</groupId>
             <artifactId>alipay-sdk-java</artifactId>
-            <version>4.9.28.ALL</version>
+            <version>${alipay-sdk-java.version}</version>
         </dependency>
 
 
@@ -141,7 +219,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-email</artifactId>
-            <version>1.4</version>
+            <version>${commons-email.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains</groupId>
@@ -152,13 +230,13 @@
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
-            <version>1.11</version>
+            <version>${commons-codec.version}</version>
         </dependency>
         <!-- JWT 相关依赖-->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt</artifactId>
-            <version>0.9.1</version>
+            <version>${jjwt.version}</version>
         </dependency>
         <!--  上面OSS已经配置了-->
         <!--        <dependency>-->
@@ -176,7 +254,7 @@
         <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
-            <version>5.7.20</version>
+            <version>${hutool.all.version}</version>
         </dependency>
         <!--lombok依赖-->
         <dependency>
@@ -188,25 +266,36 @@
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
-            <version>3.5.12</version>
+            <version>${mybatis-plus.version}</version>
         </dependency>
         <!--mybatis-plus-join-->
         <dependency>
             <groupId>com.github.yulichang</groupId>
             <artifactId>mybatis-plus-join-boot-starter</artifactId>
-            <version>1.5.4</version>
+            <version>${mybatis-plus-join.version}</version>
         </dependency>
         <!--分页查询插件-->
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-jsqlparser</artifactId>
-            <version>3.5.12</version>
+            <version>${mybatis-plus.version}</version>
         </dependency>
         <!--Druid数据源-->
         <dependency>
             <groupId>com.alibaba</groupId>
-            <artifactId>druid-spring-boot-starter</artifactId>
-            <version>1.2.21</version>
+            <artifactId>druid-spring-boot-3-starter</artifactId>
+            <version>${druid.version}</version>
+            <!-- 排除冲突的日志依赖 -->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-autoconfigure</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

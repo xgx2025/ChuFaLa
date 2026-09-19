@@ -59,5 +59,26 @@ build/
 hs_err_pid*
 replay_pid*
 
-# Ignore local config
-src/main/resources/application.yml
+# ===== 本地私有配置（含真实凭据，禁止提交）=====
+# 注意：必须使用 **/ 前缀，否则匹配不到多模块下的路径
+**/src/main/resources/application.yml
+**/src/main/resources/application-*.yml
+**/src/main/resources/application-*.properties
+**/src/main/resources/mcp-servers-config.json
+.env
+.env.*
+!.env.example
+
+# ===== 证书与私钥 =====
+*.pem
+*.key
+*.csr
+*.srl
+
+# ===== 运行日志目录 =====
+logs/
+
+# ===== 本地助手与个人文件 =====
+.workbuddy-ai/
+interview-prep/
+.trae/

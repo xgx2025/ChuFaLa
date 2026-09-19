@@ -1,0 +1,127 @@
+package com.hope.chufala.service.impl;
+
+import cn.hutool.crypto.SecureUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.hope.chufala.common.exception.user.*;
+import com.hope.chufala.common.util.AliOSSUtils;
+import com.hope.chufala.common.util.EmailVerificationCodeUtils;
+import com.hope.chufala.common.util.SnowFlakeUtils;
+import com.hope.chufala.domain.dto.RegisterFormDTO;
+import com.hope.chufala.domain.dto.UserUpdateFromDTO;
+import com.hope.chufala.domain.entity.User;
+import com.hope.chufala.mapper.UserMapper;
+import com.hope.chufala.service.IUserService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+
+@Slf4j
+@Service
+public class UserServiceImpl implements IUserService {
+    @Autowired
+    private UserMapper userMapper;
+    @Autowired
+    private EmailVerificationCodeUtils emailVerificationCodeUtils;
+    @Autowired
+    private AliOSSUtils aliOSSUtils;
+    private String salt = "hope";
+
+    @Override
+    public User login(String email, String password) {
+        QueryWrapper<User> qw = new QueryWrapper<>();
+        String passwordWithSalt= salt + password;
+        String passwordEncrypt = SecureUtil.md5(passwordWithSalt);
+        qw.eq("email", email).eq("password", passwordEncrypt);
+        User user = userMapper.selectOne(qw);
+        if (user == null){
+            log.warn("用户名密码错误，用户邮箱（IP）:{}", email);
+            throw new InvalidLoginException("用户名或密码错误");
+        }
+        return user;
+    }
+
+    @Override
+    public User getUserById(Long id) {
+        return userMapper.selectById(id);
+    }
+
+
+    @Override
+    public void register(RegisterFormDTO registerFormDTO,String userIP) {
+        User user = new User();
+        user.setUsername(registerFormDTO.getUsername());
+        user.setEmail(registerFormDTO.getEmail());
+        user.setPassword(registerFormDTO.getPassword());
+        boolean flag = emailVerificationCodeUtils.verifyCode(user.getEmail(), registerFormDTO.getVerifyCode());
+        if (!flag) {
+            log.warn("邮箱验证码错误，用户ip:{}",userIP);
+            throw new InvalidEmailCodeException("邮箱验证码错误");
+        }
+        if (userMapper.selectOne(new QueryWrapper<User>().eq("email", user.getEmail())) != null) {
+            log.warn("邮箱已存在，用户ip:{}",userIP);
+            throw new EmailAlreadyExistsException("该邮箱已存在");
+        }
+        Long id = SnowFlakeUtils.nextId();
+        user.setId(id);
+        String passwordWithSalt= salt + user.getPassword();
+        String passwordEncrypt = SecureUtil.md5(passwordWithSalt);
+        user.setPassword(passwordEncrypt);
+        user.setAvatar("https://chufala.oss-cn-shenzhen.aliyuncs.com/43e4927a-4a9c-4dbc-82cc-82a51f85f6bf.jpg");    //默认头像
+        try {
+            userMapper.insert(user);
+        } catch (Exception e) {
+            log.error("用户注册失败",e);
+            throw new RegistrationFailedException("用户注册失败,请稍后重试");
+        }
+    }
+
+    @Override
+    public boolean isVipUser(Long userId) {
+        return userMapper.selectOne(new QueryWrapper<User>().eq("id", userId).eq("vip", 1)) != null;
+    }
+
+    @Override
+    public String uploadAvatar(MultipartFile avatar) {
+        String url = null;
+        try {
+            if(avatar != null){
+                throw new UploadFailException("头像不能为空");
+            }
+            url = aliOSSUtils.upload(avatar);
+            if(url == null){
+                throw new UploadFailException("头像上传失败");
+            }
+        } catch (IOException e) {
+            throw new UploadFailException("头像上传失败"+e.getMessage());
+        }
+        return url;
+    }
+
+    @Override
+    public boolean updateById(UserUpdateFromDTO userUpdateFrom) {
+        UpdateWrapper<User> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", userUpdateFrom.getId()); 
+
+        if (userUpdateFrom.getUsername() != null) {
+            updateWrapper.set("username", userUpdateFrom.getUsername());
+        }
+        if (userUpdateFrom.getGender() != null) {
+            updateWrapper.set("gender", userUpdateFrom.getGender());
+        }
+        if (userUpdateFrom.getBio() != null) {
+            updateWrapper.set("bio", userUpdateFrom.getBio());
+        }
+        if (userUpdateFrom.getAvatar() != null) {
+            updateWrapper.set("avatar", userUpdateFrom.getAvatar());
+        }
+        if (userUpdateFrom.getBirthday() != null) {
+            updateWrapper.set("birthday", userUpdateFrom.getBirthday());
+        }
+
+        return userMapper.update(null, updateWrapper) > 0;
+    }
+}
