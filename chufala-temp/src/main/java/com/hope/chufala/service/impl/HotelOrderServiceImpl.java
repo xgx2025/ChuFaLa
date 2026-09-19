@@ -84,6 +84,7 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
 
         //扣减库存（与建单同处一个事务，任一失败一起回滚）
         SimpleRedisLock redisLock = new SimpleRedisLock("roomType:"+roomTypeId,stringRedisTemplate);
+        // 100 是锁的过期时间（秒），不是等待时长：拿不到锁立即失败，避免请求线程被长时间阻塞
         if (!redisLock.tryLock(100)){
             throw new RuntimeException("获取锁失败");
         }
