@@ -14,7 +14,7 @@
 		<groupId>com.hope.chufala</groupId>
 		<artifactId>chufala</artifactId>
 		<version>0.0.1-SNAPSHOT</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<relativePath>../pom.xml</relativePath>
 	</parent>
 
 	<url/>
