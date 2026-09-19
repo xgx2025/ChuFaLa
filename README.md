@@ -45,9 +45,9 @@ cp chufala-temp/src/main/resources/mcp-servers-config.json.example chufala-temp/
 | `DOUBAO_API_KEY` | 豆包 API Key |
 | `AMAP_MAPS_API_KEY` | 高德地图 MCP Key |
 | `SMTP_USER` / `SMTP_PASSWORD` | QQ 邮箱账号与 SMTP 授权码（对应 `email.smtp.user` / `email.smtp.password`） |
-| `JWT_ACCESS_TOKEN_SECRET` / `JWT_REFRESH_TOKEN_SECRET` | JWT 签名密钥 |
-| `PRICE_SIGN_SECRET_KEY` | 价格签名 HMAC 密钥 |
-| `URL_SIGN_SECRET_KEY` | URL 签名 HMAC 密钥 |
+| `JWT_ACCESS_TOKEN_SECRET` / `JWT_REFRESH_TOKEN_SECRET` | JWT 签名密钥（对应 `jwt.access-token-secret` / `jwt.refresh-token-secret`） |
+| `PRICE_SIGN_SECRET_KEY` | 价格签名 HMAC 密钥（对应 `sign.price-secret-key`） |
+| `URL_SIGN_SECRET_KEY` | URL 签名 HMAC 密钥（对应 `SignatureUrlUtils`，该类目前未被调用） |
 
 Windows（PowerShell）示例：
 

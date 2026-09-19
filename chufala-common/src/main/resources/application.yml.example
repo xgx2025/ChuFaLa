@@ -19,3 +19,12 @@ email:
     user: ${SMTP_USER}         # QQ 邮箱账号
     password: ${SMTP_PASSWORD} # QQ 邮箱 SMTP 授权码
     sender-name: 出发啦         # 发件人显示名
+
+# JWT 签名密钥
+jwt:
+  access-token-secret: ${JWT_ACCESS_TOKEN_SECRET}
+  refresh-token-secret: ${JWT_REFRESH_TOKEN_SECRET}
+
+# 业务签名密钥
+sign:
+  price-secret-key: ${PRICE_SIGN_SECRET_KEY}

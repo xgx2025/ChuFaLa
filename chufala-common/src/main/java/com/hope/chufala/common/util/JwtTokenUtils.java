@@ -4,65 +4,83 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
 import java.util.Date;
 import java.util.Map;
 
-
+/**
+ * JWT 工具
+ * 签名密钥统一由 application.yml 的 jwt.* 提供，不在源码中硬编码
+ */
+@Component
 public class JwtTokenUtils {
 
-    // Access Token密钥和过期时间(30分钟)
-    // 签名密钥通过环境变量注入，不再硬编码在源码中
-    public static final String ACCESS_TOKEN_SECRET = requireEnv("JWT_ACCESS_TOKEN_SECRET");
-    public static final long ACCESS_TOKEN_EXPIRE = 2 * 60 * 60 * 1000;
+    /** Access Token 签名密钥 */
+    @Value("${jwt.access-token-secret}")
+    private String accessTokenSecret;
 
+    /** Refresh Token 签名密钥 */
+    @Value("${jwt.refresh-token-secret}")
+    private String refreshTokenSecret;
 
+    // Access Token过期时间(2小时)
+    private static final long ACCESS_TOKEN_EXPIRE = 2 * 60 * 60 * 1000;
 
+    // Refresh Token过期时间(2天)
+    private static final long REFRESH_TOKEN_EXPIRE = 2 * 24 * 60 * 60 * 1000;
 
-    // Refresh Token密钥和过期时间(7天)
-    public static final String REFRESH_TOKEN_SECRET = requireEnv("JWT_REFRESH_TOKEN_SECRET");
-    public static final long REFRESH_TOKEN_EXPIRE = 2 * 24 * 60 * 60 * 1000;
-
-    /**
-     * 读取必需的环境变量，缺失时立即失败，避免回退到弱默认密钥
-     */
-    private static String requireEnv(String name) {
-        String value = System.getenv(name);
-        if (value == null || value.trim().isEmpty()) {
-            throw new IllegalStateException(
-                    "缺少必需的环境变量 [" + name + "]，请参考 README 配置后重试");
-        }
-        return value;
+    public String getAccessTokenSecret() {
+        return accessTokenSecret;
     }
 
+    public String getRefreshTokenSecret() {
+        return refreshTokenSecret;
+    }
 
     /**
      * 生成Access Token
      */
-    public static String generateAccessToken(Map<String, Object> claims) {
+    public String generateAccessToken(Map<String, Object> claims) {
         return Jwts.builder()
                 .setClaims(claims)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRE))
-                .signWith(SignatureAlgorithm.HS256, ACCESS_TOKEN_SECRET)
+                .signWith(SignatureAlgorithm.HS256, accessTokenSecret)
                 .compact();
     }
 
     /**
      * 生成Refresh Token
      */
-    public static String generateRefreshToken(Map<String, Object> claims) {
+    public String generateRefreshToken(Map<String, Object> claims) {
         return Jwts.builder()
                 .setClaims(claims)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + REFRESH_TOKEN_EXPIRE))
-                .signWith(SignatureAlgorithm.HS256, REFRESH_TOKEN_SECRET)
+                .signWith(SignatureAlgorithm.HS256, refreshTokenSecret)
                 .compact();
+    }
+
+    /**
+     * 解析Access Token
+     */
+    public Claims getClaimsFromAccessToken(String token) {
+        return getClaimsFromToken(token, accessTokenSecret);
+    }
+
+    /**
+     * 解析Refresh Token
+     */
+    public Claims getClaimsFromRefreshToken(String token) {
+        return getClaimsFromToken(token, refreshTokenSecret);
     }
 
     /**
      * 验证Token并获取claims
      */
-    public static Claims getClaimsFromToken(String token, String secret) {
+    public Claims getClaimsFromToken(String token, String secret) {
         return Jwts.parser()
                 .setSigningKey(secret)
                 .parseClaimsJws(token)
@@ -72,7 +90,7 @@ public class JwtTokenUtils {
     /**
      * 检查Token是否过期
      */
-    public static boolean isTokenExpired(String token, String secret) {
+    public boolean isTokenExpired(String token, String secret) {
         try {
             Claims claims = getClaimsFromToken(token, secret);
             Date expiration = claims.getExpiration();
@@ -85,6 +103,4 @@ public class JwtTokenUtils {
             throw new IllegalArgumentException("token验证失败: " + e.getMessage());
         }
     }
-
-
 }

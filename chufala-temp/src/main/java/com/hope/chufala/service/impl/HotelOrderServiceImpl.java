@@ -44,6 +44,8 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
     @Autowired
+    private SignaturePriceUtils signaturePriceUtils;
+    @Autowired
     private RabbitTemplate rabbitTemplate;
 
     @Override
@@ -63,12 +65,12 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
     @Override
     public String createHotelOrder(HotelOrderDTO hotelOrderDTO,Long userId) {
         //验证签名
-        boolean flag = SignaturePriceUtils.verifyPriceSignature(hotelOrderDTO.getRawData(),hotelOrderDTO.getSignature());
+        boolean flag = signaturePriceUtils.verifyPriceSignature(hotelOrderDTO.getRawData(),hotelOrderDTO.getSignature());
         //解析参数
         if (!flag){
            throw new InvalidSignatureException("签名验证失败---"+"用户ID:"+userId);
         }
-        Map<String,String> params = SignaturePriceUtils.parseParams(hotelOrderDTO.getRawData());
+        Map<String,String> params = signaturePriceUtils.parseParams(hotelOrderDTO.getRawData());
         Long roomTypeId = Long.valueOf(params.get("roomId"));
         Long hotelId = roomMapper.selectHotelIdByRoomTypeId(roomTypeId);
         int roomCount = Integer.parseInt(params.get("roomCount"));

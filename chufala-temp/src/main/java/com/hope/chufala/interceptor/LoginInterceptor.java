@@ -8,12 +8,17 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 @Slf4j
 @Component
 public class LoginInterceptor implements HandlerInterceptor {
+
+    @Autowired
+    private JwtTokenUtils jwtTokenUtils;
+
     @Override
     public boolean preHandle(HttpServletRequest request, @NotNull HttpServletResponse response, @NotNull Object handler) throws Exception {
         String fullPath = request.getRequestURI();
@@ -22,7 +27,7 @@ public class LoginInterceptor implements HandlerInterceptor {
         try{
             log.info("通过");
             String token =authorization.substring(7).trim();
-            Claims claims = JwtTokenUtils.getClaimsFromToken(token, JwtTokenUtils.ACCESS_TOKEN_SECRET);
+            Claims claims = jwtTokenUtils.getClaimsFromAccessToken(token);
             ThreadLocalUtils.set(claims);
             return true;
         }catch (Exception e){

@@ -15,6 +15,8 @@ public class RoomServiceImpl implements IRoomService {
 
     @Autowired
     private RoomMapper roomMapper;
+    @Autowired
+    private SignaturePriceUtils signaturePriceUtils;
 
     @Override
     public Double selectRoomPrice(Long roomTypeId) {
@@ -26,6 +28,6 @@ public class RoomServiceImpl implements IRoomService {
         Double price = roomMapper.selectRoomPrice(roomTypeId);
         long nightNum = ChronoUnit.DAYS.between(checkIn, checkOut);
         double totalPrice = price * nightNum * roomCount;
-        return SignaturePriceUtils.generatePriceWithSignature(roomTypeId.toString(), checkIn.toString(), checkOut.toString(),nightNum,roomCount, totalPrice);
+        return signaturePriceUtils.generatePriceWithSignature(roomTypeId.toString(), checkIn.toString(), checkOut.toString(),nightNum,roomCount, totalPrice);
     }
 }

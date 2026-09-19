@@ -25,14 +25,16 @@ public class AuthController {
     private IUserService userService;
     @Autowired
     private EmailVerificationCodeUtils emailVerificationCodeUtils;
+    @Autowired
+    private JwtTokenUtils jwtTokenUtils;
     @PostMapping("/login")
     public Result login(@RequestBody LoginFormDTO loginFormDTO) {
         User user = userService.login(loginFormDTO.getEmail(), loginFormDTO.getPassword());
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());
         claims.put("status", user.getStatus());
-        String accessToken = JwtTokenUtils.generateAccessToken(claims);
-        String refreshToken = JwtTokenUtils.generateRefreshToken(claims);
+        String accessToken = jwtTokenUtils.generateAccessToken(claims);
+        String refreshToken = jwtTokenUtils.generateRefreshToken(claims);
         Map<String,String> tokens = Map.of("accessToken",accessToken,"refreshToken",refreshToken);
         return Result.ok(tokens);
     }
@@ -56,12 +58,12 @@ public class AuthController {
         //TODO 校验刷新token是否在redis（或者数据库）白名单中
         String refreshToken = params.get("refreshToken");
         try {
-            Claims claims = JwtTokenUtils.getClaimsFromToken(refreshToken, JwtTokenUtils.REFRESH_TOKEN_SECRET);
+            Claims claims = jwtTokenUtils.getClaimsFromRefreshToken(refreshToken);
             Map<String,Object> map = new HashMap<>();
             map.put("userId",claims.get("userId"));
             map.put("status",claims.get("status"));
-            String newAccessToken = JwtTokenUtils.generateAccessToken(map);
-            String newRefreshToken = JwtTokenUtils.generateRefreshToken(map);
+            String newAccessToken = jwtTokenUtils.generateAccessToken(map);
+            String newRefreshToken = jwtTokenUtils.generateRefreshToken(map);
             Map<String,Object> result = Map.of("accessToken",newAccessToken,"refreshToken",newRefreshToken);
             return Result.ok(result);
         }catch (Exception e){
