@@ -65,8 +65,9 @@ public class AiServiceImpl implements IAiService {
     @Override
     public List<UploadedFile> getFilesByIds(List<String> fileIds) {
         List<UploadedFile> fileUrls = new ArrayList<>();
-        QueryWrapper<UploadedFile> queryWrapper = new QueryWrapper<>();
         for (String fileId : fileIds) {
+            // 每次循环新建 QueryWrapper，避免条件在多次查询之间累积
+            QueryWrapper<UploadedFile> queryWrapper = new QueryWrapper<>();
             queryWrapper.eq("id", Long.valueOf(fileId));
             UploadedFile uploadedFile = uploadedFileMapper.selectOne(queryWrapper);
             if (uploadedFile != null) {

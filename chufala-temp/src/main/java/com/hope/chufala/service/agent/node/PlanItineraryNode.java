@@ -43,7 +43,7 @@ public class PlanItineraryNode implements NodeAction<TravelPlanState> {
         UserPlanDTO userPlan = state.userPlan();
         List<String> preferences = userPlan.getPreferences();
         String preferenesStr =  "无";
-        if (preferences != null || !preferences.isEmpty()) {
+        if (preferences != null && !preferences.isEmpty()) {
             preferenesStr = preferences.toString();
         }
         String prompt = """

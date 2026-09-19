@@ -43,8 +43,8 @@ public class AgentService {
     @Autowired
     private IPlanHistoryService planHistoryService;
 
-    //异步执行任务
-    @Async
+    //异步执行任务（指定专用线程池，避免与发信等任务互相抢占线程）
+    @Async("planExecutor")
     public void planTravel(String taskId,Long userId){
         //获取开始执行的时间
         LocalDateTime createTime = LocalDateTime.now();
@@ -79,18 +79,8 @@ public class AgentService {
            if (result.isPresent()) {
                //获取规划完成时的时间
                long endTime = System.currentTimeMillis();
-               double costTime = endTime - startTime;
-               if(costTime > 100 && costTime < 1000){
-                   costTime = costTime / 1000;
-                   log.info("旅游规划完成，耗时 {} 秒", costTime);
-               }else if (costTime >= 1000){
-                   int costSeconds = (int) (costTime / 1000);
-                   costTime = costTime % 1000;
-                   costTime = costSeconds + costTime;
-                   log.info("旅游规划完成，耗时 {} 秒", costTime);
-               }else{
-                   log.info("旅游规划完成，耗时 {} 毫秒", costTime);
-               }
+               long costMillis = endTime - startTime;
+               log.info("旅游规划完成，耗时 {} 毫秒（约 {} 秒）", costMillis, String.format("%.2f", costMillis / 1000.0));
                //向用户推送旅游规划结果
                task.setResult(result.get().itinerarySkeleton());
                task.setStatus(TaskStatus.COMPLETED);

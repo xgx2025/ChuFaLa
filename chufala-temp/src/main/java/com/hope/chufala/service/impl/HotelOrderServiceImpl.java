@@ -25,6 +25,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -63,6 +65,7 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public String createHotelOrder(HotelOrderDTO hotelOrderDTO,Long userId) {
         //验证签名
         boolean flag = signaturePriceUtils.verifyPriceSignature(hotelOrderDTO.getRawData(),hotelOrderDTO.getSignature());
@@ -79,21 +82,19 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
         LocalDate checkIn = LocalDate.parse(params.get("checkIn"));
         LocalDate checkOut = LocalDate.parse(params.get("checkOut"));
 
-        //修改库存
+        //扣减库存（与建单同处一个事务，任一失败一起回滚）
         SimpleRedisLock redisLock = new SimpleRedisLock("roomType:"+roomTypeId,stringRedisTemplate);
-        boolean success = false;
-        try{
-            if (!redisLock.tryLock(100)){
-                throw new RuntimeException("获取锁失败");
-            }
-             success = roomMapper.updateStock(roomTypeId,roomCount);
-        }finally {
-            redisLock.unlock();
+        if (!redisLock.tryLock(100)){
+            throw new RuntimeException("获取锁失败");
         }
-        //创建订单
+        //锁必须在事务提交/回滚之后再释放。
+        //若在事务内提前释放，其他线程可立即拿到锁并读到尚未提交的旧库存。
+        registerUnlockAfterCompletion(redisLock);
+        boolean success = roomMapper.updateStock(roomTypeId,roomCount);
         if (!success){
            throw new RuntimeException("库存不足");
         }
+        //创建订单
         //在此处计算优惠金额或这在签名中计算
         Double discountPrice = 0.0;
         Long orderId = redisWorker.nextId("HotelOrder");
@@ -132,6 +133,18 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
         return String.valueOf(orderId);
     }
 
+    /**
+     * 在当前事务完成后（提交或回滚）释放 Redis 锁。
+     * afterCompletion 回调与事务在同一线程执行，锁的线程归属校验仍然成立。
+     */
+    private void registerUnlockAfterCompletion(SimpleRedisLock lock) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                lock.unlock();
+            }
+        });
+    }
 
     @Override
     public void updateStatus(Long orderId, String orderStatus) {

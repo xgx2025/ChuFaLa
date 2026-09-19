@@ -88,7 +88,7 @@ public class UserServiceImpl implements IUserService {
     public String uploadAvatar(MultipartFile avatar) {
         String url = null;
         try {
-            if(avatar != null){
+            if(avatar == null){
                 throw new UploadFailException("头像不能为空");
             }
             url = aliOSSUtils.upload(avatar);
