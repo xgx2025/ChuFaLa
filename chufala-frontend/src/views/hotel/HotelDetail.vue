@@ -212,12 +212,16 @@ const hotelData = ref({
 })
 
 // 搜索栏数据
-// const destination = ref('上海')
-// const checkIn = ref('09月14日')
-// const nightCount = ref(1)
-// const checkOut = ref('09月15日')
-// const roomGuest = ref('1-1')
-// const keyword = ref('')
+// 模板顶部搜索栏的 6 个 v-model 直接依赖这些 ref。
+// 它们此前被整段注释掉，导致每个 v-model 都绑定到未定义变量：
+// 输入框/日期选择器实际不可用，控制台刷 6 条
+// "Property xxx was accessed during render but is not defined on instance"。
+const destination = ref('')
+const checkIn = ref('')
+const nightCount = ref(1)
+const checkOut = ref('')
+const roomGuest = ref('1-1')
+const keyword = ref('')
 
 // 酒店基本信息
 const showMore = ref(false)
@@ -232,6 +236,10 @@ const fetchHotelDetail = async (id) => {
    
     const res = await getHotelDetailService(id)
     const data = res.data
+    // 后端在「酒店只有一张图」时可能返回 otherImages: null/undefined，
+    // 直接展开会抛 "otherImages is not iterable"。该异常会被下面的 catch 吞掉，
+    // 结果 hotelData 不赋值 → 整个详情页空白，且日志里只有一句 console.error。
+    const otherImages = Array.isArray(data.otherImages) ? data.otherImages : []
     hotelData.value = {
       name: data.name,
       price: data.price,
@@ -240,8 +248,9 @@ const fetchHotelDetail = async (id) => {
       address: data.address,
       openYear: data.openYear,
       mainImage: data.mainImage,
-      otherImages: data.otherImages,
-      allImages: [data.mainImage, ...data.otherImages],
+      otherImages,
+      // filter(Boolean) 同时兜住 mainImage 为空的情况，避免图集里混进 null
+      allImages: [data.mainImage, ...otherImages].filter(Boolean),
       facilities: data.facilities,
       roomList: data.roomList
     }

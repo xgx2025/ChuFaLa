@@ -23,11 +23,11 @@
             <span>2人入住</span>
             <span>1张1.8米大床</span>
             <span>无早餐</span>
-            <el-link type="text" @click="showMoreFacilities">显示更多设施</el-link>
+            <el-link @click="showMoreFacilities">显示更多设施</el-link>
           </p>
           <div class="policy">
             <p>订房必读</p>
-            <el-link type="text" @click="viewAllPolicy">查看全部</el-link>
+            <el-link @click="viewAllPolicy">查看全部</el-link>
             <p class="policy-desc">
               为贯彻落实《上海市生活垃圾管理条例》相关规定，推进生活垃圾源头减量，上海市文化和旅游局特制定《关于本市旅游住宿业不主动提供客房一次性日用品的实施意见》，2019年7月1日起，上海市旅游住宿业将不再主动提供牙刷、梳子、浴擦、剃须刀、指甲锉、鞋擦这些一次性日用品。若需要可咨询酒店。
             </p>
@@ -103,7 +103,7 @@
           <el-form-item label="特别要求（选填）">
             <div>
               <p class="special-request-desc">我们会将您的需求转达给酒店，但无法确保一定能够满足。</p>
-              <el-link type="text" @click="toggleSpecialRequest" style="color: var(--c-primary-600);">
+              <el-link @click="toggleSpecialRequest" style="color: var(--c-primary-600);">
                 {{ specialRequestExpanded ? '收起' : '展开' }}
               </el-link>
               <el-input
@@ -131,7 +131,7 @@
             <span style="font-size: 14px;">在线付 <span style="font-size: 24px; font-weight: bold; color: var(--c-primary-600);">¥{{ totalAmount }}</span></span>
             <el-button type="primary" size="large" @click="goToPay">立即预定</el-button>
           </div>
-          <el-link type="text" @click="changeSelection">
+          <el-link @click="changeSelection">
             <!-- 原为 <i class="el-icon-back">：el-icon-* 是 Element UI v2 的类名写法，
                  Element Plus 里图标是组件，这样写渲染为空 -->
             <el-icon><Back /></el-icon> 更改我的选择

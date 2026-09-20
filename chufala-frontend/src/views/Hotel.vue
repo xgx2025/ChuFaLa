@@ -406,8 +406,12 @@
         </div>
       </section>
     </main>
+
+    <!-- el-backtop 必须放在根节点**内部**，否则组件渲染成 Fragment 根，
+         Layout.vue 的 <transition mode="out-in"> 无法对其执行 leave 过渡，
+         离开本页后主内容区会永久空白（必须刷新才恢复）。 -->
+    <el-backtop :right="100" :bottom="100" />
   </div>
-  <el-backtop :right="100" :bottom="100" />
 </template>
 
 <script setup>

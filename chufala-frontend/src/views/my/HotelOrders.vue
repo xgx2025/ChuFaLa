@@ -62,9 +62,13 @@
       :total="total"
     >
     </el-pagination>
+
+    <!-- 支付表单容器。必须放在根节点**内部**：
+         与根 <div> 平级会让组件渲染成 Fragment 根，
+         破坏 Layout.vue 的 <transition mode="out-in"> 页面过渡。
+         用 getElementById 取用，层级变化不影响。 -->
+    <div id="alipay-form-container" style="display: none;"></div>
   </div>
-  <!-- 支付表单容器 -->
-  <div id="alipay-form-container" style="display: none;"></div>
 </template>
 
 <script setup>

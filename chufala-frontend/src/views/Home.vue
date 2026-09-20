@@ -8,7 +8,10 @@
       <section class="hero-section">
         <!-- 轮播图 -->
        <div class="hero-section__slides">
-          <el-carousel autoplay :interval="3000" indicator-position="bottom" arrow="hover" height="500px">
+          <!-- indicator-position 的合法值只有 "" / "none" / "outside"，
+               原写法 "bottom" 非法（会回落成默认值 ""，也就是"内部底部"，渲染效果一致），
+               但会在控制台刷 prop 校验警告。默认值即为所需效果，直接不传。 -->
+          <el-carousel autoplay :interval="3000" arrow="hover" height="500px">
             <el-carousel-item v-for="(slide, index) in slides" :key="index">
               <img
                 :src="slide.image"
@@ -476,8 +479,14 @@
         </div>
       </section>
     </div>
+
+    <!-- el-backtop 必须放在根节点**内部**。
+         它一旦与根 <div> 平级，组件就会渲染成 Fragment 根节点，
+         而 Layout.vue 的 <transition mode="out-in"> 无法对 Fragment 根
+         执行 leave 过渡，离开本页后主内容区会永久空白（必须刷新才恢复）。
+         el-backtop 是 position: fixed，放在这里不影响布局与定位。 -->
+    <el-backtop :right="100" :bottom="100" />
   </div>
-  <el-backtop :right="100" :bottom="100" />
 </template>
 
 <script setup>

@@ -30,8 +30,10 @@ export const bookRoomService = (params:any)=> {
     return request.post('/hotelOrders',params)
 }
 
-export const payOrderService = (params:any)=> { 
-    return request.get('/alipay/pay',{params:params,responseType: 'text' })
+// 支付。同 createPayService：拦截器对 text 响应直接返回字符串，
+// 用 get<string, string> 把真实返回类型标出来。
+export const payOrderService = (params:any): Promise<string> => { 
+    return request.get<string, string>('/alipay/pay',{params:params,responseType: 'text' })
 }
 
 export const getHotelOrderListService = (params:any)=> { 

@@ -69,9 +69,16 @@
             <el-checkbox v-model="rememberMe" class="remember-me" id="remember-me">
               <label for="remember-me">记住我</label>
             </el-checkbox>
-            <router-link to="/forgot-password" class="forgot-password" aria-label="忘记密码，前往找回">
+            <!-- 原为 <router-link to="/forgot-password">，但该路由不存在，
+                 点击会进空白页。改为就地提示（元素类型保持 <a> 以免影响样式）。 -->
+            <a
+              href="javascript:void(0)"
+              class="forgot-password"
+              aria-label="忘记密码"
+              @click="showForgotPasswordTip"
+            >
               忘记密码？
-            </router-link>
+            </a>
           </div>
           
           <el-form-item>
@@ -315,6 +322,10 @@ const loginFormRef = ref(null); // 表单引用
 const registerFormRef = ref(null); // 注册表单 ref
 const loginLoading = ref(false); // 登录按钮加载状态
 const registerLoading = ref(false);
+// 模板里 :loading="getVerifyCodeLoading" 引用了这个 ref，但此前从未声明，
+// 导致控制台刷 "Property getVerifyCodeLoading was accessed during render
+// but is not defined on instance"，且「获取验证码」按钮永远没有 loading 反馈
+const getVerifyCodeLoading = ref(false);
 const rememberMe = ref(true); // 记住我勾选状态
 const emailFocus = ref(false); // 邮箱输入框焦点状态
 const passwordFocus = ref(false); // 密码输入框焦点状态
@@ -342,11 +353,24 @@ const handleLogin = async () => {
   }
 };
 
-const getVerifyCode = () => {
-  getVerifyCodeService(registerForm.email).then(res => {
-  ElMessage.success("验证码已发送")
-  })
-
+// 获取注册验证码。
+// 原实现：无 loading 状态、无空邮箱校验、无 catch —— 按钮点了没反馈，
+// 邮箱为空时会发出无意义请求，接口失败还会产生未捕获的 Promise 拒绝。
+const getVerifyCode = async () => {
+  if (!registerForm.email) {
+    ElMessage.warning('请先填写邮箱')
+    return
+  }
+  if (getVerifyCodeLoading.value) return;
+  getVerifyCodeLoading.value = true;
+  try {
+    await getVerifyCodeService(registerForm.email)
+    ElMessage.success("验证码已发送")
+  } catch (error) {
+    // 失败提示由 utils/request.ts 的响应拦截器统一弹出，这里不重复提示
+  } finally {
+    getVerifyCodeLoading.value = false;
+  }
 };
 
 const handleRegister = async () => {
@@ -380,6 +404,15 @@ const switchToRegister = () => {
 const switchToLogin = () => {
   cleanRegisterForm();
   showRegisterForm.value = false;
+};
+
+// 密码找回
+// 项目没有对应的后端接口（api/user.ts 只有注册/登录/发验证码/用户信息），
+// 原先指向 /forgot-password，而路由表里根本没有这条路由 ——
+// 点击后 Vue Router 报 "No match found" 并渲染空白页。
+// 暂时改为给出明确提示，等后端补齐接口再接真实页面。
+const showForgotPasswordTip = () => {
+  ElMessage.info('密码找回功能暂未开放，请联系客服 400-123-4567');
 };
 </script>
 

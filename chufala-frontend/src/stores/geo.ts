@@ -96,7 +96,10 @@ export const useGeoStore = defineStore('geo', () => {
       console.log(`定位成功（GCJ-02）: ${gcjLng}, ${gcjLat}`)
     } catch (err) {
       errorMsg.value = (err as Error).message
-      console.error('定位失败:', err)
+      // 「用户拒绝授权 / 浏览器不支持定位」都是正常情况而不是程序缺陷，
+      // 用 console.error 会让每次进页面都刷一条红色报错，干扰真实问题的排查。
+      // 降级为 warn：errorMsg 目前没有任何 UI 消费，行为不变。
+      console.warn('定位未成功，已降级为手动选择城市：', errorMsg.value)
     } finally {
       isLoading.value = false
     }
@@ -114,6 +117,10 @@ export const useGeoStore = defineStore('geo', () => {
   persist: {
     key: 'geoInfo',
     storage: localStorage,
-    paths: ['lng','lat','cityName']
+    // ⚠️ 选项名是 pick，不是 paths。
+    // pinia-plugin-persistedstate v4 已把 paths 改名为 pick，
+    // 且运行时**完全不认** paths（dist 里 paths 出现 0 次）——
+    // 原写法被静默忽略，等于把整个 state（含 isLoading / errorMsg）都写进了 localStorage。
+    pick: ['lng', 'lat', 'cityName']
   }
 })

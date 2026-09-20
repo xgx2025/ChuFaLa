@@ -35,7 +35,10 @@
           <template v-if="userInfoStore.info.id">
             <el-dropdown placement="bottom-end" trigger="hover">
               <div class="header-nav__login-btn">
-                <el-avatar :src="userInfoStore.info.avatar" size="medium" class="user-avatar" />
+                <!-- size 的合法值只有 "" / "default" / "small" / "large"（或数字），
+                     原写法 "medium" 非法，实际渲染的是默认值 default（40px）。
+                     显式写成 default，行为不变但不再刷校验警告。 -->
+                <el-avatar :src="userInfoStore.info.avatar" size="default" class="user-avatar" />
                 <div class="user-info-wrapper">
                   <span class="user-name">{{ userInfoStore.info.username }}</span>
                   <div
@@ -83,6 +86,17 @@
 
     <!-- 主内容区 -->
     <main class="main-content">
+      <!--
+        ⚠️ 约束：所有页面组件必须是「单根节点」。
+        <transition mode="out-in"> 的机制是「等旧页 leave 过渡跑完再插入新页」，
+        而 leave 过渡只能作用于真实元素。若某个页面模板有多个顶层节点
+        （典型写法：根 <div> 旁边再放一个平级的 <el-backtop>），
+        组件就会渲染成 Fragment 根 —— 过渡拿不到元素，状态机永远停在 leaving，
+        结果是**离开该页后主内容区永久空白，必须手动刷新才恢复**。
+        Vue 此时会在控制台警告：
+          "Component inside <Transition> renders non-element root node that cannot be animated."
+        新增页面时请把 <el-backtop> 之类的浮层放进根节点内部（它们多为 fixed 定位，不影响布局）。
+      -->
       <router-view v-slot="{ Component, route }">
         <transition name="page" mode="out-in">
           <keep-alive include="Guide">
