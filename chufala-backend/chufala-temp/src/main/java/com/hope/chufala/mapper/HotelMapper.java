@@ -19,6 +19,7 @@ public interface HotelMapper extends BaseMapper<Hotel> {
     );
 
     // 普通分页：查询按评分排序的酒店
+    // userLat / userLng 仅在 sort=distance 时参与 ORDER BY（Haversine），其余情况不生效
     List<Hotel> selectByScoreRankPage(
             @Param("offset") Integer offset,
             @Param("size") Integer size,
@@ -26,7 +27,10 @@ public interface HotelMapper extends BaseMapper<Hotel> {
             @Param("city") String city,
             @Param("maxPrice") Double maxPrice,
             @Param("minPrice") Double minPrice,
-            @Param("facilities")List<String> facilities
+            @Param("facilities")List<String> facilities,
+            @Param("sort") String sort,
+            @Param("userLat") Double userLat,
+            @Param("userLng") Double userLng
     );
 
     // 游标分页：按评分排序（基于上一页最后一条数据）

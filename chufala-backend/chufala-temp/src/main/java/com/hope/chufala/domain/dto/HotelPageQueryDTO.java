@@ -19,4 +19,9 @@ public class HotelPageQueryDTO {
     private List<String> facilities;
     private Double userLat;
     private Double userLng;
+    /**
+     * 排序方式。取值：recommended（默认，按评分）/ price-asc / price-desc / rating / distance。
+     * 由 SQL 的 ORDER BY 承担，不再是前端对「已加载的几页」做客户端排序。
+     */
+    private String sort;
 }

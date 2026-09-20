@@ -12,22 +12,47 @@
 
     <!-- 普通分页：按条件、评分排序查询酒店 -->
     <select id="selectByScoreRankPage" resultType="com.hope.chufala.domain.entity.Hotel">
-        SELECT id,name,city,address,price,facilities,stars,overall_rating,review_count,longitude,latitude,hi.image AS mainImage
+        SELECT id,name,city,address,price,original_price,facilities,stars,overall_rating,review_count,longitude,latitude,hi.image AS mainImage
         FROM hotel LEFT JOIN hotel_image AS hi ON hotel.id = hi.hotel_id AND hi.sort_order = 1
         <where>
             <if test="stars != null" >AND stars = #{stars}</if>
             <if test="city != null and city != ''">AND city = #{city}</if>
             <if test="minPrice != null">AND price &gt;= #{minPrice}</if>
             <if test="maxPrice != null">AND price &lt;= #{maxPrice}</if>
+            <!-- 多选设施是「且」：勾了几个就要同时满足几个，与前端 filteredHotels 一致。
+                 原来是 separator="OR"（有泳池**或**有WiFi），后端返回超集、前端再按 AND 筛一遍，
+                 结果虽然对，但要多翻好几页才收敛，而且 countTotalByCondition 的 total 会偏大、
+                 和列表对不上。两处必须同时改成 AND。 -->
             <if test="facilities != null and facilities.size() > 0">
                 AND (
-                <foreach collection="facilities" item="facility" separator="OR">
+                <foreach collection="facilities" item="facility" separator="AND">
                      FIND_IN_SET(#{facility}, facilities) > 0
                 </foreach>
                 )
             </if>
         </where>
-        ORDER BY overall_rating DESC, id ASC
+        <!-- 排序下推到 SQL。
+             原实现固定 ORDER BY overall_rating DESC，前端只能对「已加载的那几页」做
+             客户端排序，继续滚动加载时顺序就会乱。这里按 sort 切换。
+             distance 用 Haversine，与 com.hope.chufala.common.util.Gcj02DistanceCalculator
+             同一公式（那边返回公里，这里只用于排序，不参与展示）。
+             ⚠️ distance 排序依赖用户坐标，而 Service 的 Redis cacheKey 故意不含坐标，
+             所以 sort=distance 时 Service 必须跳过缓存，否则会把别人的排序结果发出去。 -->
+        <choose>
+            <when test="sort == 'price-asc'">ORDER BY price ASC, id ASC</when>
+            <when test="sort == 'price-desc'">ORDER BY price DESC, id ASC</when>
+            <when test="sort == 'distance' and userLat != null and userLng != null">
+                ORDER BY (
+                    6371 * 2 * ASIN(SQRT(
+                        POW(SIN(RADIANS(hotel.latitude - #{userLat}) / 2), 2) +
+                        COS(RADIANS(#{userLat})) * COS(RADIANS(hotel.latitude)) *
+                        POW(SIN(RADIANS(hotel.longitude - #{userLng}) / 2), 2)
+                    ))
+                ) ASC, id ASC
+            </when>
+            <!-- 其余情况（含 recommended / rating / 不传）保持原来的评分排序 -->
+            <otherwise>ORDER BY overall_rating DESC, id ASC</otherwise>
+        </choose>
             LIMIT #{offset}, #{size}
     </select>
 
@@ -50,7 +75,7 @@
             <if test="maxPrice != null">AND price &lt;= #{maxPrice}</if>
             <if test="facilities != null and facilities.size() > 0">
                 AND (
-                <foreach collection="facilities" item="facility" separator="OR">
+                <foreach collection="facilities" item="facility" separator="AND">
                     FIND_IN_SET(#{facility}, facilities) > 0
                 </foreach>
                 )

@@ -748,6 +748,9 @@ const fetchHotels = async (pageNum, pageSizeNum) => {
       : Number(starFilter.value),
     // 目的地。后端 HotelPageQueryDTO.city 一直是有的，只是从来没人传
     city: searchCity.value || undefined,
+    // 排序下推到后端。原来只在前端对「已加载的那几页」排序，
+    // 继续滚动加载时新数据会插到前面，顺序会乱。
+    sort: sortOption.value,
     // 价格参数映射
     minPrice: undefined,
     maxPrice: undefined,
@@ -848,36 +851,17 @@ const filteredHotels = computed(() => {
     }
     
     return true;
-  }).sort((a, b) => {
-    // 排序
-    switch (sortOption.value) {
-      case 'price-asc':
-        return a.price - b.price;
-      case 'price-desc':
-        return b.price - a.price;
-      // 原来写的是 a.rating / b.rating，但后端返回的字段名是 overallRating，
-      // 两个 undefined 相减得到 NaN，比较器恒等于 0 ——
-      // 选「评分最高」时列表纹丝不动，这个选项一直是坏的。
-      case 'rating':
-        return (b.overallRating || 0) - (a.overallRating || 0);
-      case 'distance':
-        return (a.distance ?? Infinity) - (b.distance ?? Infinity);
-      default:
-        return 0;
-    }
   });
+  // 排序已下推到后端 SQL（HotelMapper.xml 的 <choose>）。
+  // 这里**不能再排一次**：客户端排序只作用于已加载的数据，
+  // 会和后端的顺序打架，滚动加载新数据时顺序会跳。
 });
 
 // 结果计数。
-// 「共 N 家」必须是一个真的总数，而不是"已经翻到第几页"：
-// - 全部加载完：filteredHotels 的长度就是准确总数
-// - 还没加载完：无设施筛选时用后端返回的 total；有设施筛选时不能用它
-//   （后端多选设施是 OR、前端是 AND，后端 total 会偏大），只能说"已显示"
-const resultCountText = computed(() => {
-  if (!hasMore.value) return `共 ${filteredHotels.value.length} 家`;
-  if (activeFacilityNames.value.length > 0) return `已显示 ${filteredHotels.value.length} 家`;
-  return `共 ${totalCount.value} 家`;
-});
+// 「共 N 家」必须是一个真的总数，而不是"已经翻到第几页"。
+// 后端 total 和列表现在用的是同一套筛选语义（多选设施已统一为「且」），
+// 所以直接取 total 就行，不必再区分「共 N 家 / 已显示 N 家」。
+const resultCountText = computed(() => `共 ${totalCount.value} 家`);
 
 // 筛选条件变化后把视口拉回列表顶部。
 // 不加这一步的话，用户在列表中部（此时筛选条已吸顶）点一下筛选，

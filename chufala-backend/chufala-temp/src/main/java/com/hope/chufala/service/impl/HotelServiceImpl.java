@@ -64,6 +64,11 @@ public class HotelServiceImpl implements IHotelService {
         Double maxPrice = query.getMaxPrice();
         Double minPrice = query.getMinPrice();
         List<String> facilities = query.getFacilities();
+        String sort = query.getSort();
+
+        // distance 排序的结果依赖用户坐标，而缓存 Key 故意不含坐标（见下方注释），
+        // 一旦走缓存就会把「上一个用户的位置」算出来的顺序发出去，所以这种情况直接跳过缓存。
+        boolean cacheable = !"distance".equals(sort);
 
         // 转换用户坐标（仅用于距离计算，不放入缓存Key）
         if (query.getUserLng()==null||query.getUserLat()==null){
@@ -98,10 +103,15 @@ public class HotelServiceImpl implements IHotelService {
             cacheKeyBuilder.append(":facilities:").append(String.join(",", sortedFacilities));
         }
 
+        // 排序方式必须进 Key：否则「价格升序」的请求会命中「评分排序」的缓存
+        if (StringUtils.hasText(sort)) {
+            cacheKeyBuilder.append(":sort:").append(sort);
+        }
+
         String cacheKey = cacheKeyBuilder.toString();
 
-        // 2. 查缓存
-        String cacheValue = redisTemplate.opsForValue().get(cacheKey);
+        // 2. 查缓存（distance 排序不可缓存，见 cacheable 的说明）
+        String cacheValue = cacheable ? redisTemplate.opsForValue().get(cacheKey) : null;
         if (cacheValue != null) {
             // 从缓存获取基础数据后，仍需计算距离（因为缓存中不存储距离）
             PageResult<Hotel> result = JSONUtil.toBean(cacheValue, new TypeReference<PageResult<Hotel>>() {}, false);
@@ -113,7 +123,7 @@ public class HotelServiceImpl implements IHotelService {
         // 3. 查数据库
         int offset = (page - 1) * size;
         List<Hotel> hotels = hotelMapper.selectByScoreRankPage(
-                offset, size, stars, city, maxPrice, minPrice, facilities);
+                offset, size, stars, city, maxPrice, minPrice, facilities, sort, userLat, userLng);
 
         // 总条数计算需要带查询条件
         Long total = hotelMapper.countTotalByCondition(
@@ -131,16 +141,28 @@ public class HotelServiceImpl implements IHotelService {
         result.setHasMore(page * size < total);
 
         // 6. 回写缓存（缓存中不包含距离信息，或包含但使用时会重新计算）
-        redisTemplate.opsForValue().set(cacheKey, JSONUtil.toJsonStr(result), CACHE_TTL, TimeUnit.SECONDS);
+        if (cacheable) {
+            redisTemplate.opsForValue().set(cacheKey, JSONUtil.toJsonStr(result), CACHE_TTL, TimeUnit.SECONDS);
+        }
         return result;
     }
 
     // 提取距离计算为单独方法，便于复用
     private void calculateDistances(List<Hotel> hotels, Double userLat, Double userLng) {
         for (Hotel hotel : hotels) {
+            // ⚠️ 参数顺序：签名是 calculateDistance(lon1, lat1, lon2, lat2)，
+            // 原来传的是 (userLat, userLng, hotelLat, hotelLng)，等于把纬度塞进了 lat1 的位置、
+            // 经度（如 121.47°）当成了纬度去算 —— 纬度超过 ±90° 在几何上无意义，
+            // 算出来的不是真正的大圆距离。
+            // 实测（用户坐标取北京天安门，酒店坐标取库中真实值）：
+            //   同城 北京青石板巷  正确 5.4km → 错误 2.6km（-52%）
+            //   同城 北京古北禧玥  正确 4.3km → 错误 5.0km（+16%）
+            //   跨城 上海          正确 1067.9km → 错误 731.9km（-31%）
+            //   跨城 杭州          正确 1123.5km → 错误 655.4km（-42%）
+            // 修复后与 SQL 里 Haversine 的排序结果完全一致。
             double distance = Gcj02DistanceCalculator.calculateDistance(
-                    userLat, userLng,
-                    hotel.getLatitude(), hotel.getLongitude()
+                    userLng, userLat,
+                    hotel.getLongitude(), hotel.getLatitude()
             );
             double formattedDistance = Math.round(distance * 10) / 10.0;    //保留一位小数
             hotel.setDistance(formattedDistance);
