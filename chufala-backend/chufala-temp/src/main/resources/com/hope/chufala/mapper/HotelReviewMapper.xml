@@ -19,12 +19,15 @@
                  )
     </insert>
 
-    <!-- 计算酒店的平均评分和评论数 -->
+    <!-- 计算酒店的平均评分和评论数
+         ⚠️ 原来查的是**不存在的表** hotel_comment、以及不存在的列 score。
+         评价数据实际落在 hotel_review，评分列是 rating。
+         本语句由 HotelServiceImpl.submitReview 调用（评价接口目前被注释掉、无外部入口）。 -->
     <select id="calculateScoreAndCount" parameterType="java.lang.Long" resultType="java.util.Map">
         SELECT
-            AVG(score) AS new_avg,
+            AVG(rating) AS new_avg,
             COUNT(*) AS new_count
-        FROM hotel_comment
+        FROM hotel_review
         WHERE hotel_id = #{hotelId}
     </select>
 

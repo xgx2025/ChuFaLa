@@ -2,9 +2,11 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.hope.chufala.mapper.HotelMapper">
 
-    <!-- 普通分页：查询全部酒店（按ID排序） -->
+    <!-- 普通分页：查询全部酒店（按ID排序）
+         ⚠️ 冗余评论数字段是 review_count，不是 comment_count。
+         原来写 comment_count 会直接 Unknown column，GET /hotels 恒 500。 -->
     <select id="selectAllByPage" resultType="com.hope.chufala.domain.entity.Hotel">
-        SELECT id,name,address,overall_rating,comment_count
+        SELECT id,name,address,overall_rating,review_count
         FROM hotel
         ORDER BY id ASC
             LIMIT #{offset}, #{size}
@@ -56,13 +58,17 @@
             LIMIT #{offset}, #{size}
     </select>
 
-    <!-- 更新酒店评分和评论数 -->
+    <!-- 更新酒店评分和评论数
+         ⚠️ 原来两个字段名都错：冗余评论数是 review_count（不是 comment_count），
+         主键是 id（不是 hotel_id）→ 必然 Unknown column。
+         该语句由 HotelServiceImpl.submitReview 调用，但评价接口目前被注释掉、
+         无人调用，属潜伏缺陷。 -->
     <update id="updateScoreAndCount">
         UPDATE hotel
         SET
             overall_rating = #{newAvgScore},
-            comment_count = #{newCommentCount}
-        WHERE hotel_id = #{hotelId}
+            review_count = #{newCommentCount}
+        WHERE id = #{hotelId}
     </update>
 
     <!-- 统计总条数 -->
