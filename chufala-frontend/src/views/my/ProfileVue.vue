@@ -836,6 +836,8 @@ const handleFormSubmit = async () => {
 
 .preview-avatar {
   border: 2px solid var(--c-line);
+  /* 父级 .avatar-upload-container 是 flex 容器，避免头像被压缩变形 */
+  flex-shrink: 0;
 }
 
 .avatar-uploader {

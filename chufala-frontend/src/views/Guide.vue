@@ -1876,6 +1876,16 @@ onMounted(async () => {
   flex-direction: row-reverse;
 }
 
+.message-avatar {
+  /* 头像尺寸不能随消息文本长度变化。
+     .message-row 是 flex 容器，而 flex 项默认 flex-shrink: 1 —— 消息文本越长，
+     需要收缩的空间越多，头像按 flex-basis 比例分到的收缩量也越大，宽度被压到 40px 以下；
+     而下方 img 的 height 固定 40px、width 又被 base.css 的 `img { max-width: 100% }` 卡住，
+     于是宽度跟着容器缩、高度不变 → 渲染成竖长椭圆。
+     实测（1440px 视口）：3 字时 40×40 正常，50 字时 28.6×40，1024px 视口下 50 字只剩 11.6×40。 */
+  flex-shrink: 0;
+}
+
 .message-avatar img {
   width: 40px;
   height: 40px;

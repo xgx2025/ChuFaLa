@@ -1809,6 +1809,9 @@ html {
   height: 2.5rem;
   border-radius: 50%;
   object-fit: cover;
+  /* 父级 .guide-card__author 是 flex 容器，flex 项默认可收缩 —— 作者名一长，
+     头像宽度就会被压到 2.5rem 以下（实测 25.2×40），height 固定则不变形变椭圆 */
+  flex-shrink: 0;
 }
 
 .guide-card__author-info {
@@ -1943,6 +1946,8 @@ html {
   height: 3rem;
   border-radius: 50%;
   object-fit: cover;
+  /* 同上：.review-card__user 是 flex 容器，用户名过长时头像会被压扁（实测 14×48） */
+  flex-shrink: 0;
 }
 
 .review-card__user-info {

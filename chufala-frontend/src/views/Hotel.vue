@@ -816,6 +816,22 @@ onUnmounted(() => {
 
 <style scoped>
 
+/* 页面骨架
+   以下这批类在模板里一直有使用，但本文件的 <style> 里从未定义过
+   （同名定义只存在于 Home.vue 的 scoped 样式里，不会作用到本页）。
+   本次从 Home.vue 移植补齐，不新造设计。 */
+.root-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--c-bg-sub);
+}
+
+.main-content {
+  flex-grow: 1;
+  background-color: var(--c-bg);
+}
+
 /* 英雄区域样式 */
 .hero-section {
   position: relative;
@@ -1077,6 +1093,12 @@ onUnmounted(() => {
   background-color: #ffffff;
   border-bottom: 1px solid var(--c-line);
   padding: 0.75rem 0;
+}
+
+/* .filters-container 是横向滚动容器，分组必须禁止收缩，
+   否则各组会被压扁而不是触发横向滚动 */
+.filter-group {
+  flex-shrink: 0;
 }
 
 .filters-container {
@@ -1561,10 +1583,239 @@ onUnmounted(() => {
   background-color: var(--c-bg-sub);
 }
 
+/* 区块右上角的「更多优惠 / 查看全部」链接（特惠区与评价区共用） */
+.section-more {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  color: var(--c-primary-600);
+  text-decoration: none;
+  transition: color var(--dur-base) var(--ease-out);
+}
+
+.section-more:hover {
+  color: var(--c-primary-700);
+}
+
+.section-more__icon {
+  font-size: var(--fs-body);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.section-more:hover .section-more__icon {
+  transform: translateX(4px);
+}
+
+.deals-container {
+  position: relative;
+}
+
+.deals-scroll {
+  overflow-x: auto;
+  padding-bottom: var(--sp-4);
+  /* 横向滚动条在卡片下方很破坏观感，这里隐藏（仍可触摸/滚轮滚动） */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.deals-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.deals-list {
+  display: flex;
+  gap: var(--sp-4);
+  width: max-content;
+}
+
+.deal-card {
+  width: 18rem;
+  background-color: var(--c-bg);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--sh-1);
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
+}
+
+.deal-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--sh-hover);
+  border-color: transparent;
+}
+
+.deal-card__image-container {
+  position: relative;
+  height: 12rem;
+  overflow: hidden;
+}
+
+.deal-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--dur-slower) var(--ease-out);
+}
+
+.deal-card:hover .deal-card__image {
+  transform: scale(1.06);
+}
+
+.deal-card__discount {
+  position: absolute;
+  top: var(--sp-3);
+  left: var(--sp-3);
+  background-color: var(--c-danger);
+  color: #ffffff;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--r-xs);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+}
+
+.deal-card__content {
+  padding: var(--sp-4);
+}
+
+.deal-card__name {
+  font-weight: 600;
+  color: var(--c-ink);
+  margin-bottom: var(--sp-1);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.deal-card__desc {
+  color: var(--c-ink-3);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-body);
+  margin-bottom: var(--sp-3);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.deal-card__price-area {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.deal-card__price {
+  color: var(--c-danger);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: var(--fs-h3);
+}
+
+.deal-card__original-price {
+  color: var(--c-ink-4);
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  text-decoration: line-through;
+  margin-left: var(--sp-1);
+}
+
+.deal-card__btn {
+  background-color: var(--c-primary-600);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: var(--fs-caption);
+  border: none;
+  border-radius: var(--r-full);
+  padding: var(--sp-2) var(--sp-3);
+  cursor: pointer;
+  transition: background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.deal-card__btn:hover {
+  background-color: var(--c-primary-700);
+  box-shadow: var(--sh-primary);
+}
+
+.deal-card__btn:active {
+  transform: scale(0.97);
+}
+
+.deals-indicators {
+  display: flex;
+  justify-content: center;
+  gap: 0.25rem;
+  margin-top: 1.5rem;
+}
+
+.deal-indicator {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background-color: var(--c-line);
+}
+
+.deal-indicator--active {
+  background-color: var(--c-primary-600);
+}
+
 /* 酒店评价样式 */
 .reviews-section {
   padding: 3rem 0;
   background-color: #ffffff;
+}
+
+/* 评价卡作者区：头像 + 昵称 + 星级 */
+.review-card__user {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--sp-4);
+}
+
+.review-card__avatar {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  object-fit: cover;
+  /* .review-card__user 是 flex 容器，flex 项默认可收缩：用户名一长，
+     头像宽度就会被压到 3rem 以下，而 height 固定 → 渲染成竖长椭圆 */
+  flex-shrink: 0;
+}
+
+.review-card__user-info {
+  margin-left: var(--sp-4);
+}
+
+.review-card__user-name {
+  font-weight: 600;
+  color: var(--c-ink);
+}
+
+.review-card__stars {
+  display: flex;
+  color: var(--c-star);
+  font-size: var(--fs-caption);
+  margin-top: 0.25rem;
+}
+
+.review-card__star--empty {
+  color: var(--c-line);
+}
+
+.review-card__content {
+  color: var(--c-ink-2);
+  font-style: italic;
+  line-height: var(--lh-body-lg);
+  margin-bottom: var(--sp-4);
 }
 
 .reviews-list {
@@ -1632,5 +1883,133 @@ onUnmounted(() => {
 
 .review-card__action-btn:hover {
   color: var(--c-primary-600);
+}
+
+/* 订阅区域样式 */
+.subscribe-section {
+  padding: var(--sp-20) 0;
+  background-color: var(--c-primary-600);
+  position: relative;
+  overflow: hidden;
+}
+
+.subscribe-section__decor {
+  position: absolute;
+  inset: 0;
+  opacity: 0.12;
+  pointer-events: none;
+}
+
+.decor-icon--plane {
+  position: absolute;
+  color: #ffffff;
+  font-size: 200px;
+  top: -50px;
+  left: -50px;
+  transform: rotate(45deg);
+}
+
+.decor-icon--sun {
+  position: absolute;
+  color: #ffffff;
+  font-size: 150px;
+  bottom: -30px;
+  right: 50px;
+}
+
+.decor-icon--ship {
+  position: absolute;
+  color: #ffffff;
+  font-size: 100px;
+  top: 30%;
+  right: 20%;
+}
+
+.subscribe-section__content {
+  position: relative;
+  z-index: 10;
+  /* 容器最大宽度。原值 `max-width: 2xl` 是 Tailwind 类名误当 CSS 值，无效，此处写成实际像素 */
+  max-width: 672px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.subscribe-section__title {
+  font-size: clamp(1.5rem, 3vw, var(--fs-h1));
+  line-height: var(--lh-h1);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  margin-bottom: var(--sp-3);
+}
+
+.subscribe-section__desc {
+  color: rgba(255, 255, 255, 0.85);
+  line-height: var(--lh-body-lg);
+  margin-bottom: var(--sp-8);
+}
+
+.subscribe-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+@media (min-width: 640px) {
+  .subscribe-form {
+    flex-direction: row;
+  }
+}
+
+.subscribe-form__input {
+  flex-grow: 1;
+  padding: var(--sp-3) var(--sp-4);
+  font-family: inherit;
+  font-size: var(--fs-body-lg);
+  color: var(--c-ink);
+  background-color: #ffffff;
+  border-radius: var(--r-sm);
+  border: none;
+  outline: none;
+  transition: box-shadow var(--dur-base) var(--ease-out);
+}
+
+.subscribe-form__input::placeholder {
+  color: var(--c-ink-4);
+}
+
+.subscribe-form__input:focus {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.55);
+}
+
+.subscribe-form__btn {
+  background-color: var(--c-star);
+  color: var(--c-ink);
+  font-family: inherit;
+  font-size: var(--fs-body-lg);
+  font-weight: 600;
+  border: none;
+  border-radius: var(--r-sm);
+  padding: var(--sp-3) var(--sp-6);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.subscribe-form__btn:hover {
+  background-color: var(--c-accent);
+  box-shadow: 0 8px 24px -6px rgba(250, 204, 21, 0.5);
+}
+
+.subscribe-form__btn:active {
+  transform: scale(0.98);
+}
+
+.subscribe-section__privacy {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--fs-caption);
+  margin-top: var(--sp-4);
 }
 </style>

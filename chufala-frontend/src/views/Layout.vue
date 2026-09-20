@@ -495,6 +495,10 @@ const logout = () => {
 
 .user-avatar {
   border: 1px solid var(--c-line);
+  /* .header-nav__login-btn 是 flex 容器（≥768px 时 display:flex），
+     而 el-avatar 自身没有 flex-shrink: 0，且它是 overflow:hidden + 内部 img 宽高 100%，
+     宽度一被压缩就跟着变窄、高度不变 → 头像变椭圆。用户名过长时就会触发 */
+  flex-shrink: 0;
 }
 
 .user-info-wrapper {
