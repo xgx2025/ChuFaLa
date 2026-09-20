@@ -1,0 +1,11 @@
+{
+  "name": "screenshot-service",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "markstream-vue": "^0.0.4-beta.8",
+    "puppeteer": "latest"
+  }
+}

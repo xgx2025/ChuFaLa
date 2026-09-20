@@ -1,0 +1,22 @@
+<!-- 引入JSAPI（静态页无法读取 Vite 环境变量，ak 请本地替换为真实值后勿提交） -->
+<script src="https://api.map.baidu.com/api?v=3.0&ak=YOUR_BAIDU_MAP_AK"></script>
+<div id="map" style="height: 1000px;"></div>
+<script>
+  // 初始化地图
+  const map = new BMap.Map("map");
+  // 获取用户位置
+  const geolocation = new BMap.Geolocation();
+  geolocation.getCurrentPosition((result) => {
+    if (geolocation.getStatus() === BMAP_STATUS_SUCCESS) {
+      const point = result.point;
+      // 在地图上显示位置
+      map.centerAndZoom(point, 15);
+      map.addOverlay(new BMap.Marker(point));
+      // 逆地理编码获取地址
+      const gc = new BMap.Geocoder();
+      gc.getLocation(point, (rs) => {
+        alert(`当前位置：${rs.address}`);
+      });
+    }
+  });
+</script>

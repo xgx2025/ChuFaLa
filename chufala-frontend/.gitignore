@@ -1,0 +1,46 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+.DS_Store
+dist
+dist-ssr
+coverage
+*.local
+
+/cypress/videos/
+/cypress/screenshots/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+*.tsbuildinfo
+
+# ===== 环境变量（含真实 API Key，禁止提交）=====
+.env
+.env.*
+!.env.example
+
+# ===== 本地 HTTPS 证书与私钥（禁止提交）=====
+*.pem
+*.key
+*.csr
+*.srl
+openssl.conf
+
+# ===== 本地助手与个人文件 =====
+.workbuddy-ai/
+.trae/

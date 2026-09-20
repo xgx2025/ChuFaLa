@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>出发啦 - 发现美好旅行</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        :root {
+            --primary: #4e54c8;
+            --secondary: #8f94fb;
+            --accent: #ff6b6b;
+            --light: #f8f9fa;
+            --dark: #343a40;
+            --success: #28a745;
+            --warning: #ffc107;
+            --gray: #6c757d;
+            --light-gray: #e9ecef;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+        
+        /* 导航栏样式 */
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 15px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo i {
+            margin-right: 10px;
+            color: #ffd700;
+        }
+        
+        .nav-links {
+            display: flex;
+            list-style: none;
+        }
+        
+        .nav-links li {
+            margin: 0 15px;
+        }
+        
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            transition: opacity 0.3s;
+        }
+        
+        .nav-links a:hover {
+            opacity: 0.8;
+        }
+        
+        .auth-buttons {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .btn {
+            padding: 8px 20px;
+            border-radius: 50px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 2px solid white;
+            color: white;
+        }
+        
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #ff5252;
+        }
+        
+        /* 搜索区域样式 */
+        .search-section {
+            background: url('https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80') no-repeat center center;
+            background-size: cover;
+            padding: 80px 0;
+            color: white;
+            text-align: center;
+            position: relative;
+        }
+        
+        .search-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+        }
+        
+        .search-content {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .search-content h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .search-content p {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+        }
+        
+        .search-box {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .search-input label {
+            display: block;
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            text-align: left;
+        }
+        
+        .search-input input, .search-input select {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-bottom: 2px solid var(--light-gray);
+            outline: none;
+            font-size: 1rem;
+        }
+        
+        .search-input input:focus, .search-input select:focus {
+            border-color: var(--primary);
+        }
+        
+        .search-btn {
+            align-self: flex-end;
+            padding: 12px 25px;
+        }
+        
+        /* 主要内容区域 */
+        .section-title {
+            text-align: center;
+            margin: 50px 0 30px;
+            color: var(--dark);
+        }
+        
+        .section-title h2 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .section-title p {
+            color: var(--gray);
+        }
+        
+        /* 热门目的地 */
+        .destinations {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 50px;
+        }
+        
+        .destination-card {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .destination-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-img {
+            height: 200px;
+            overflow: hidden;
+        }
+        
+        .card-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s;
+        }
+        
+        .destination-card:hover .card-img img {
+            transform: scale(1.05);
+        }
+        
+        .card-content {
+            padding: 20px;
+        }
+        
+        .card-content h3 {
+            margin-bottom: 10px;
+        }
+        
+        .card-content p {
+            color: var(--gray);
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .price {
+            color: var(--accent);
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        /* 特价优惠 */
+        .deals {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 50px;
+        }
+        
+        .deal-card {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            display: flex;
+        }
+        
+        .deal-img {
+            width: 120px;
+            height: 120px;
+            flex-shrink: 0;
+        }
+        
+        .deal-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .deal-content {
+            padding: 15px;
+            flex: 1;
+        }
+        
+        .deal-content h3 {
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+        }
+        
+        .deal-tag {
+            background: var(--accent);
+            color: white;
+            font-size: 0.8rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        
+        /* 旅游攻略 */
+        .guides {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 50px;
+        }
+        
+        .guide-card {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .guide-content {
+            padding: 20px;
+        }
+        
+        .guide-content h3 {
+            margin-bottom: 10px;
+        }
+        
+        .guide-meta {
+            display: flex;
+            align-items: center;
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+        
+        .guide-meta span {
+            margin-right: 15px;
+        }
+        
+        /* 下载应用部分 */
+        .app-download {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 60px 0;
+            text-align: center;
+            border-radius: 10px;
+            margin: 50px 0;
+        }
+        
+        .app-download h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+        
+        .app-download p {
+            max-width: 600px;
+            margin: 0 auto 30px;
+        }
+        
+        .app-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        
+        .app-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid white;
+            border-radius: 10px;
+            padding: 10px 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .app-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        /* 页脚 */
+        footer {
+            background: var(--dark);
+            color: white;
+            padding: 50px 0 20px;
+        }
+        
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .footer-column h3 {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        .footer-column h3::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -10px;
+            width: 40px;
+            height: 2px;
+            background: var(--accent);
+        }
+        
+        .footer-column ul {
+            list-style: none;
+        }
+        
+        .footer-column ul li {
+            margin-bottom: 10px;
+        }
+        
+        .footer-column a {
+            color: #ddd;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .footer-column a:hover {
+            color: white;
+        }
+        
+        .social-links {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .social-links a {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            transition: background 0.3s;
+        }
+        
+        .social-links a:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .copyright {
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .navbar {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .nav-links {
+                margin: 15px 0;
+            }
+            
+            .search-box {
+                flex-direction: column;
+            }
+            
+            .search-input {
+                width: 100%;
+            }
+            
+            .search-btn {
+                width: 100%;
+            }
+            
+            .app-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <header>
+            <div class="container">
+                <nav class="navbar">
+                    <div class="logo">
+                        <i class="fas fa-plane-departure"></i>
+                        <span>出发啦</span>
+                    </div>
+                    <ul class="nav-links">
+                        <li><a href="#">首页</a></li>
+                        <li><a href="#">目的地</a></li>
+                        <li><a href="#">特价优惠</a></li>
+                        <li><a href="#">旅游攻略</a></li>
+                        <li><a href="#">关于我们</a></li>
+                    </ul>
+                    <div class="auth-buttons">
+                        <button class="btn btn-outline">登录</button>
+                        <button class="btn btn-primary">注册</button>
+                    </div>
+                </nav>
+            </div>
+        </header>
+
+        <!-- 搜索区域 -->
+        <section class="search-section">
+            <div class="container">
+                <div class="search-content">
+                    <h1>探索世界，从"出发啦"开始</h1>
+                    <p>发现最适合您的旅行目的地，享受最优惠的价格</p>
+                    <div class="search-box">
+                        <div class="search-input">
+                            <label>目的地</label>
+                            <input type="text" placeholder="您想去哪里？" v-model="searchQuery">
+                        </div>
+                        <div class="search-input">
+                            <label>出行时间</label>
+                            <input type="date" v-model="travelDate">
+                        </div>
+                        <div class="search-input">
+                            <label>出行天数</label>
+                            <select v-model="travelDays">
+                                <option v-for="day in dayOptions" :value="day">{{ day }}天</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary search-btn">搜索</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 热门目的地 -->
+        <section class="container">
+            <div class="section-title">
+                <h2>热门目的地</h2>
+                <p>发现旅行者最喜爱的地点</p>
+            </div>
+            <div class="destinations">
+                <div class="destination-card" v-for="destination in destinations" :key="destination.id">
+                    <div class="card-img">
+                        <img :src="destination.image" :alt="destination.name">
+                    </div>
+                    <div class="card-content">
+                        <h3>{{ destination.name }}</h3>
+                        <p>{{ destination.description }}</p>
+                        <div class="price">￥{{ destination.price }}起</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 特价优惠 -->
+        <section class="container">
+            <div class="section-title">
+                <h2>特价优惠</h2>
+                <p>限时优惠，错过不再有</p>
+            </div>
+            <div class="deals">
+                <div class="deal-card" v-for="deal in specialDeals" :key="deal.id">
+                    <div class="deal-img">
+                        <img :src="deal.image" :alt="deal.title">
+                    </div>
+                    <div class="deal-content">
+                        <span class="deal-tag">限时优惠</span>
+                        <h3>{{ deal.title }}</h3>
+                        <div class="price">￥{{ deal.price }}起</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 旅游攻略 -->
+        <section class="container">
+            <div class="section-title">
+                <h2>旅游攻略</h2>
+                <p>获取最新旅行指南和建议</p>
+            </div>
+            <div class="guides">
+                <div class="guide-card" v-for="guide in travelGuides" :key="guide.id">
+                    <div class="card-img">
+                        <img :src="guide.image" :alt="guide.title">
+                    </div>
+                    <div class="guide-content">
+                        <h3>{{ guide.title }}</h3>
+                        <div class="guide-meta">
+                            <span><i class="far fa-user"></i> {{ guide.author }}</span>
+                            <span><i class="far fa-calendar"></i> {{ guide.date }}</span>
+                        </div>
+                        <p>{{ guide.excerpt }}</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 下载应用 -->
+        <section class="container">
+            <div class="app-download">
+                <h2>下载"出发啦"移动应用</h2>
+                <p>随时随地预订旅行，获取独家优惠和旅行提示</p>
+                <div class="app-buttons">
+                    <div class="app-btn">
+                        <i class="fab fa-apple fa-2x"></i>
+                        <div>
+                            <div>下载自</div>
+                            <div>App Store</div>
+                        </div>
+                    </div>
+                    <div class="app-btn">
+                        <i class="fab fa-google-play fa-2x"></i>
+                        <div>
+                            <div>下载自</div>
+                            <div>Google Play</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 页脚 -->
+        <footer>
+            <div class="container">
+                <div class="footer-content">
+                    <div class="footer-column">
+                        <h3>关于我们</h3>
+                        <p>"出发啦"致力于为用户提供最优质的旅行体验，最实惠的价格和最全面的旅行指南。</p>
+                        <div class="social-links">
+                            <a href="#"><i class="fab fa-weibo"></i></a>
+                            <a href="#"><i class="fab fa-weixin"></i></a>
+                            <a href="#"><i class="fab fa-qq"></i></a>
+                            <a href="#"><i class="fab fa-instagram"></i></a>
+                        </div>
+                    </div>
+                    <div class="footer-column">
+                        <h3>热门目的地</h3>
+                        <ul>
+                            <li v-for="destination in popularDestinations">
+                                <a href="#">{{ destination }}</a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h3>客户服务</h3>
+                        <ul>
+                            <li><a href="#">帮助中心</a></li>
+                            <li><a href="#">联系我们</a></li>
+                            <li><a href="#">常见问题</a></li>
+                            <li><a href="#">意见反馈</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h3>联系我们</h3>
+                        <ul>
+                            <li><i class="fas fa-phone"></i> 400-123-4567</li>
+                            <li><i class="fas fa-envelope"></i> support@chufala.com</li>
+                            <li><i class="fas fa-map-marker-alt"></i> 北京市朝阳区123号</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="copyright">
+                    <p>© 2023 出发啦旅行网. 保留所有权利. 京ICP备123456号</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const { createApp, ref } = Vue;
+        
+        createApp({
+            setup() {
+                const searchQuery = ref('');
+                const travelDate = ref('');
+                const travelDays = ref(3);
+                const dayOptions = [1, 2, 3, 5, 7, 10, 14];
+                
+                const destinations = ref([
+                    {
+                        id: 1,
+                        name: '三亚',
+                        description: '阳光沙滩，热带风情',
+                        price: 1299,
+                        image: 'https://images.unsplash.com/photo-1534008897995-27a23e859048?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+                    },
+                    {
+                        id: 2,
+                        name: '丽江',
+                        description: '古城韵味，自然风光',
+                        price: 1599,
+                        image: 'https://images.unsplash.com/photo-1591352164676-2d087d4b4657?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+                    },
+                    {
+                        id: 3,
+                        name: '张家界',
+                        description: '奇峰异石，天然氧吧',
+                        price: 899,
+                        image: 'https://images.unsplash.com/photo-1580502304784-8985b7eb7260?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+                    },
+                    {
+                        id: 4,
+                        name: '桂林',
+                        description: '山水甲天下，风景如画',
+                        price: 1099,
+                        image: 'https://images.unsplash.com/photo-1575995872537-3793d29d972c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+                    }
+                ]);
+                
+                const specialDeals = ref([
+                    {
+                        id: 1,
+                        title: '厦门鼓浪屿三日游',
+                        price: 699,
+                        image: 'https://images.unsplash.com/photo-1542856391-010b89d4baf4?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
+                    },
+                    {
+                        id: 2,
+                        title: '成都重庆五日美食之旅',
+                        price: 1299,
+                        image: 'https://images.unsplash.com/photo-1547981609-4b6bfc67c272?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
+                    },
+                    {
+                        id: 3,
+                        title: '西藏拉萨朝圣之旅',
+                        price: 2199,
+                        image: 'https://images.unsplash.com/photo-1544735716-392fe2489ffc?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
+                    }
+                ]);
+                
+                const travelGuides = ref([
+                    {
+                        id: 1,
+                        title: '东南亚旅行必备物品清单',
+                        author: '旅行达人小王',
+                        date: '2023-06-15',
+                        excerpt: '准备去东南亚旅行？这里有一份超全的必备物品清单，助你轻松出行...',
+                        image: 'https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+                    },
+                    {
+                        id: 2,
+                        title: '日本樱花季摄影全攻略',
+                        author: '摄影爱好者小李',
+                        date: '2023-03-22',
+                        excerpt: '樱花季即将到来，如何拍出令人惊艳的樱花照片？这篇攻略告诉你...',
+                        image: 'https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+                    },
+                    {
+                        id: 3,
+                        title: '预算有限如何玩转欧洲',
+                        author: '穷游专家小张',
+                        date: '2023-05-10',
+                        excerpt: '欧洲旅行不一定昂贵！这些省钱技巧让你用有限的预算玩转欧洲...',
+                        image: 'https://images.unsplash.com/photo-1502602898536-47ad22581b52?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+                    }
+                ]);
+                
+                const popularDestinations = ref([
+                    '北京', '上海', '广州', '深圳', '杭州', 
+                    '成都', '重庆', '西安', '厦门', '大理'
+                ]);
+                
+                return {
+                    searchQuery,
+                    travelDate,
+                    travelDays,
+                    dayOptions,
+                    destinations,
+                    specialDeals,
+                    travelGuides,
+                    popularDestinations
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

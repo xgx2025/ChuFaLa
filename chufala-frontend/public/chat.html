@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>张家界一日游行程规划</title>
+    <!-- 引入资源 -->
+    <link rel="stylesheet" href="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-100-M/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/tailwindcss/2.2.19/tailwind.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <style>
+        :root {
+            --primary-color: #10b981; /* 绿色主题，代表自然 */
+            --secondary-color: #3b82f6; /* 蓝色辅助 */
+            --text-color: #1f2937;
+            --bg-color: #f9fafb;
+        }
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+        }
+        h1, h2, h3 {
+            font-family: 'Noto Serif SC', serif;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .map-container {
+            height: 300px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- 行程标题区 -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-green-700 mb-2">张家界一日游</h1>
+            <p class="text-lg text-gray-600">旅行日期：2023年10月1日（星期日） | 天数：1天 | 旅行者：示例游客</p>
+            <div class="mt-4 inline-block bg-green-100 text-green-800 px-4 py-2 rounded-full">
+                <i class="fas fa-cloud-sun mr-2"></i>天气：晴，气温 15°C - 25°C，微风（数据来源：高德地图）
+            </div>
+        </header>
+
+        <!-- 行程概览区 -->
+        <section class="card">
+            <h2 class="text-2xl font-semibold mb-4 text-green-700"><i class="fas fa-map-marked-alt mr-2"></i>行程概览</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-green-50 p-4 rounded-lg text-center">
+                    <i class="fas fa-mountain text-3xl text-green-600 mb-2"></i>
+                    <h3 class="font-medium">上午</h3>
+                    <p>袁家界景区观光</p>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-lg text-center">
+                    <i class="fas fa-utensils text-3xl text-blue-600 mb-2"></i>
+                    <h3 class="font-medium">中午</h3>
+                    <p>景区午餐</p>
+                </div>
+                <div class="bg-yellow-50 p-4 rounded-lg text-center">
+                    <i class="fas fa-hiking text-3xl text-yellow-600 mb-2"></i>
+                    <h3 class="font-medium">下午</h3>
+                    <p>天子山 & 金鞭溪徒步</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 详细时间表区 -->
+        <section class="card">
+            <h2 class="text-2xl font-semibold mb-4 text-green-700"><i class="fas fa-clock mr-2"></i>详细时间表</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full table-auto">
+                    <thead class="bg-green-100">
+                        <tr>
+                            <th class="px-4 py-2 text-left">时间</th>
+                            <th class="px-4 py-2 text-left">活动</th>
+                            <th class="px-4 py-2 text-left">地点</th>
+                            <th class="px-4 py-2 text-left">备注</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b">
+                            <td class="px-4 py-2">07:00 - 08:00</td>
+                            <td class="px-4 py-2"><i class="fas fa-car mr-2 text-gray-500"></i>出发前往景区</td>
+                            <td class="px-4 py-2"><a href="amap://navi?sourceApplication=travelPlan&poiname=张家界市区&lat=29.117&lon=110.483&dev=0" class="text-blue-600 hover:underline">张家界市区</a> → <a href="amap://navi?sourceApplication=travelPlan&poiname=张家界国家森林公园&lat=29.117&lon=110.483&dev=0" class="text-blue-600 hover:underline">森林公园门票站</a></td>
+                            <td class="px-4 py-2">乘车约1小时，建议提前预约车辆</td>
+                        </tr>
+                        <tr class="border-b">
+                            <td class="px-4 py-2">08:00 - 12:00</td>
+                            <td class="px-4 py-2"><i class="fas fa-mountain mr-2 text-green-500"></i>游览袁家界</td>
+                            <td class="px-4 py-2"><a href="amap://navi?sourceApplication=travelPlan&poiname=袁家界&lat=29.125&lon=110.475&dev=0" class="text-blue-600 hover:underline">袁家界景区</a></td>
+                            <td class="px-4 py-2">门票已含，游玩4小时，景点包括天下第一桥、哈利路亚山</td>
+                        </tr>
+                        <tr class="border-b">
+                            <td class="px-4 py-2">12:00 - 13:00</td>
+                            <td class="px-4 py-2"><i class="fas fa-utensils mr-2 text-red-500"></i>午餐</td>
+                            <td class="px-4 py-2"><a href="amap://navi?sourceApplication=travelPlan&poiname=袁家界餐厅&lat=29.125&lon=110.476&dev=0" class="text-blue-600 hover:underline">景区内餐厅</a></td>
+                            <td class="px-4 py-2">推荐土家特色菜，人均约50元</td>
+                        </tr>
+                        <tr class="border-b">
+                            <td class="px-4 py-2">13:00 - 16:00</td>
+                            <td class="px-4 py-2"><i class="fas fa-hiking mr-2 text-yellow-500"></i>游览天子山和金鞭溪</td>
+                            <td class="px-4 py-2"><a href="amap://navi?sourceApplication=travelPlan&poiname=天子山&lat=29.133&lon=110.492&dev=0" class="text-blue-600 hover:underline">天子山景区</a> & <a href="amap://navi?sourceApplication=travelPlan&poiname=金鞭溪&lat=29.120&lon=110.490&dev=0" class="text-blue-600 hover:underline">金鞭溪</a></td>
+                            <td class="px-4 py-2">徒步观光，欣赏自然风光，注意安全</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-2">16:00 - 17:00</td>
+                            <td class="px-4 py-2"><i class="fas fa-car mr-2 text-gray-500"></i>返回市区</td>
+                            <td class="px-4 py-2"><a href="amap://navi?sourceApplication=travelPlan&poiname=张家界国家森林公园&lat=29.117&lon=110.483&dev=0" class="text-blue-600 hover:underline">森林公园</a> → <a href="amap://navi?sourceApplication=travelPlan&poiname=张家界市区&lat=29.117&lon=110.483&dev=0" class="text-blue-600 hover:underline">市区</a></td>
+                            <td class="px-4 py-2">乘车返回，结束行程</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 交通信息区 -->
+        <section class="card">
+            <h2 class="text-2xl font-semibold mb-4 text-green-700"><i class="fas fa-subway mr-2"></i>交通信息</h2>
+            <div class="space-y-2">
+                <p><strong>主要交通方式：</strong>旅游巴士或出租车（从市区到森林公园约1小时车程）</p>
+                <p><strong>公交线路：</strong>市区可乘公交至“森林公园站”，班次较多</p>
+                <p><strong>景区内交通：</strong>环保车（已含在门票内，连接主要景点）</p>
+                <div class="bg-gray-100 p-3 rounded mt-2">
+                    <i class="fas fa-route mr-2"></i><strong>行程路线：</strong> 市区 → 森林公园 → 袁家界 → 天子山 → 金鞭溪 → 返回市区
+                </div>
+            </div>
+        </section>
+
+        <!-- 住宿与餐饮区 -->
+        <section class="card">
+            <h2 class="text-2xl font-semibold mb-4 text-green-700"><i class="fas fa-hotel mr-2"></i>住宿与餐饮</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <h3 class="text-lg font-medium mb-2"><i class="fas fa-utensils text-red-500 mr-2"></i>推荐餐厅</h3>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li><a href="amap://navi?sourceApplication=travelPlan&poiname=袁家界餐厅&lat=29.125&lon=110.476&dev=0" class="text-blue-600 hover:underline">袁家界景区餐厅</a> - 土家三下锅、特色野菜，人均50-80元</li>
+                        <li><a href="amap://navi?sourceApplication=travelPlan&poiname=天子山小吃&lat=29.133&lon=110.493&dev=0" class="text-blue-600 hover:underline">天子山小吃点</a> - 快餐和小吃，人均30元</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-medium mb-2"><i class="fas fa-info-circle text-blue-500 mr-2"></i>便利设施</h3>
+                    <p>景区内有洗手间、小卖部；市区附近有超市和药店。</p>
+                </div>
+            </div>
+            <p class="mt-4 text-sm text-gray-600"><i class="fas fa-exclamation-triangle mr-2"></i>注：一日游不涉及住宿，如需过夜请提前预订酒店。</p>
+        </section>
+
+        <!-- 实用信息区 -->
+        <section class="card">
+            <h2 class="text-2xl font-semibold mb-4 text-green-700"><i class="fas fa-info-circle mr-2"></i>实用信息</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <h3 class="text-lg font-medium mb-2">紧急联系</h3>
+                    <ul class="space-y-1">
+                        <li><i class="fas fa-phone-alt mr-2"></i>报警：110</li>
+                        <li><i class="fas fa-ambulance mr-2"></i>急救：120</li>
+                        <li><i class="fas fa-tree mr-2"></i>景区咨询：0744-561-1111</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-medium mb-2">预算摘要（人均）</h3>
+                    <ul class="space-y-1">
+                        <li>门票：258元（森林公园通票）</li>
+                        <li>交通：约50元（往返巴士）</li>
+                        <li>餐饮：约50元</li>
+                        <li><strong>总计：约358元</strong></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="mt-4">
+                <h3 class="text-lg font-medium mb-2">注意事项</h3>
+                <ul class="list-disc list-inside space-y-1">
+                    <li>穿舒适运动鞋，山区徒步需注意安全</li>
+                    <li>带足饮用水和零食，景区内物价较高</li>
+                    <li>天气多变，建议携带雨具和防晒用品</li>
+                    <li>遵守景区规定，保护环境</li>
+                </ul>
+            </div>
+            <div class="mt-4 bg-yellow-50 p-3 rounded">
+                <i class="fas fa-suitcase mr-2"></i><strong>行李清单：</strong> 身份证、现金、相机、充电宝、水、零食、雨衣、常用药品。
+            </div>
+        </section>
+
+        <!-- 景点地图区 -->
+        <section class="card">
+            <h2 class="text-2xl font-semibold mb-4 text-green-700"><i class="fas fa-map mr-2"></i>景点地图</h2>
+            <div id="map" class="map-container"></div>
+            <p class="mt-2 text-sm text-gray-600">点击地图标记查看景点详情；点击地点名称可使用高德地图导航。</p>
+        </section>
+    </div>
+
+    <script>
+        // 初始化地图
+        var map = L.map('map').setView([29.125, 110.483], 12);
+        // 使用高德地图瓦片图层
+        L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+            subdomains: ['1','2','3','4'],
+            attribution: '&copy; <a href="https://ditu.amap.com/">高德地图</a>'
+        }).addTo(map);
+
+        // 添加景点标记
+        var spots = [
+            { name: "张家界国家森林公园入口", lat: 29.117, lng: 110.483 },
+            { name: "袁家界", lat: 29.125, lng: 110.475 },
+            { name: "天子山", lat: 29.133, lng: 110.492 },
+            { name: "金鞭溪", lat: 29.120, lng: 110.490 }
+        ];
+        spots.forEach(function(spot) {
+            var marker = L.marker([spot.lat, spot.lng]).addTo(map);
+            marker.bindPopup("<b>" + spot.name + "</b>").openPopup(); // 始终显示名称
+        });
+
+        // 导航链接处理（简单版，实际可增强设备检测）
+        document.querySelectorAll('a[href^="amap://"]').forEach(function(link) {
+            link.addEventListener('click', function(e) {
+                if (!navigator.userAgent.match(/(Android|iPhone|iPad)/)) {
+                    e.preventDefault();
+                    var poiname = encodeURIComponent(link.getAttribute('poiname') || link.textContent);
+                    var lat = link.getAttribute('lat');
+                    var lon = link.getAttribute('lon');
+                    window.open('https://uri.amap.com/navigation?to=' + poiname + '&lat=' + lat + '&lon=' + lon, '_blank');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

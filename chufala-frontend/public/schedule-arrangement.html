@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>张家界一日游行程规划</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-100-M/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <style>
+        :root {
+            --primary-color: #2d5016;
+            --secondary-color: #7cb342;
+            --accent-color: #ff7043;
+            --text-dark: #1a1a1a;
+            --text-light: #666;
+            --bg-light: #f8f9fa;
+            --shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+        }
+        
+        .serif-title {
+            font-family: 'Noto Serif SC', serif;
+        }
+        
+        .hero-bg {
+            background: linear-gradient(135deg, rgba(45, 80, 22, 0.9), rgba(124, 179, 66, 0.8)), url('https://picsum.photos/seed/zhangjiajie/1920/1080.jpg');
+            background-size: cover;
+            background-position: center;
+            min-height: 60vh;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(45, 80, 22, 0.3);
+        }
+        
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--secondary-color);
+        }
+        
+        .timeline-item {
+            position: relative;
+            margin-bottom: 30px;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -22px;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            border: 3px solid white;
+            box-shadow: 0 0 0 3px var(--secondary-color);
+        }
+        
+        .icon-box {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+        
+        .weather-card {
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            color: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        #map {
+            height: 400px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+        
+        .location-nav {
+            color: var(--secondary-color);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        
+        .location-nav:hover {
+            color: var(--accent-color);
+        }
+        
+        @media (max-width: 768px) {
+            .timeline {
+                padding-left: 25px;
+            }
+            
+            .timeline::before {
+                left: 10px;
+            }
+            
+            .timeline-item::before {
+                left: -17px;
+            }
+            
+            .icon-box {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+                margin-right: 15px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Hero Section -->
+    <section class="hero-bg text-white">
+        <div class="container mx-auto px-4 py-20">
+            <div class="text-center">
+                <h1 class="serif-title text-5xl md:text-6xl font-bold mb-6">张家界一日游</h1>
+                <p class="text-xl md:text-2xl mb-8 opacity-90">探索神秘的自然奇观，感受仙境般的魅力</p>
+                
+                <!-- Weather Info -->
+                <div class="weather-card inline-block">
+                    <div class="flex items-center justify-center space-x-6">
+                        <div class="text-center">
+                            <i class="fas fa-cloud text-3xl mb-2"></i>
+                            <p class="text-sm opacity-90">今日天气</p>
+                            <p class="text-2xl font-bold">多云 17-27°C</p>
+                        </div>
+                        <div class="text-center">
+                            <i class="fas fa-wind text-3xl mb-2"></i>
+                            <p class="text-sm opacity-90">风力</p>
+                            <p class="text-lg">东北风 1-3级</p>
+                        </div>
+                        <div class="text-center">
+                            <i class="fas fa-calendar-alt text-3xl mb-2"></i>
+                            <p class="text-sm opacity-90">日期</p>
+                            <p class="text-lg">2025年9月23日</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="container mx-auto px-4 py-12">
+        <!-- 行程概览 -->
+        <section class="mb-12">
+            <h2 class="serif-title text-3xl font-bold text-center mb-8 text-gray-800">行程概览</h2>
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="card p-6 text-center">
+                    <div class="icon-box mx-auto mb-4">
+                        <i class="fas fa-mountain"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">张家界国家森林公园</h3>
+                    <p class="text-gray-600">世界自然遗产，峰林地貌奇观</p>
+                    <p class="text-sm text-gray-500 mt-2">游览时间: 6小时</p>
+                </div>
+                
+                <div class="card p-6 text-center">
+                    <div class="icon-box mx-auto mb-4">
+                        <i class="fas fa-tower-observation"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">袁家界景区</h3>
+                    <p class="text-gray-600">悬浮山景观，阿凡达取景地</p>
+                    <p class="text-sm text-gray-500 mt-2">游览时间: 3小时</p>
+                </div>
+                
+                <div class="card p-6 text-center">
+                    <div class="icon-box mx-auto mb-4">
+                        <i class="fas fa-utensils"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">湘西特色美食</h3>
+                    <p class="text-gray-600">三下锅、土家菜体验</p>
+                    <p class="text-sm text-gray-500 mt-2">用餐时间: 2小时</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 详细时间表 -->
+        <section class="mb-12">
+            <h2 class="serif-title text-3xl font-bold text-center mb-8 text-gray-800">详细行程安排</h2>
+            <div class="bg-white rounded-2xl p-8 shadow-lg">
+                <div class="timeline">
+                    <!-- 08:00 酒店出发 -->
+                    <div class="timeline-item flex items-start">
+                        <div class="icon-box">
+                            <i class="fas fa-hotel"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold mb-1">08:00 - 酒店出发</h3>
+                            <p class="text-gray-600 mb-2">从酒店出发，前往张家界国家森林公园</p>
+                            <div class="flex flex-wrap gap-2 mb-2">
+                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">出租车</span>
+                                <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">约30分钟</span>
+                                <span class="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-sm">约15元</span>
+                            </div>
+                            <a href="#" class="location-nav" onclick="navigateToDestination('张家界国家森林公园南门停车场')">📍 导航：张家界国家森林公园南门停车场</a>
+                        </div>
+                    </div>
+
+                    <!-- 08:30 - 12:00 袁家界景区 -->
+                    <div class="timeline-item flex items-start">
+                        <div class="icon-box">
+                            <i class="fas fa-mountain"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold mb-1">08:30 - 12:00 袁家界景区</h3>
+                            <p class="text-gray-600 mb-2">游览天下第一桥、迷魂台、哈利路亚山等景点</p>
+                            <div class="flex flex-wrap gap-2 mb-2">
+                                <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-sm">门票: 225元</span>
+                                <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-sm">索道: 72元</span>
+                                <span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full text-sm">环保车: 20元</span>
+                            </div>
+                            <p class="text-sm text-gray-500 mb-2">📝 重要提示：建议提前购票，避开人流高峰</p>
+                            <a href="#" class="location-nav" onclick="navigateToDestination('袁家界景区')">📍 导航：袁家界景区</a>
+                        </div>
+                    </div>
+
+                    <!-- 12:00 - 13:30 午餐 -->
+                    <div class="timeline-item flex items-start">
+                        <div class="icon-box">
+                            <i class="fas fa-utensils"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold mb-1">12:00 - 13:30 特色午餐</h3>
+                            <p class="text-gray-600 mb-2">品尝正宗湘西三下锅、土家腊肉</p>
+                            <div class="flex flex-wrap gap-2 mb-2">
+                                <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-sm">人均: 60-80元</span>
+                                <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-sm">湘味特色餐厅</span>
+                            </div>
+                            <a href="#" class="location-nav" onclick="navigateToDestination('湘味特色餐厅')">📍 导航：湘味特色餐厅（天子路3号）</a>
+                        </div>
+                    </div>
+
+                    <!-- 13:30 - 17:00 天子山景区 -->
+                    <div class="timeline-item flex items-start">
+                        <div class="icon-box">
+                            <i class="fas fa-crown"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold mb-1">13:30 - 17:00 天子山景区</h3>
+                            <p class="text-gray-600 mb-2">游览西海石林、仙人桥、御笔峰等景点</p>
+                            <div class="flex flex-wrap gap-2 mb-2">
+                                <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-sm">门票: 225元</span>
+                                <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-sm">索道: 72元</span>
+                            </div>
+                            <p class="text-sm text-gray-500 mb-2">📱 拍照推荐：山顶观景台，拍摄全景绝佳</p>
+                            <a href="#" class="location-nav" onclick="navigateToDestination('天子山景区')">📍 导航：天子山景区</a>
+                        </div>
+                    </div>
+
+                    <!-- 17:00 - 19:00 返程 -->
+                    <div class="timeline-item flex items-start">
+                        <div class="icon-box">
+                            <i class="fas fa-route"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold mb-1">17:00 - 19:00 返程</h3>
+                            <p class="text-gray-600 mb-2">结束愉快的一日游，返回市区</p>
+                            <div class="flex flex-wrap gap-2 mb-2">
+                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">环保车/索道下山</span>
+                                <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">约30分钟返程</span>
+                            </div>
+                            <a href="#" class="location-nav" onclick="navigateToDestination('酒店')">📍 导航：返回酒店</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 景点地图 -->
+        <section class="mb-12">
+            <h2 class="serif-title text-3xl font-bold text-center mb-8 text-gray-800">景点分布图</h2>
+            <div class="card p-6">
+                <div id="map"></div>
+                <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div class="flex items-center justify-center space-x-2">
+                        <div class="w-4 h-4 bg-red-500 rounded-full"></div>
+                        <span class="text-sm">森林公园南门</span>
+                    </div>
+                    <div class="flex items-center justify-center space-x-2">
+                        <div class="w-4 h-4 bg-blue-500 rounded-full"></div>
+                        <span class="text-sm">袁家界景区</span>
+                    </div>
+                    <div class="flex items-center justify-center space-x-2">
+                        <div class="w-4 h-4 bg-green-500 rounded-full"></div>
+                        <span class="text-sm">天子山景区</span>
+                    </div>
+                    <div class="flex items-center justify-center space-x-2">
+                        <div class="w-4 h-4 bg-purple-500 rounded-full"></div>
+                        <span class="text-sm">餐厅地点</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 住宿与餐饮推荐 -->
+        <section class="mb-12">
+            <h2 class="serif-title text-3xl font-bold text-center mb-8 text-gray-800">住宿与餐饮</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- 住宿推荐 -->
+                <div class="card p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fas fa-hotel mr-3 text-green-600"></i>
+                        住宿推荐
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="border-l-4 border-green-500 pl-4">
+                            <h4 class="font-semibold">张家界森林公园锦江都城酒店</h4>
+                            <p class="text-sm text-gray-600">军邸路128号</p>
+                            <p class="text-sm text-blue-600">📞 0744-8366888</p>
+                            <p class="text-sm text-gray-500">💰 价格: 300-500元/晚</p>
+                        </div>
+                        <div class="border-l-4 border-blue-500 pl-4">
+                            <h4 class="font-semibold">武陵源景区酒店</h4>
+                            <p class="text-sm text-gray-600">军地坪街道军邸路397号</p>
+                            <p class="text-sm text-blue-600">📞 0744-8388888</p>
+                            <p class="text-sm text-gray-500">💰 价格: 400-600元/晚</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 餐饮推荐 -->
+                <div class="card p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fas fa-utensils mr-3 text-red-600"></i>
+                        特色餐厅
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="border-l-4 border-red-500 pl-4">
+                            <h4 class="font-semibold">湘味特色餐厅</h4>
+                            <p class="text-sm text-gray-600">天子路3号</p>
+                            <p class="text-sm text-gray-500">🍲 特色菜: 三下锅、土家腊肉</p>
+                            <p class="text-sm text-gray-500">💰 人均: 60-80元</p>
+                        </div>
+                        <div class="border-l-4 border-orange-500 pl-4">
+                            <h4 class="font-semibold">富正毅三下锅(溪布街店)</h4>
+                            <p class="text-sm text-gray-600">溪布街555号</p>
+                            <p class="text-sm text-gray-500">🍲 特色菜: 经典三下锅、湘西土菜</p>
+                            <p class="text-sm text-gray-500">💰 人均: 80-100元</p>
+                        </div>
+                        <div class="border-l-4 border-purple-500 pl-4">
+                            <h4 class="font-semibold">索溪山寨·湘西民间土菜</h4>
+                            <p class="text-sm text-gray-600">吴家峪居委会七组驼峰路</p>
+                            <p class="text-sm text-gray-500">🍲 特色菜: 湘西炒腊肉、野菜</p>
+                            <p class="text-sm text-gray-500">💰 人均: 70-90元</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 实用信息 -->
+        <section class="mb-12">
+            <h2 class="serif-title text-3xl font-bold text-center mb-8 text-gray-800">实用信息</h2>
+            <div class="bg-white rounded-2xl p-8 shadow-lg">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <!-- 紧急联系 -->
+                    <div>
+                        <h3 class="text-xl font-bold mb-4 flex items-center">
+                            <i class="fas fa-phone-alt mr-3 text-red-600"></i>
+                            紧急联系电话
+                        </h3>
+                        <ul class="space-y-2">
+                            <li class="flex items-center">
+                                <span class="w-20 text-gray-600">旅游热线:</span>
+                                <span class="font-mono text-blue-600">0744-8228291</span>
+                            </li>
+                            <li class="flex items-center">
+                                <span class="w-20 text-gray-600">急救中心:</span>
+                                <span class="font-mono text-red-600">120</span>
+                            </li>
+                            <li class="flex items-center">
+                                <span class="w-20 text-gray-600">报警电话:</span>
+                                <span class="font-mono text-red-600">110</span>
+                            </li>
+                            <li class="flex items-center">
+                                <span class="w-20 text-gray-600">火警电话:</span>
+                                <span class="font-mono text-red-600">119</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- 重要提示 -->
+                    <div>
+                        <h3 class="text-xl font-bold mb-4 flex items-center">
+                            <i class="fas fa-exclamation-triangle mr-3 text-yellow-600"></i>
+                            重要提示
+                        </h3>
+                        <ul class="space-y-2 text-sm">
+                            <li class="flex items-start">
+                                <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+                                <span>建议穿着舒适的运动鞋，景区需要大量步行</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+                                <span>提前购买门票，避免排队等待</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+                                <span>携带防晒用品、雨具和充足的水</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+                                <span>注意安全，不要走未开发的小路</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 预算摘要 -->
+                <div class="mt-8 pt-8 border-t">
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fas fa-calculator mr-3 text-blue-600"></i>
+                        预算摘要
+                    </h3>
+                    <div class="grid md:grid-cols-4 gap-4 text-center">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <div class="text-2xl font-bold text-green-600">¥315</div>
+                            <div class="text-sm text-gray-600">门票费用</div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <div class="text-2xl font-bold text-blue-600">¥80</div>
+                            <div class="text-sm text-gray-600">交通费用</div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <div class="text-2xl font-bold text-red-600">¥70</div>
+                            <div class="text-sm text-gray-600">餐饮费用</div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <div class="text-2xl font-bold text-purple-600">¥465</div>
+                            <div class="text-sm text-gray-600">总计(不含住宿)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 行李清单 -->
+                <div class="mt-8 pt-8 border-t">
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fas fa-suitcase mr-3 text-purple-600"></i>
+                        行李清单提醒
+                    </h3>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <ul class="space-y-2 text-sm">
+                            <li class="flex items-start">
+                                <i class="fas fa-id-card text-blue-500 mr-2 mt-1"></i>
+                                <span>身份证件</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-camera text-green-500 mr-2 mt-1"></i>
+                                <span>相机/手机（充电器）</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-tshirt text-blue-500 mr-2 mt-1"></i>
+                                <span>舒适的衣物和运动鞋</span>
+                            </li>
+                        </ul>
+                        <ul class="space-y-2 text-sm">
+                            <li class="flex items-start">
+                                <i class="fas fa-umbrella text-yellow-500 mr-2 mt-1"></i>
+                                <span>雨具（雨伞/雨衣）</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-sun text-orange-500 mr-2 mt-1"></i>
+                                <span>防晒用品（帽子、墨镜）</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-pills text-red-500 mr-2 mt-1"></i>
+                                <span>常用药品和饮用水</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 mt-16">
+        <div class="container mx-auto px-4 text-center">
+            <p class="mb-2">🏞️ 张家界一日游行程规划 | 2025年9月23日</p>
+            <p class="text-sm text-gray-400">祝您旅途愉快！</p>
+        </div>
+    </footer>
+
+    <script>
+        // 初始化地图
+        function initMap() {
+            // 张家界大致经纬度：29.1167° N, 110.4800° E
+            const map = L.map('map').setView([29.1167, 110.4800], 10);
+            
+            // 替换为高德地图瓦片（国内访问稳定）
+            L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+                subdomains: ['1', '2', '3', '4'], // 高德瓦片服务器子域名
+                attribution: '© 高德地图',
+                maxZoom: 18, // 最大缩放级别
+                minZoom: 5   // 最小缩放级别
+            }).addTo(map);
+
+            // 景点标记（保持不变）
+            const locations = [
+                { name: '张家界国家森林公园南门', lat: 29.3322, lng: 110.4801, color: 'red' },
+                { name: '袁家界景区', lat: 29.3389, lng: 110.5225, color: 'blue' },
+                { name: '天子山景区', lat: 29.3582, lng: 110.5158, color: 'green' },
+                { name: '湘味特色餐厅', lat: 29.3356, lng: 110.4822, color: 'purple' }
+            ];
+
+            locations.forEach(location => {
+                const marker = L.circleMarker([location.lat, location.lng], {
+                radius: 8,
+                fillColor: location.color,
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+                }).addTo(map);
+
+                marker.bindPopup(location.name);
+            });
+        }
+
+        // 导航功能
+        function navigateToDestination(destination) {
+            const urls = {
+                '张家界国家森林公园南门停车场': 'https://uri.amap.com/marker?position=110.4801,29.3322&name=张家界国家森林公园南门停车场&src=mypage&coordinate=gaode&callnative=1',
+                '袁家界景区': 'https://uri.amap.com/marker?position=110.5225,29.3389&name=袁家界景区&src=mypage&coordinate=gaode&callnative=1',
+                '天子山景区': 'https://uri.amap.com/marker?position=110.5158,29.3582&name=天子山景区&src=mypage&coordinate=gaode&callnative=1',
+                '湘味特色餐厅': 'https://uri.amap.com/marker?position=110.4822,29.3356&name=湘味特色餐厅&src=mypage&coordinate=gaode&callnative=1',
+                '酒店': 'https://uri.amap.com/navigation?to=&mode=car&policy=1&src=mypage&callnative=1'
+            };
+
+            const url = urls[destination] || urls['酒店'];
+            
+            // 检测设备类型并选择合适的导航方式
+            if (/Android/i.test(navigator.userAgent)) {
+                // Android设备
+                window.location.href = url;
+            } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                // iOS设备
+                window.location.href = url;
+            } else {
+                // PC设备或未知设备，打开网页版高德地图
+                window.open(url, '_blank');
+            }
+        }
+
+        // 页面加载完成后初始化地图
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+        });
+
+        // 平滑滚动
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
