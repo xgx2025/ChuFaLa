@@ -244,19 +244,26 @@
         <div class="section-container">
           <div class="section-header">
             <h2 class="section-title">精选旅游套餐</h2>
-            <div class="packages-filter">
-              <button class="filter-btn filter-btn--active">全部</button>
-              <button class="filter-btn">国内游</button>
-              <button class="filter-btn">国外游</button>
-              <button class="filter-btn">周边游</button>
+            <div class="packages-filter" role="group" aria-label="套餐分类筛选">
+              <button
+                v-for="opt in packageFilterOptions"
+                :key="opt.value"
+                type="button"
+                class="filter-btn"
+                :class="{ 'filter-btn--active': packageFilter === opt.value }"
+                :aria-pressed="packageFilter === opt.value"
+                @click="selectPackageFilter(opt.value)"
+              >{{ opt.label }}</button>
             </div>
           </div>
           
           <div class="packages-list">
-            <div 
+            <!-- 空态必须 grid-column: 1 / -1，否则会被压进第一列 -->
+            <p v-if="filteredPackages.length === 0" class="packages-empty">该分类暂无套餐</p>
+            <div
+              v-for="(tourPackage, index) in filteredPackages"
+              :key="tourPackage.name"
               class="package-card"
-              v-for="(tourPackage, index) in packages" 
-              :key="index"
               v-reveal="(index % 3) * 60"
             >
               <div class="package-card__image-container">
@@ -490,7 +497,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted} from 'vue';
+import { ref, computed, onMounted, onUnmounted} from 'vue';
 import { getUserInfoService } from '@/api/user';
 import {useUserInfoStore} from '@/stores/userInfo'
 import router from '@/router'
@@ -660,6 +667,29 @@ const packages = ref([
     image: 'https://picsum.photos/600/400?random=15'
   }
 ]);
+
+// 套餐分类筛选。
+// 原来这 4 个按钮（全部/国内游/国外游/周边游）是纯装饰：没有 @click、没有状态，
+// 「全部」靠硬编码的 filter-btn--active 撑着，点其它分类没有任何反应。
+// 分类值直接复用 packages 里已有的 type 字段，无需新增数据。
+const packageFilterOptions = [
+  { value: 'all', label: '全部' },
+  { value: '国内游', label: '国内游' },
+  { value: '国外游', label: '国外游' },
+  { value: '周边游', label: '周边游' }
+];
+const packageFilter = ref('all');
+
+// 再点一次当前分类即取消，回到「全部」——与酒店页筛选区的手感保持一致
+const selectPackageFilter = (value) => {
+  packageFilter.value = value !== 'all' && packageFilter.value === value ? 'all' : value;
+};
+
+const filteredPackages = computed(() =>
+  packageFilter.value === 'all'
+    ? packages.value
+    : packages.value.filter((item) => item.type === packageFilter.value)
+);
 
 // 用户评价数据
 const reviews = ref([
@@ -1440,6 +1470,16 @@ html {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--sp-6);
+}
+
+/* 空态必须跨满所有列，否则会被 grid 压进第一列 */
+.packages-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: var(--sp-10) 0;
+  text-align: center;
+  color: var(--c-ink-3);
+  font-size: var(--fs-body);
 }
 
 @media (min-width: 768px) {
