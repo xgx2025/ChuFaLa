@@ -20,13 +20,13 @@
         <!-- 搜索框 + 标题 -->
         <div class="hero-section__content">
           <div class="hero-section__text">
-            <h2 class="hero-section__title">发现完美住宿</h2>
+            <h1 class="hero-section__title">发现完美住宿</h1>
             <p class="hero-section__desc">从豪华酒店到特色民宿，为您的旅程找到理想下榻之处</p>
             
             <!-- 酒店搜索框 -->
             <form class="search-form" @submit.prevent="handleSearch">
               <div class="search-form__group">
-                <i class="fa fa-map-marker search-form__icon"></i>
+                <el-icon class="search-form__icon"><Location /></el-icon>
                 <div class="search-input-wrapper">
                   <p class="search-form__label">目的地</p>
                   <el-input 
@@ -39,7 +39,7 @@
               </div>
               
               <div class="search-form__group">
-                <i class="fa fa-calendar search-form__icon"></i>
+                <el-icon class="search-form__icon"><Calendar /></el-icon>
                 <div class="search-input-wrapper">
                   <p class="search-form__label">日期</p>
                   <el-date-picker
@@ -58,7 +58,7 @@
               </div>
               
               <div class="search-form__group">
-                <i class="fa fa-user search-form__icon"></i>
+                <el-icon class="search-form__icon"><User /></el-icon>
                 <div class="search-input-wrapper">
                   <p class="search-form__label">客人</p>
                   <el-popover placement="bottom" :width="200" trigger="click">
@@ -76,7 +76,7 @@
               </div>
               
               <button type="button" class="search-form__btn" @click="handleSearch">
-                <i class="fa fa-search mr-2"></i>
+                <el-icon class="search-form__btn-icon"><Search /></el-icon>
                 <span>搜索酒店</span>
               </button>
             </form>
@@ -152,7 +152,35 @@
             </div>
           </div>
           
+          <!-- 注意：这里是内部滚动容器（max-height + overflow-y），
+               其子元素被裁剪后 IntersectionObserver 不会判定为"进入视口"，
+               因此本容器内的卡片一律不加 v-reveal。 -->
           <div class="hotels-list" ref="hotelsListRef" @scroll="handleScroll">
+            <!-- 首屏骨架屏（原实现首屏是空白，数据回来才"啪"地出现） -->
+            <template v-if="firstLoading">
+              <div class="hotel-card" v-for="n in 4" :key="'sk' + n">
+                <el-skeleton animated>
+                  <template #template>
+                    <el-skeleton-item variant="image" style="width: 100%; height: 200px" />
+                    <div style="padding: 16px">
+                      <el-skeleton-item variant="h3" style="width: 55%" />
+                      <el-skeleton-item variant="text" style="margin-top: 12px; width: 70%" />
+                      <el-skeleton-item variant="text" style="margin-top: 12px" />
+                      <el-skeleton-item variant="text" style="margin-top: 8px; width: 60%" />
+                    </div>
+                  </template>
+                </el-skeleton>
+              </div>
+            </template>
+
+            <!-- 无结果（原实现完全没有空态，筛不出结果时是一片空白） -->
+            <div v-else-if="filteredHotels.length === 0" class="hotels-empty">
+              <el-empty :image-size="100" description="没有找到符合条件的酒店">
+                <el-button @click="resetFilters">重置筛选条件</el-button>
+              </el-empty>
+            </div>
+
+            <template v-else>
             <div 
               class="hotel-card"
               v-for="(hotel, index) in filteredHotels" 
@@ -160,6 +188,8 @@
             >
               <div class="hotel-card__image-container">
                 <img 
+                  v-lazy-img
+                  loading="lazy"
                   :src="hotel.mainImage" 
                   :alt="`${hotel.name}酒店`" 
                   class="hotel-card__image"
@@ -174,7 +204,7 @@
                 </div>
                 
                 <div class="hotel-card__location">
-                  <i class="fa fa-map-marker hotel-card__location-icon"></i>
+                  <el-icon class="hotel-card__location-icon"><Location /></el-icon>
                   <span>{{ hotel.location }}</span>
                   <span class="hotel-card__distance">{{ hotel.distance }}公里</span>
                 </div>
@@ -200,6 +230,7 @@
                 </div>
               </div>
             </div>
+            </template>
           </div>
           <!-- 2.加载状态提示 -->
           <div class="loading-status" v-if="loadingStatus !== 'none'">
@@ -245,7 +276,7 @@
             <h2 class="section-title">酒店特惠</h2>
             <a href="#" class="section-more">
               更多优惠
-              <i class="fa fa-arrow-right section-more__icon"></i>
+              <el-icon class="section-more__icon"><ArrowRight /></el-icon>
             </a>
           </div>
           
@@ -299,7 +330,7 @@
             <h2 class="section-title">宾客真实评价</h2>
             <a href="#" class="section-more">
               查看全部
-              <i class="fa fa-arrow-right section-more__icon"></i>
+              <el-icon class="section-more__icon"><ArrowRight /></el-icon>
             </a>
           </div>
           
@@ -318,7 +349,7 @@
                 <div class="review-card__user-info">
                   <h4 class="review-card__user-name">{{ review.name }}</h4>
                   <div class="review-card__stars">
-                    <i class="fa fa-star" v-for="i in 5" :key="i" :class="{ 'review-card__star--empty': i > review.rating }"></i>
+                    <el-icon v-for="i in 5" :key="i" :class="{ 'review-card__star--empty': i > review.rating }"><StarFilled /></el-icon>
                   </div>
                 </div>
               </div>
@@ -340,7 +371,7 @@
               <div class="review-card__footer">
                 <span class="review-card__date">{{ review.date }}</span>
                 <div class="review-card__actions">
-                  <button class="review-card__action-btn"><i class="fa fa-thumbs-up"></i> 有用 ({{ review.useful }})</button>
+                  <button class="review-card__action-btn"><el-icon><Pointer /></el-icon> 有用 ({{ review.useful }})</button>
                 </div>
               </div>
             </div>
@@ -351,9 +382,9 @@
       <!-- 订阅区域 -->
       <section class="subscribe-section">
         <div class="subscribe-section__decor">
-          <i class="fa fa-paper-plane decor-icon--plane"></i>
-          <i class="fa fa-sun-o decor-icon--sun"></i>
-          <i class="fa fa-ship decor-icon--ship"></i>
+          <el-icon class="decor-icon--plane"><Plane /></el-icon>
+          <el-icon class="decor-icon--sun"><Sunny /></el-icon>
+          <el-icon class="decor-icon--ship"><Compass /></el-icon>
         </div>
         
         <div class="subscribe-section__content">
@@ -376,7 +407,7 @@
       </section>
     </main>
   </div>
-  <el-backtop :right="100" :bottom="100" style="color:rgb(82, 233, 200);"/>
+  <el-backtop :right="100" :bottom="100" />
 </template>
 
 <script setup>
@@ -384,6 +415,11 @@ import { ref, computed, onMounted, onUnmounted,watch} from 'vue';
 import { getHotelListService } from '@/api/hotel';
 import { useGeoStore } from '@/stores/geo';
 import router from '@/router';
+import { Plane } from '@/components/Icon.vue';
+// 图标统一使用 Element Plus 图标集（项目已有依赖）。
+// 原模板使用的是 FontAwesome 类名（fa fa-*），但项目并未引入 FontAwesome，
+// 这些 <i> 元素全部渲染为空，导致搜索框图标、星级、箭头等一律不可见。
+import { Location, Calendar, User, Search, ArrowRight, StarFilled, Pointer, Sunny, Compass } from '@element-plus/icons-vue';
 
 
 const geoStore = useGeoStore();
@@ -517,6 +553,15 @@ const fetchHotels = async (pageNum, pageSizeNum) => {
 
 
 // 筛选后的酒店列表
+const firstLoading = computed(() => isLoading.value && loadedHotels.value.length === 0);
+
+// 重置全部筛选条件
+const resetFilters = () => {
+  priceFilter.value = 'all';
+  starFilter.value = 'all';
+  facilityFilters.value = { pool: false, wifi: false, parking: false, spa: false, breakfast: false };
+};
+
 const filteredHotels = computed(() => {
   return loadedHotels.value.filter(hotel => {
     // 价格筛选
@@ -793,7 +838,7 @@ onUnmounted(() => {
   opacity: 0;
   transition: opacity 1s ease;
   background-image: var(--slide-image);
-  background-color: #424244; /* 深灰色背景兜底，防止图片加载失败时显示空白 */
+  background-color: var(--c-ink); /* 深灰色背景兜底，防止图片加载失败时显示空白 */
 }
 
 .hero-slide--active {
@@ -818,23 +863,34 @@ onUnmounted(() => {
   padding: 0 1rem;
 }
 
+/* 原值 `max-width: 4xl` / `max-width: 2xl` 为无效 CSS（Tailwind 类名误当 CSS 值），
+   浏览器直接丢弃，文字宽度约束完全失效。宽度约束下沉到标题与描述上，
+   避免把下方的多列搜索表单挤变形。 */
 .hero-section__text {
-  max-width: 4xl;
+  width: 100%;
 }
 
 .hero-section__title {
-  font-size: clamp(2rem, 5vw, 3.5rem);
-  font-weight: bold;
+  max-width: 640px;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 700;
   color: #ffffff;
-  line-height: 1.2;
-  margin-bottom: 0.5rem;
+  line-height: var(--lh-display);
+  letter-spacing: -0.02em;
+  /* 由 h2 提升为 h1，显式写 margin 避免受浏览器默认外边距影响 */
+  margin: 0 0 var(--sp-3);
+  text-shadow: 0 2px 16px rgba(15, 23, 42, 0.35);
 }
 
 .hero-section__desc {
-  font-size: clamp(1rem, 2vw, 1.25rem);
-  color: #f3f4f6;
-  margin-bottom: 2rem;
-  max-width: 2xl;
+  max-width: 560px;
+  font-size: clamp(1rem, 1.6vw, 1.125rem);
+  /* 原为 #f3f4f6（浅灰白），批量令牌化时被映射成 --c-bg-sub（背景令牌），
+     语义错位。这里是压在深色照片上的文字，显式写成半透明白。 */
+  color: rgba(255, 255, 255, 0.88);
+  line-height: var(--lh-body-lg);
+  margin-bottom: var(--sp-8);
+  text-shadow: 0 1px 8px rgba(15, 23, 42, 0.3);
 }
 
 .search-form {
@@ -861,26 +917,26 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   padding: 0.75rem 1rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--c-line);
   border-radius: 0.75rem;
   background-color: #ffffff;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .search-form__group:focus-within {
-  border-color: #2563eb;
+  border-color: var(--c-primary-600);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .search-form__icon {
-  color: #2563eb;
+  color: var(--c-primary-600);
   margin-right: 0.75rem;
-  font-size: 1.25rem;
+  font-size: var(--fs-h3);
 }
 
 .search-form__label {
-  font-size: 0.75rem;
-  color: #6b7280;
+  font-size: var(--fs-caption);
+  color: var(--c-ink-3);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -889,28 +945,42 @@ onUnmounted(() => {
 
 .search-form__hint {
   font-weight: 600;
-  color: #1f2937;
-  font-size: 0.95rem;
+  color: var(--c-ink);
+  font-size: var(--fs-body);
 }
 
 .search-form__btn {
-  background: linear-gradient(to right, #2563eb, #3b82f6);
+  background: linear-gradient(to right, var(--c-primary-600), var(--c-primary-500));
   color: #ffffff;
   border: none;
   border-radius: 0.75rem;
   padding: 0.75rem 1rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, filter 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.5rem;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: var(--fs-body-lg);
   box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
 }
 
 .search-form__btn:hover {
-  background: linear-gradient(to right, #1d4ed8, #2563eb);
+  filter: brightness(1.05);
+  box-shadow: 0 8px 24px -6px rgba(37, 99, 235, 0.45);
+}
+
+.search-form__btn:active {
+  transform: scale(0.98);
+}
+
+.search-form__btn-icon {
+  font-size: var(--fs-body-lg);
+}
+
+.search-form__btn:hover {
+  background: linear-gradient(to right, var(--c-primary-700), var(--c-primary-600));
   transform: translateY(-1px);
   box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.4);
 }
@@ -923,8 +993,8 @@ onUnmounted(() => {
 }
 :deep(.custom-input .el-input__inner) {
   font-weight: 600;
-  color: #1f2937;
-  font-size: 0.95rem;
+  color: var(--c-ink);
+  font-size: var(--fs-body);
   height: auto;
   line-height: 1.2;
 }
@@ -936,19 +1006,19 @@ onUnmounted(() => {
 }
 :deep(.custom-date-picker .el-range-input) {
   font-weight: 600;
-  color: #1f2937;
-  font-size: 0.95rem;
+  color: var(--c-ink);
+  font-size: var(--fs-body);
   background-color: transparent !important;
 }
 :deep(.custom-date-picker .el-range-separator) {
-  color: #9ca3af;
+  color: var(--c-ink-4);
   line-height: 1.5;
 }
 
 .guest-selector {
   font-weight: 600;
-  color: #1f2937;
-  font-size: 0.95rem;
+  color: var(--c-ink);
+  font-size: var(--fs-body);
   cursor: pointer;
   padding: 2px 0;
   user-select: none;
@@ -987,7 +1057,7 @@ onUnmounted(() => {
   background-color: rgba(255, 255, 255, 0.5);
   border: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, width 0.2s ease;
 }
 
 .hero-control__dot--active {
@@ -1001,7 +1071,7 @@ onUnmounted(() => {
 /* 筛选区域样式 */
 .filters-section {
   background-color: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--c-line);
   padding: 0.75rem 0;
 }
 
@@ -1018,9 +1088,9 @@ onUnmounted(() => {
 .filter-label {
   display: block;
   font-weight: 500;
-  color: #1f2937;
+  color: var(--c-ink);
   margin-bottom: 0.5rem;
-  font-size: 0.875rem;
+  font-size: var(--fs-body);
   padding-left: 0.25rem; 
 }
 
@@ -1033,42 +1103,42 @@ onUnmounted(() => {
 
 
 .filter-btn {
-  background-color: #f9fafb; 
-  color: #4b5563; 
-  border: 1px solid #e5e7eb; 
+  background-color: var(--c-bg-sub); 
+  color: var(--c-ink-2); 
+  border: 1px solid var(--c-line); 
   border-radius: 9999px; 
   padding: 0.4rem 0.9rem; 
-  font-size: 0.875rem;
+  font-size: var(--fs-body);
   cursor: pointer;
-  transition: all 0.2s ease; 
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
   white-space: nowrap; 
 }
 
 
 .filter-btn:hover:not(.filter-btn--active) {
-  background-color: #f3f4f6;
-  border-color: #d1d5db;
-  color: #1f2937;
+  background-color: var(--c-bg-sub);
+  border-color: var(--c-ink-4);
+  color: var(--c-ink);
 }
 
 
 .filter-btn--active {
-  background-color: #2563eb; 
+  background-color: var(--c-primary-600); 
   color: #ffffff; 
-  border-color: #2563eb; 
+  border-color: var(--c-primary-600); 
   box-shadow: 0 1px 2px 0 rgba(37, 99, 235, 0.2);
 }
 
 
 .filter-btn--active:hover {
-  background-color: #1d4ed8; 
-  border-color: #1d4ed8;
+  background-color: var(--c-primary-700); 
+  border-color: var(--c-primary-700);
 }
 
 /* 酒店列表样式 */
 .hotels-section {
   padding: 3rem 0;
-  background-color: #f3f4f6; /* 更现代的浅灰色背景 */
+  background-color: var(--c-bg-sub); /* 更现代的浅灰色背景 */
 }
 
 .section-container {
@@ -1085,9 +1155,9 @@ onUnmounted(() => {
 }
 
 .section-title {
-  font-size: 1.875rem;
+  font-size: var(--fs-h2);
   font-weight: 700;
-  color: #111827;
+  color: var(--c-ink);
   position: relative;
   padding-left: 1rem;
 }
@@ -1100,7 +1170,7 @@ onUnmounted(() => {
   transform: translateY(-50%);
   width: 5px;
   height: 24px;
-  background: linear-gradient(to bottom, #2563eb, #60a5fa);
+  background: linear-gradient(to bottom, var(--c-primary-600), var(--c-primary-400));
   border-radius: 4px;
 }
 
@@ -1115,8 +1185,8 @@ onUnmounted(() => {
 }
 
 .sort-label {
-  color: #4b5563;
-  font-size: 0.875rem;
+  color: var(--c-ink-2);
+  font-size: var(--fs-body);
   font-weight: 500;
 }
 
@@ -1124,7 +1194,7 @@ onUnmounted(() => {
   padding: 0.25rem 0.5rem;
   border: none;
   background-color: transparent;
-  color: #1f2937;
+  color: var(--c-ink);
   font-weight: 600;
   cursor: pointer;
   outline: none;
@@ -1141,18 +1211,18 @@ onUnmounted(() => {
   padding: 0.5rem; /* 防止阴影被切 */
   /* 滚动条美化 */
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 #f1f5f9;
+  scrollbar-color: var(--c-ink-4) var(--c-bg-sub);
 }
 
 .hotels-list::-webkit-scrollbar {
   width: 8px;
 }
 .hotels-list::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--c-bg-sub);
   border-radius: 4px;
 }
 .hotels-list::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
+  background-color: var(--c-ink-4);
   border-radius: 4px;
 }
 
@@ -1160,8 +1230,8 @@ onUnmounted(() => {
 .loading-status {
   text-align: center;
   padding: 2rem 0;
-  color: #6b7280;
-  font-size: 0.95rem;
+  color: var(--c-ink-3);
+  font-size: var(--fs-body);
   font-weight: 500;
   display: flex;
   justify-content: center;
@@ -1170,7 +1240,7 @@ onUnmounted(() => {
 }
 .loading-status span[onclick] {
   cursor: pointer;
-  color: #2563eb;
+  color: var(--c-primary-600);
   text-decoration: underline;
 }
 
@@ -1187,19 +1257,30 @@ onUnmounted(() => {
 }
 
 .hotel-card {
-  background-color: #ffffff;
-  border-radius: 1rem;
+  background-color: var(--c-bg);
+  border-radius: var(--r-lg);
   overflow: hidden;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--sh-2);
+  transition: transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(229, 231, 235, 0.5);
+  border: 1px solid var(--c-line);
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .hotel-card:hover {
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  transform: translateY(-5px);
+  box-shadow: var(--sh-hover);
+  transform: translateY(-4px);
+  border-color: transparent;
+}
+
+/* 列表无结果时的占位 */
+.hotels-empty {
+  padding: var(--sp-12) 0;
+  text-align: center;
 }
 
 .hotel-card__image-container {
@@ -1223,9 +1304,9 @@ onUnmounted(() => {
   position: absolute;
   top: 1rem;
   left: 1rem;
-  background: linear-gradient(135deg, #ef4444, #dc2626);
+  background: linear-gradient(135deg, var(--c-danger), var(--c-danger));
   color: #ffffff;
-  font-size: 0.75rem;
+  font-size: var(--fs-caption);
   font-weight: 700;
   padding: 0.35rem 0.75rem;
   border-radius: 2rem;
@@ -1251,8 +1332,8 @@ onUnmounted(() => {
 .hotel-card__name {
   flex: 1;
   font-weight: 700;
-  color: #111827;
-  font-size: 1.25rem;
+  color: var(--c-ink);
+  font-size: var(--fs-h3);
   line-height: 1.4;
   transition: color 0.2s ease;
   display: -webkit-box;
@@ -1268,27 +1349,27 @@ onUnmounted(() => {
 }
 
 .hotel-card:hover .hotel-card__name {
-  color: #2563eb;
+  color: var(--c-primary-600);
 }
 
 .hotel-card__location {
   display: flex;
   align-items: center;
-  color: #6b7280;
-  font-size: 0.875rem;
+  color: var(--c-ink-3);
+  font-size: var(--fs-body);
   margin-bottom: 1rem;
 }
 
 .hotel-card__location-icon {
   margin-right: 0.35rem;
-  color: #9ca3af;
+  color: var(--c-ink-4);
 }
 
 .hotel-card__distance {
   margin-left: auto;
-  color: #2563eb;
-  font-size: 0.8rem;
-  background-color: #eff6ff;
+  color: var(--c-primary-600);
+  font-size: var(--fs-caption);
+  background-color: var(--c-primary-50);
   padding: 0.15rem 0.5rem;
   border-radius: 0.25rem;
 }
@@ -1301,19 +1382,19 @@ onUnmounted(() => {
 }
 
 .hotel-card__facility {
-  background-color: #f9fafb;
-  color: #4b5563;
-  font-size: 0.75rem;
+  background-color: var(--c-bg-sub);
+  color: var(--c-ink-2);
+  font-size: var(--fs-caption);
   padding: 0.25rem 0.6rem;
   border-radius: 0.375rem;
-  border: 1px solid #f3f4f6;
+  border: 1px solid var(--c-bg-sub);
 }
 
 .hotel-card__more-facilities {
-  color: #6b7280;
-  font-size: 0.75rem;
+  color: var(--c-ink-3);
+  font-size: var(--fs-caption);
   padding: 0.25rem 0.5rem;
-  background-color: #f9fafb;
+  background-color: var(--c-bg-sub);
   border-radius: 0.375rem;
 }
 
@@ -1321,31 +1402,31 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   margin-bottom: 1.25rem;
-  background-color: #f8fafc;
+  background-color: var(--c-bg-sub);
   padding: 0.5rem;
   border-radius: 0.5rem;
 }
 
 .rating-score {
-  background-color: #2563eb;
+  background-color: var(--c-primary-600);
   color: #ffffff;
   font-weight: 800;
   padding: 0.25rem 0.5rem;
   border-radius: 0.375rem;
   margin-right: 0.75rem;
-  font-size: 0.9rem;
+  font-size: var(--fs-body);
   box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
 }
 
 .rating-reviews {
-  color: #4b5563;
-  font-size: 0.85rem;
+  color: var(--c-ink-2);
+  font-size: var(--fs-caption);
   margin-right: auto;
 }
 
 .rating-tag {
-  color: #059669;
-  font-size: 0.8rem;
+  color: var(--c-success);
+  font-size: var(--fs-caption);
   font-weight: 600;
 }
 
@@ -1355,25 +1436,25 @@ onUnmounted(() => {
   align-items: flex-end;
   margin-top: auto;
   padding-top: 1.25rem;
-  border-top: 1px dashed #e5e7eb;
+  border-top: 1px dashed var(--c-line);
 }
 
 .hotel-card__price {
-  color: #ef4444;
+  color: var(--c-danger);
   font-weight: 800;
-  font-size: 1.5rem;
+  font-size: var(--fs-h2);
   line-height: 1;
 }
 
 .hotel-card__price-unit {
-  color: #9ca3af;
-  font-size: 0.8rem;
+  color: var(--c-ink-4);
+  font-size: var(--fs-caption);
   margin-left: 0.15rem;
 }
 
 .hotel-card__original-price {
-  color: #9ca3af;
-  font-size: 0.8rem;
+  color: var(--c-ink-4);
+  font-size: var(--fs-caption);
   text-decoration: line-through;
   margin-left: 0.5rem;
   display: block;
@@ -1381,19 +1462,19 @@ onUnmounted(() => {
 }
 
 .hotel-card__btn {
-  background: linear-gradient(to right, #2563eb, #3b82f6);
+  background: linear-gradient(to right, var(--c-primary-600), var(--c-primary-500));
   color: #ffffff;
   border: none;
   border-radius: 0.5rem;
   padding: 0.6rem 1.25rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
 }
 
 .hotel-card__btn:hover {
-  background: linear-gradient(to right, #1d4ed8, #2563eb);
+  background: linear-gradient(to right, var(--c-primary-700), var(--c-primary-600));
   box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.4);
   transform: translateY(-1px);
 }
@@ -1421,7 +1502,7 @@ onUnmounted(() => {
   border-radius: 0.75rem;
   overflow: hidden;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
   height: 14rem;
   cursor: pointer;
 }
@@ -1457,21 +1538,23 @@ onUnmounted(() => {
 }
 
 .hotel-type-card__name {
-  font-size: 1.25rem;
+  font-size: var(--fs-h3);
   font-weight: bold;
   color: #ffffff;
   margin-bottom: 0.25rem;
 }
 
 .hotel-type-card__count {
-  color: #f3f4f6;
-  font-size: 0.875rem;
+  /* 原为 #f3f4f6，令牌化时被映射成背景令牌，语义错位。
+     这里是压在深色照片上的文字，显式写半透明白。 */
+  color: rgba(255, 255, 255, 0.82);
+  font-size: var(--fs-body);
 }
 
 /* 酒店特惠样式 */
 .hotel-deals-section {
   padding: 3rem 0;
-  background-color: #f9fafb;
+  background-color: var(--c-bg-sub);
 }
 
 /* 酒店评价样式 */
@@ -1493,7 +1576,7 @@ onUnmounted(() => {
 }
 
 .review-card {
-  background-color: #f9fafb;
+  background-color: var(--c-bg-sub);
   border-radius: 0.75rem;
   padding: 1.5rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
@@ -1501,7 +1584,7 @@ onUnmounted(() => {
 
 .review-card__hotel-name {
   font-weight: 500;
-  color: #1f2937;
+  color: var(--c-ink);
   margin: 0.75rem 0;
 }
 
@@ -1524,7 +1607,7 @@ onUnmounted(() => {
   align-items: center;
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--c-line);
 }
 
 .review-card__actions {
@@ -1535,8 +1618,8 @@ onUnmounted(() => {
 .review-card__action-btn {
   background: none;
   border: none;
-  color: #6b7280;
-  font-size: 0.875rem;
+  color: var(--c-ink-3);
+  font-size: var(--fs-body);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1544,6 +1627,6 @@ onUnmounted(() => {
 }
 
 .review-card__action-btn:hover {
-  color: #2563eb;
+  color: var(--c-primary-600);
 }
 </style>

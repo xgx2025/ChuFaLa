@@ -93,35 +93,35 @@ onMounted(() => {
 <style scoped>
 .location-container {
   padding: 20px;
-  font-size: 16px;
+  font-size: var(--fs-body-lg);
   max-width: 600px;
   margin: 0 auto;
 }
 .loading {
-  color: #666;
+  color: var(--c-ink-3);
   padding: 10px;
-  background-color: #f5f5f5;
+  background-color: var(--c-bg-sub);
   border-radius: 4px;
 }
 .success {
-  color: #2ecc71;
+  color: var(--c-success);
   margin-top: 10px;
   padding: 10px;
-  background-color: #f0fff4;
+  background-color: var(--c-success-soft);
   border-radius: 4px;
-  border: 1px solid #c3e6c3;
+  border: 1px solid var(--c-success-soft);
 }
 .error {
-  color: #e74c3c;
+  color: var(--c-danger);
   margin-top: 10px;
   padding: 10px;
-  background-color: #fff5f5;
+  background-color: var(--c-danger-soft);
   border-radius: 4px;
-  border: 1px solid #ffe3e3;
+  border: 1px solid var(--c-danger-soft);
 }
 h3 {
-  color: #333;
-  border-bottom: 1px solid #eee;
+  color: var(--c-ink);
+  border-bottom: 1px solid var(--c-line-2);
   padding-bottom: 10px;
 }
 </style>

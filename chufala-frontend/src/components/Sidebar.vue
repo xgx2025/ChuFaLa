@@ -1,11 +1,8 @@
 <template>
   <el-menu
-    default-active="1"
+    :default-active="activeIndex"
     class="sidebar-menu"
     router
-    active-text-color="#409EFF" 
-    background-color="#f8f9fa"
-    text-color="#333"
   >
     <el-menu-item index="/my/order/hotel">
       <el-icon><Hotel /></el-icon>
@@ -27,12 +24,39 @@
 </template>
 
 <script setup>
-import {Ticket} from '@element-plus/icons-vue'
-import {Hotel, Plane,Train} from '@/components/Icon.vue'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { Ticket } from '@element-plus/icons-vue'
+import { Hotel, Plane, Train } from '@/components/Icon.vue'
+
+const route = useRoute()
+
+// 原来写死 default-active="1"，任何子路由下都没有菜单项处于高亮态
+const activeIndex = computed(() => route.path)
 </script>
 
 <style scoped>
+/* 原实现用 active-text-color / background-color / text-color 三个属性写死颜色，
+   其中 active-text-color 用的是 Element Plus 默认蓝，与项目主色冲突。
+   改为覆写 Element Plus 的菜单变量，统一走设计令牌。 */
 .sidebar-menu {
-  border-right: none; /* 去掉默认右侧边框，保持简约 */
+  border-right: none;
+  --el-menu-active-color: var(--c-primary-600);
+  --el-menu-bg-color: transparent;
+  --el-menu-text-color: var(--c-ink-2);
+  --el-menu-hover-bg-color: var(--c-primary-50);
+  --el-menu-item-height: 48px;
+}
+
+.sidebar-menu :deep(.el-menu-item) {
+  border-radius: var(--r-sm);
+  margin: var(--sp-1) var(--sp-2);
+  transition: background-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out);
+}
+
+.sidebar-menu :deep(.el-menu-item.is-active) {
+  background-color: var(--c-primary-50);
+  font-weight: 500;
 }
 </style>

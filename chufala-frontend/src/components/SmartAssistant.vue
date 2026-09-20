@@ -261,11 +261,11 @@ const handleQuickReply = (text: string) => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--c-line);
 }
 
 .chat-header {
-  background: linear-gradient(135deg, #64EDAC 0%, #3b82f6 100%);
+  background: linear-gradient(135deg, var(--c-success) 0%, var(--c-primary-500) 100%);
   color: #fff;
   padding: 15px;
   display: flex;
@@ -282,7 +282,7 @@ const handleQuickReply = (text: string) => {
 
 .close-btn {
   cursor: pointer;
-  font-size: 20px;
+  font-size: var(--fs-h3);
   opacity: 0.8;
 }
 
@@ -294,7 +294,7 @@ const handleQuickReply = (text: string) => {
   flex: 1;
   padding: 15px;
   overflow-y: auto;
-  background-color: #f9fafb;
+  background-color: var(--c-bg-sub);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -304,7 +304,7 @@ const handleQuickReply = (text: string) => {
   max-width: 80%;
   padding: 10px 14px;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.5;
   word-wrap: break-word;
 }
@@ -312,14 +312,14 @@ const handleQuickReply = (text: string) => {
 .message.assistant {
   align-self: flex-start;
   background-color: #fff;
-  border: 1px solid #e5e7eb;
-  color: #374151;
+  border: 1px solid var(--c-line);
+  color: var(--c-ink-2);
   border-bottom-left-radius: 2px;
 }
 
 .message.user {
   align-self: flex-end;
-  background-color: #3b82f6;
+  background-color: var(--c-primary-500);
   color: #fff;
   border-bottom-right-radius: 2px;
 }
@@ -334,7 +334,7 @@ const handleQuickReply = (text: string) => {
   display: inline-block;
   width: 6px;
   height: 6px;
-  background-color: #9ca3af;
+  background-color: var(--c-ink-4);
   border-radius: 50%;
   animation: typing 1.4s infinite ease-in-out both;
   margin: 0 3px;
@@ -354,7 +354,7 @@ const handleQuickReply = (text: string) => {
   display: inline-block;
   width: 6px;
   height: 14px;
-  background-color: #64EDAC;
+  background-color: var(--c-success);
   margin-left: 2px;
   vertical-align: middle;
   animation: blink 1s step-end infinite;
@@ -372,7 +372,7 @@ const handleQuickReply = (text: string) => {
 
 .chat-input {
   padding: 10px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--c-line);
   display: flex;
   gap: 10px;
   background-color: #fff;
@@ -381,34 +381,34 @@ const handleQuickReply = (text: string) => {
 .chat-input input {
   flex: 1;
   padding: 8px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--c-ink-4);
   border-radius: 20px;
   outline: none;
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .chat-input input:focus {
-  border-color: #3b82f6;
+  border-color: var(--c-primary-500);
 }
 
 .chat-input button {
   padding: 8px 16px;
-  background-color: #3b82f6;
+  background-color: var(--c-primary-500);
   color: #fff;
   border: none;
   border-radius: 20px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   transition: background-color 0.2s;
 }
 
 .chat-input button:disabled {
-  background-color: #9ca3af;
+  background-color: var(--c-ink-4);
   cursor: not-allowed;
 }
 
 .chat-input button:not(:disabled):hover {
-  background-color: #2563eb;
+  background-color: var(--c-primary-600);
 }
 
 /* Transition */
@@ -430,7 +430,7 @@ const handleQuickReply = (text: string) => {
   overflow-x: auto;
   white-space: nowrap;
   background-color: #fff;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--c-bg-sub);
   /* Hide scrollbar */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none;  /* IE 10+ */
@@ -442,27 +442,27 @@ const handleQuickReply = (text: string) => {
 
 .reply-tag {
   padding: 6px 12px;
-  background-color: #f3f4f6;
-  color: #4b5563;
+  background-color: var(--c-bg-sub);
+  color: var(--c-ink-2);
   border-radius: 16px;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color 0.2s, background-color 0.2s;
   flex-shrink: 0;
   border: 1px solid transparent;
 }
 
 .reply-tag:hover {
-  background-color: #e0f2fe;
-  color: #0284c7;
-  border-color: #bae6fd;
+  background-color: var(--c-primary-100);
+  color: var(--c-primary-700);
+  border-color: var(--c-primary-200);
 }
 
 /* Markdown Styles */
 :deep(.markdown-body) {
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.5;
-  color: #374151;
+  color: var(--c-ink-2);
 }
 
 :deep(.markdown-body p) {
@@ -495,7 +495,7 @@ const handleQuickReply = (text: string) => {
 
 :deep(.markdown-body strong) {
   font-weight: 600;
-  color: #111827;
+  color: var(--c-ink);
 }
 
 :deep(.markdown-body code) {
@@ -512,7 +512,7 @@ const handleQuickReply = (text: string) => {
   overflow: auto;
   font-size: 85%;
   line-height: 1.45;
-  background-color: #f6f8fa;
+  background-color: var(--c-bg-sub);
   border-radius: 3px;
   margin-bottom: 8px;
 }
@@ -529,13 +529,13 @@ const handleQuickReply = (text: string) => {
 
 :deep(.markdown-body blockquote) {
   padding: 0 1em;
-  color: #6a737d;
-  border-left: 0.25em solid #dfe2e5;
+  color: var(--c-ink-3);
+  border-left: 0.25em solid var(--c-line);
   margin: 0 0 8px 0;
 }
 
 :deep(.markdown-body a) {
-  color: #0366d6;
+  color: var(--c-primary-600);
   text-decoration: none;
 }
 

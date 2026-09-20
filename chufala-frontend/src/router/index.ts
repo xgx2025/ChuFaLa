@@ -65,16 +65,18 @@ const routes = [
 const router = createRouter({
     history:createWebHistory(),
     routes:routes,
-    // 核心配置：滚动行为
+    // 滚动行为
     scrollBehavior(to, from, savedPosition) {
-        // 1. 所有跳转都回到顶部（x=0, y=0）
+        // 1. 浏览器前进/后退：恢复离开时的滚动位置
+        if (savedPosition) {
+            return savedPosition
+        }
+        // 2. 带锚点的跳转：滚到锚点处（配合 html { scroll-padding-top } 让开吸顶导航）
+        if (to.hash) {
+            return { el: to.hash, behavior: 'smooth' }
+        }
+        // 3. 其余情况回到顶部
         return { top: 0, left: 0 }
-        // 若需要保留“后退/前进”的滚动记忆，可优化为：
-        // if (savedPosition) {
-        //   return savedPosition
-        // } else {
-        //   return { top: 0 }
-        // }
     }
 })
 

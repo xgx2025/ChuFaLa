@@ -2,6 +2,7 @@
 .workbuddy-ai/
 .trae/
 interview-prep/
+docs/
 
 # ===== 编辑器与 IDE =====
 .idea/

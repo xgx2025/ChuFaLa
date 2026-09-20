@@ -5,6 +5,9 @@
     :infinite-scroll-disabled="disabled"
     infinite-scroll-distance="100"
   >
+    <!-- 页面标题：原来整页没有任何 h1，读屏软件无法定位主内容，SEO 也拿不到页面主题 -->
+    <h1 class="page-title">景点门票</h1>
+
     <!-- 搜索和筛选区 -->
     <el-card class="filter-card">
       <div class="filter-container">
@@ -50,17 +53,40 @@
       </div>
     </el-card>
 
+    <!-- 首次加载：骨架屏（原实现首屏是纯白，数据回来才"啪"地出现） -->
+    <div v-if="firstLoading" class="attraction-list">
+      <el-card v-for="n in 6" :key="n" class="attraction-card" shadow="never">
+        <el-skeleton animated>
+          <template #template>
+            <el-skeleton-item variant="image" style="width: 100%; height: 180px; border-radius: 8px 8px 0 0" />
+            <div style="padding: 14px">
+              <el-skeleton-item variant="h3" style="width: 60%" />
+              <el-skeleton-item variant="text" style="margin-top: 12px; width: 40%" />
+              <el-skeleton-item variant="text" style="margin-top: 12px" />
+              <el-skeleton-item variant="text" style="margin-top: 8px; width: 80%" />
+            </div>
+          </template>
+        </el-skeleton>
+      </el-card>
+    </div>
+
     <!-- 景点列表 -->
-    <div class="attraction-list">
+    <div v-else class="attraction-list">
       <el-card
         v-for="attraction in attractions"
         :key="attraction.id"
         class="attraction-card"
-        hover
+        shadow="hover"
         @click="router.push(`/attraction/detail/${attraction.id}`)"
       >
         <div class="card-content">
-          <img :src="attraction.mainImage" :alt="attraction.name" class="attraction-image" />
+          <img
+            v-lazy-img
+            loading="lazy"
+            :src="attraction.mainImage"
+            :alt="attraction.name"
+            class="attraction-image"
+          />
           <div class="attraction-info">
             <h3 class="attraction-name">{{ attraction.name }}</h3>
             <div class="attraction-rating">
@@ -88,16 +114,26 @@
 
     <!-- 底部加载状态 -->
     <div class="loading-state">
-       <p v-if="loading">加载中...</p>
-       <p v-if="noMore">没有更多了 (共 {{ totalAttractions }} 个结果)</p>
-       <p v-else-if="!loading && attractions.length > 0">上滑加载更多 (当前 {{ attractions.length }} / 共 {{ totalAttractions }})</p>
+      <p v-if="loading && !firstLoading">加载中...</p>
+      <p v-else-if="noMore">没有更多了 (共 {{ totalAttractions }} 个结果)</p>
+      <p v-else-if="attractions.length > 0">
+        上滑加载更多 (当前 {{ attractions.length }} / 共 {{ totalAttractions }})
+      </p>
     </div>
 
-    <!-- 空状态 -->
-    <div v-if="attractions.length === 0 && !loading" class="empty-state">
-      <el-empty description="暂无景点数据" />
+    <!-- 空态 / 错误态
+         原实现把请求失败也当成「暂无景点数据」展示，会误导用户。
+         这里把错误单独区分出来，并给出可重试的出口。 -->
+    <div v-if="!firstLoading && !loading && attractions.length === 0" class="empty-state">
+      <el-empty v-if="error" :image-size="100" description="加载失败，请检查网络后重试">
+        <el-button type="primary" @click="fetchAttractions">重新加载</el-button>
+      </el-empty>
+      <el-empty v-else :image-size="100" description="没有找到符合条件的景点">
+        <el-button @click="resetFilters">重置筛选条件</el-button>
+      </el-empty>
     </div>
-  <el-backtop :right="100" :bottom="100" style="color:rgb(82, 233, 200);"/>
+
+    <el-backtop :right="100" :bottom="100" />
   </div>
 </template>
 
@@ -148,9 +184,13 @@ const filterType = ref('')
 const sortBy = ref('distance')
 const attractions = ref([])
 const loading = ref(false)
+const error = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(12)
 const totalAttractions = ref(0)
+
+// 首屏加载（含重新搜索）：列表还是空的 → 展示骨架屏而不是空白
+const firstLoading = computed(() => loading.value && attractions.value.length === 0)
 
 const cityOptions = [
   { label: '不限', value: '' },
@@ -181,6 +221,7 @@ const disabled = computed(() => loading.value || noMore.value)
 // 核心数据加载函数
 const loadAttractionsData = async (append = false) => {
   loading.value = true
+  error.value = false
   try {
     if (!geoStore.lat || !geoStore.lng) {
       await geoStore.getCityByBrowser();
@@ -206,10 +247,22 @@ const loadAttractionsData = async (append = false) => {
     totalAttractions.value = res.data.total || 0
   } catch (err) {
     console.error('获取景点数据失败', err)
+    // 标记为错误态，与「确实没有数据」区分开，避免给用户错误暗示
+    error.value = true
     if (!append) attractions.value = []
   } finally {
     loading.value = false
   }
+}
+
+// 重置筛选条件
+const resetFilters = () => {
+  searchKeyword.value = ''
+  filterCity.value = ''
+  filterStars.value = ''
+  filterType.value = ''
+  sortBy.value = 'distance'
+  fetchAttractions()
 }
 
 // 搜索/重置 (替换列表)
@@ -248,39 +301,46 @@ onMounted(() => {
 
 <style scoped>
 .attraction-result-page {
-  max-width: 1200px;
+  max-width: var(--container-max);
   margin: 0 auto;
-  padding: 20px;
+  padding: var(--sp-5);
 }
 
+/* .page-title 统一定义在全局 base.css 里 */
+
 .filter-card {
-  margin-bottom: 20px;
+  margin-bottom: var(--sp-5);
 }
 
 .filter-container {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--sp-3);
 }
 
 .attraction-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
+  gap: var(--sp-5);
+  margin-bottom: var(--sp-8);
 }
 
 .attraction-card {
   height: 100%;
   display: flex;
   flex-direction: column;
-  transition: transform 0.3s, box-shadow 0.3s;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
 }
 
 .attraction-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+  box-shadow: var(--sh-hover);
 }
 
 .card-content {
@@ -293,59 +353,63 @@ onMounted(() => {
   width: 100%;
   height: 180px;
   object-fit: cover;
-  border-radius: 8px 8px 0 0;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
 }
 
 .attraction-info {
-  padding: 14px;
+  padding: var(--sp-4);
   flex: 1;
   display: flex;
   flex-direction: column;
 }
 
 .attraction-name {
-  margin: 0 0 8px 0;
-  font-size: 18px;
+  margin: 0 0 var(--sp-2) 0;
+  font-size: var(--fs-h3);
+  line-height: 1.3;
   font-weight: 600;
+  color: var(--c-ink);
 }
 
 .attraction-rating {
-  margin-bottom: 6px;
+  margin-bottom: var(--sp-2);
 }
 
 .attraction-distance {
-  color: #666;
-  font-size: 14px;
-  margin-bottom: 6px;
+  color: var(--c-ink-3);
+  font-size: var(--fs-caption);
+  margin-bottom: var(--sp-2);
 }
 
 .attraction-type {
-  margin-bottom: 8px;
+  margin-bottom: var(--sp-2);
 }
 
 .tag-container {
   display: flex;
-  gap: 8px; 
+  gap: var(--sp-2);
   flex-wrap: wrap;
 }
 
 .attraction-desc {
   flex: 1;
-  font-size: 14px;
-  color: #666;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-body);
+  color: var(--c-ink-3);
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  margin-bottom: 8px;
+  margin-bottom: var(--sp-2);
 }
 
 .attraction-address {
-  font-size: 12px;
-  color: #999;
+  font-size: var(--fs-caption);
+  color: var(--c-ink-4);
   display: flex;
   align-items: center;
+  gap: var(--sp-1);
 }
 
 .pagination-container {
@@ -353,8 +417,14 @@ onMounted(() => {
   justify-content: center;
 }
 
-.empty-state, .loading-state {
+.empty-state,
+.loading-state {
   text-align: center;
-  padding: 50px 0;
+  padding: var(--sp-12) 0;
+}
+
+.loading-state {
+  color: var(--c-ink-3);
+  font-size: var(--fs-caption);
 }
 </style>

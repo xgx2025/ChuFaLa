@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container">
+  <div class="orders-container">
     <el-container>
       <!-- 左侧侧边栏 -->
       <el-aside width="200px" class="sidebar">
@@ -11,7 +11,7 @@
       </el-main>
     </el-container>
   </div>
-  <el-backtop :right="100" :bottom="100" style="color:rgb(82, 233, 200);"/>
+  <el-backtop :right="100" :bottom="100" />
 </template>
 
 <script setup>
@@ -19,20 +19,20 @@ import Sidebar from '@/components/Sidebar.vue'
 </script>
 
 <style scoped>
-.app-container {
+.orders-container {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
 }
 
 .sidebar {
-  background-color: #f8f9fa;
-  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.1);
+  background-color: var(--c-bg-sub);
+  border-right: 1px solid var(--c-line);
 }
 
 .el-main {
   flex: 1;
-  padding: 20px;
+  padding: var(--sp-5);
   overflow: hidden;
 }
 </style>

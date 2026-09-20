@@ -221,13 +221,13 @@ onMounted(() => {
 <style scoped>
 
 :deep(.batch-price-btn .el-icon) {
-  font-size: 20px; /* 核心：调节图标大小（默认1em，约16px） */
+  font-size: var(--fs-h3); /* 核心：调节图标大小（默认1em，约16px） */
   width: 20px;     /* 兜底：部分 SVG 需显式设置宽高 */
   height: 20px;
 }
 
 :deep(.batch-stock-btn .el-icon) {
-  font-size: 20px; /* 核心：调节图标大小（默认1em，约16px） */
+  font-size: var(--fs-h3); /* 核心：调节图标大小（默认1em，约16px） */
   width: 20px;     /* 兜底：部分 SVG 需显式设置宽高 */
   height: 20px;
 }
@@ -267,7 +267,7 @@ onMounted(() => {
   padding: 4px;
 }
 :deep(.el-calendar-table .el-calendar-day:hover) {
-  background-color: #f5f7fa;
+  background-color: var(--c-bg-sub);
   cursor: pointer;
 }
 </style>

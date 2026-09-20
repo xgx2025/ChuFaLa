@@ -1,0 +1,168 @@
+/**
+ * 全局基础样式
+ * ------------------------------------------------------------------
+ * 只做「低风险」的全局设定：字体、行高、盒模型、焦点态、无障碍。
+ * 刻意不做 `* { margin: 0; padding: 0 }` 这类激进 reset ——
+ * 项目现有页面大量依赖浏览器默认的标题/段落外边距，
+ * 全局清零会导致所有页面出现不可控的布局位移。
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  /* 锚点跳转时给吸顶导航留出空间 */
+  scroll-padding-top: var(--header-h);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--c-ink);
+  background-color: var(--c-bg-sub);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+img {
+  max-width: 100%;
+}
+
+/* 数字与价格使用等宽数字，避免数据刷新时宽度跳动 */
+.num,
+[data-num] {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* ============ 字阶工具类 ============
+ * 用于收敛散落在各页面的字号/字重写法，
+ * 让同一层级的信息在任何页面呈现一致。
+ */
+.t-display {
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.t-h1 {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.t-h2 {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: 600;
+}
+.t-h3 {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: 600;
+}
+.t-body-lg {
+  font-size: var(--fs-body-lg);
+  line-height: var(--lh-body-lg);
+}
+.t-body {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+.t-caption {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--c-ink-3);
+}
+
+/* ============ 通用容器 ============ */
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding-inline: var(--sp-4);
+}
+
+/* 仅供读屏软件识别的内容。
+ * 用于「页面语义上需要一个 h1，但视觉上不该多出一行标题」的场景
+ * （例如表单流程页，标题已经由步骤条表达了）。 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ============ 页面级标题 ============ */
+.page-title {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--c-ink);
+  margin: 0 0 var(--sp-5);
+}
+
+/* ============ 焦点可见 ============ */
+:focus-visible {
+  outline: 2px solid var(--c-primary-500);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+/* ============ 文本选中 ============ */
+::selection {
+  background-color: var(--c-primary-100);
+  color: var(--c-primary-800);
+}
+
+/* ============ 滚动条（webkit） ============
+ * 细滚动条是"高级感"的低成本加分项。
+ */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(15, 23, 42, 0.16);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--r-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(15, 23, 42, 0.28);
+  background-clip: content-box;
+}
+
+/* ============ 无障碍：尊重系统「减少动态效果」 ============
+ * 原项目此配置为 0 处，晕动症用户会被强制播放全部动画。
+ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

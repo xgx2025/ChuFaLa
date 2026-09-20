@@ -1,28 +1,39 @@
 <template>
   <div class="root-container">
-    <main class="main-content">
-      <router-view></router-view>
+    <!-- 注意：这里原本有一个多余的 <router-view>。Home 本身就是 Layout 的子路由，
+         自身再放 router-view 只会渲染空内容；且 Layout 已经提供了 <main>，
+         这里改为 <div> 避免出现嵌套 <main> 的语义错误。 -->
+    <div class="main-content">
       <!-- 英雄区域 -->
       <section class="hero-section">
         <!-- 轮播图 -->
        <div class="hero-section__slides">
           <el-carousel autoplay :interval="3000" indicator-position="bottom" arrow="hover" height="500px">
             <el-carousel-item v-for="(slide, index) in slides" :key="index">
-              <img :src="slide.image" :alt="`轮播图${index+1}`" class="carousel-image" >
+              <img
+                :src="slide.image"
+                :alt="`轮播图${index+1}`"
+                class="carousel-image"
+                :fetchpriority="index === 0 ? 'high' : 'auto'"
+              >
             </el-carousel-item>
           </el-carousel>
         </div>
-        
+
+        <!-- 遮罩层：原实现没有这一层，白色标题直接压在照片上，
+             遇到浅色天空/雪景时几乎读不清。改为双向渐变 scrim。 -->
+        <div class="hero-section__overlay"></div>
+
         <!-- 搜索框 + 标题 -->
         <div class="hero-section__content">
           <div class="hero-section__text">
-            <h2 class="hero-section__title">探索世界的每一个角落</h2>
+            <h1 class="hero-section__title">探索世界的每一个角落</h1>
             <p class="hero-section__desc">从热门景点到隐秘宝藏，让我们带你领略不一样的旅行体验</p>
             
             <!-- 搜索框 -->
             <form class="search-form" @submit.prevent="handleSearch">
               <div class="search-form__group">
-                <i class="fa fa-search search-form__icon"></i>
+                <el-icon class="search-form__icon"><Search /></el-icon>
                 <div class="search-input-wrapper">
                   <p class="search-form__label">关键词</p>
                   <el-input 
@@ -35,7 +46,7 @@
               </div>
               
               <div class="search-form__group">
-                <i class="fa fa-tags search-form__icon"></i>
+                <el-icon class="search-form__icon"><PriceTag /></el-icon>
                 <div class="search-input-wrapper">
                   <p class="search-form__label">类型</p>
                   <el-select 
@@ -55,7 +66,7 @@
               </div>
               
               <div class="search-form__group">
-                <i class="fa fa-star search-form__icon"></i>
+                <el-icon class="search-form__icon"><StarFilled /></el-icon>
                 <div class="search-input-wrapper">
                   <p class="search-form__label">等级</p>
                   <el-select 
@@ -88,42 +99,42 @@
           <div class="category-nav__list">
             <div class="category-nav__item">
               <div class="category-nav__icon-container" @click="router.push(`/attraction`)">
-              <Ticket style="width: 25px;height: 25px;"/>
+              <Ticket/>
               </div>
               <span class="category-nav__text">景点门票</span>
             </div>
             
             <div class="category-nav__item">
               <div class="category-nav__icon-container" @click="router.push(`/flight`)">
-                <Plane style="width: 25px;height: 25px;"/>
+                <Plane/>
               </div>
               <span class="category-nav__text">机票</span>
             </div>
             
             <div class="category-nav__item">
               <div class="category-nav__icon-container" @click="router.push(`/hotel`)">
-                <Hotel style="width: 25px;height: 25px;"/>
+                <Hotel/>
               </div>
               <span class="category-nav__text">酒店</span>
             </div>
             
             <div class="category-nav__item">
               <div class="category-nav__icon-container" @click="router.push(`/package`)">
-                <TravelPackage style="width: 25px;height: 25px;"/>
+                <TravelPackage/>
               </div>
               <span class="category-nav__text">旅游套餐</span>
             </div>
             
             <div class="category-nav__item">
               <div class="category-nav__icon-container">
-                <Taxi style="width: 25px;height: 25px;"/>
+                <Taxi/>
               </div>
               <span class="category-nav__text">租车</span>
             </div>
             
             <div class="category-nav__item">
               <div class="category-nav__icon-container">
-                <More style="width: 25px;height: 25px;"/>
+                <More/>
               </div>
               <span class="category-nav__text">更多</span>
             </div>
@@ -138,7 +149,7 @@
             <h2 class="section-title">热门目的地</h2>
             <a href="#" class="section-more">
               查看全部
-              <i class="fa fa-arrow-right section-more__icon"></i>
+              <el-icon class="section-more__icon"><ArrowRight /></el-icon>
             </a>
           </div>
           
@@ -147,22 +158,25 @@
               class="destination-card"
               v-for="(destination, index) in destinations" 
               :key="index"
+              v-reveal="index * 60"
             >
-              <img 
-                :src="destination.image" 
-                :alt="`图片展示的是${destination.name}的风景`" 
+              <img
+                v-lazy-img
+                loading="lazy"
+                :src="destination.image"
+                :alt="`图片展示的是${destination.name}的风景`"
                 class="destination-card__image"
               >
               <div class="destination-card__overlay"></div>
               <div class="destination-card__content">
                 <h3 class="destination-card__name">{{ destination.name }}</h3>
                 <div class="destination-card__location">
-                  <i class="fa fa-map-marker destination-card__location-icon"></i>
+                  <el-icon class="destination-card__location-icon"><Location /></el-icon>
                   <span>{{ destination.location }}</span>
                 </div>
                 <div class="destination-card__rating">
                   <div class="rating-tag">
-                    <i class="fa fa-star rating-tag__star"></i>
+                    <el-icon class="rating-tag__star"><StarFilled /></el-icon>
                     <span>{{ destination.rating }}</span>
                   </div>
                   <span class="destination-card__reviews">{{ destination.reviews }}条评价</span>
@@ -180,16 +194,19 @@
             <h2 class="section-title">特惠活动</h2>
             <a href="#" class="section-more">
               更多优惠
-              <i class="fa fa-arrow-right section-more__icon"></i>
+              <el-icon class="section-more__icon"><ArrowRight /></el-icon>
             </a>
           </div>
           
           <div class="deals-container">
             <div class="deals-scroll">
               <div class="deals-list">
+                <!-- 注意：这里不能加 v-reveal。特惠卡是横向滚动列表（.deals-list 宽度 max-content），
+                     第 5 张卡初始位于可视区右侧之外，IntersectionObserver 永远不会判定它进入视口，
+                     结果是它会被永久留在 opacity:0 的初始态（实测确实如此）。 -->
                 <div class="deal-card" v-for="(deal, index) in deals" :key="index">
                   <div class="deal-card__image-container">
-                    <img :src="deal.image" class="deal-card__image">
+                    <img v-lazy-img loading="lazy" :src="deal.image" :alt="deal.name" class="deal-card__image">
                     <div class="deal-card__discount">{{ deal.discount }}</div>
                   </div>
                   
@@ -237,11 +254,14 @@
               class="package-card"
               v-for="(tourPackage, index) in packages" 
               :key="index"
+              v-reveal="(index % 3) * 60"
             >
               <div class="package-card__image-container">
-                <img 
-                  :src="tourPackage.image" 
-                  :alt="`图片展示的是${tourPackage.name}旅游套餐的相关风景`" 
+                <img
+                  v-lazy-img
+                  loading="lazy"
+                  :src="tourPackage.image"
+                  :alt="`图片展示的是${tourPackage.name}旅游套餐的相关风景`"
                   class="package-card__image"
                 >
                 <div class="package-card__days-tag">{{ tourPackage.days }}天{{ tourPackage.nights }}晚</div>
@@ -251,11 +271,11 @@
                 <div class="package-card__header">
                   <span class="package-card__type-tag">{{ tourPackage.type }}</span>
                   <div class="package-card__rating">
-                    <i class="fa fa-star"></i>
-                    <i class="fa fa-star"></i>
-                    <i class="fa fa-star"></i>
-                    <i class="fa fa-star"></i>
-                    <i class="fa fa-star-half-o"></i>
+                    <el-icon class="package-card__star"><StarFilled /></el-icon>
+                    <el-icon class="package-card__star"><StarFilled /></el-icon>
+                    <el-icon class="package-card__star"><StarFilled /></el-icon>
+                    <el-icon class="package-card__star"><StarFilled /></el-icon>
+                    <el-icon class="package-card__star"><Star /></el-icon>
                     <span class="package-card__rating-text">{{ tourPackage.rating }}</span>
                   </div>
                 </div>
@@ -264,7 +284,7 @@
                 <p class="package-card__desc">{{ tourPackage.description }}</p>
                 
                 <div class="package-card__sales">
-                  <i class="fa fa-users package-card__sales-icon"></i>
+                  <el-icon class="package-card__sales-icon"><UserFilled /></el-icon>
                   <span>已售 {{ tourPackage.sold }} 份</span>
                 </div>
                 
@@ -290,17 +310,19 @@
             <h2 class="section-title">旅游攻略</h2>
             <a href="#" class="section-more">
               更多攻略
-              <i class="fa fa-arrow-right section-more__icon"></i>
+              <el-icon class="section-more__icon"><ArrowRight /></el-icon>
             </a>
           </div>
           
           <div class="guides-list">
             <!-- 主要攻略卡片 -->
-            <div class="guide-card--featured">
+            <div class="guide-card--featured" v-reveal>
               <div class="guide-card__content--featured">
-                <img 
-                  src="https://picsum.photos/600/400?random=10" 
-                  alt="图片展示的是热门旅游攻略的相关风景" 
+                <img
+                  v-lazy-img
+                  loading="lazy"
+                  src="https://picsum.photos/600/400?random=10"
+                  alt="图片展示的是热门旅游攻略的相关风景"
                   class="guide-card__image--featured"
                 >
                 <div class="guide-card__text--featured">
@@ -308,10 +330,10 @@
                     <div class="guide-card__tags">
                       <span class="guide-card__hot-tag">热门</span>
                       <span class="guide-card__views">
-                        <i class="fa fa-eye guide-card__views-icon"></i> 2.5k 阅读
+                        <el-icon class="guide-card__views-icon"><View /></el-icon> 2.5k 阅读
                       </span>
                       <span class="guide-card__comments">
-                        <i class="fa fa-comment guide-card__comments-icon"></i> 128 评论
+                        <el-icon class="guide-card__comments-icon"><ChatDotRound /></el-icon> 128 评论
                       </span>
                     </div>
                     <h3 class="guide-card__title--featured">2023年夏季最值得去的10个海岛，你去过几个？</h3>
@@ -320,9 +342,11 @@
                     </p>
                   </div>
                   <div class="guide-card__author">
-                    <img 
-                      src="https://picsum.photos/50/50?random=20" 
-                      alt="图片展示的是旅游攻略作者的头像" 
+                    <img
+                      v-lazy-img
+                      loading="lazy"
+                      src="https://picsum.photos/50/50?random=20"
+                      alt="图片展示的是旅游攻略作者的头像"
                       class="guide-card__author-avatar"
                     >
                     <div class="guide-card__author-info">
@@ -335,44 +359,50 @@
             </div>
             
             <!-- 次要攻略卡片 -->
-            <div class="guide-card--small">
-              <img 
-                src="https://picsum.photos/300/200?random=11" 
-                alt="图片展示的是美食攻略的相关内容" 
+            <div class="guide-card--small" v-reveal="120">
+              <img
+                v-lazy-img
+                loading="lazy"
+                src="https://picsum.photos/300/200?random=11"
+                alt="图片展示的是美食攻略的相关内容"
                 class="guide-card__image--small"
               >
               <div class="guide-card__text--small">
                 <h3 class="guide-card__title--small">成都美食攻略：除了火锅，这些小吃也不能错过</h3>
                 <p class="guide-card__date--small">
-                  <i class="fa fa-clock-o guide-card__date-icon"></i> 5天前
+                  <el-icon class="guide-card__date-icon"><Clock /></el-icon> 5天前
                 </p>
               </div>
             </div>
             
-            <div class="guide-card--small">
-              <img 
-                src="https://picsum.photos/300/200?random=12" 
-                alt="图片展示的是摄影攻略的相关风景" 
+            <div class="guide-card--small" v-reveal="120">
+              <img
+                v-lazy-img
+                loading="lazy"
+                src="https://picsum.photos/300/200?random=12"
+                alt="图片展示的是摄影攻略的相关风景"
                 class="guide-card__image--small"
               >
               <div class="guide-card__text--small">
                 <h3 class="guide-card__title--small">青海湖摄影攻略：最佳拍摄地点和时间</h3>
                 <p class="guide-card__date--small">
-                  <i class="fa fa-clock-o guide-card__date-icon"></i> 1周前
+                  <el-icon class="guide-card__date-icon"><Clock /></el-icon> 1周前
                 </p>
               </div>
             </div>
             
-            <div class="guide-card--small">
-              <img 
-                src="https://picsum.photos/300/200?random=13" 
-                alt="图片展示的是徒步攻略的相关路线" 
+            <div class="guide-card--small" v-reveal="120">
+              <img
+                v-lazy-img
+                loading="lazy"
+                src="https://picsum.photos/300/200?random=13"
+                alt="图片展示的是徒步攻略的相关路线"
                 class="guide-card__image--small"
               >
               <div class="guide-card__text--small">
                 <h3 class="guide-card__title--small">徒步虎跳峡：新手也能完成的经典路线</h3>
                 <p class="guide-card__date--small">
-                  <i class="fa fa-clock-o guide-card__date-icon"></i> 2周前
+                  <el-icon class="guide-card__date-icon"><Clock /></el-icon> 2周前
                 </p>
               </div>
             </div>
@@ -389,18 +419,21 @@
             <div 
               class="review-card"
               v-for="(review, index) in reviews" 
+              v-reveal="index * 80"
               :key="index"
             >
               <div class="review-card__user">
-                <img 
-                  :src="review.avatar" 
-                  :alt="`图片展示的是${review.name}的头像`" 
+                <img
+                  v-lazy-img
+                  loading="lazy"
+                  :src="review.avatar"
+                  :alt="`图片展示的是${review.name}的头像`"
                   class="review-card__avatar"
                 >
                 <div class="review-card__user-info">
                   <h4 class="review-card__user-name">{{ review.name }}</h4>
                   <div class="review-card__stars">
-                    <i class="fa fa-star" v-for="i in 5" :key="i" :class="{ 'review-card__star--empty': i > review.rating }"></i>
+                    <el-icon v-for="i in 5" :key="i" :class="{ 'review-card__star--empty': i > review.rating }"><StarFilled /></el-icon>
                   </div>
                 </div>
               </div>
@@ -419,9 +452,9 @@
       <!-- 订阅区域 -->
       <section class="subscribe-section">
         <div class="subscribe-section__decor">
-          <i class="fa fa-paper-plane decor-icon--plane"></i>
-          <i class="fa fa-sun-o decor-icon--sun"></i>
-          <i class="fa fa-ship decor-icon--ship"></i>
+          <el-icon class="decor-icon--plane"><Plane /></el-icon>
+          <el-icon class="decor-icon--sun"><Sunny /></el-icon>
+          <el-icon class="decor-icon--ship"><Compass /></el-icon>
         </div>
         
         <div class="subscribe-section__content">
@@ -442,9 +475,9 @@
           </p>
         </div>
       </section>
-    </main>
+    </div>
   </div>
-  <el-backtop :right="100" :bottom="100" style="color:rgb(82, 233, 200);"/>
+  <el-backtop :right="100" :bottom="100" />
 </template>
 
 <script setup>
@@ -455,7 +488,7 @@ import router from '@/router'
 import { useTokenStore } from '@/stores/token'
 import {ElMessageBox,ElNotification} from 'element-plus'
 import {Plane,Hotel,Taxi,TravelPackage,More} from '@/components/Icon.vue'
-import {Ticket,Search} from '@element-plus/icons-vue'
+import { Ticket, Search, PriceTag, Star, StarFilled, ArrowRight, Location, UserFilled, View, ChatDotRound, Clock, Sunny, Compass } from '@element-plus/icons-vue'
 
 const tokenStore = useTokenStore()
 const userInfoStore = useUserInfoStore()
@@ -695,23 +728,17 @@ html {
   scroll-behavior: smooth;
 }
 
-.header-nav__logo-img {
-  height: 54px; 
-  width: auto;  
-  vertical-align: middle; 
-  margin-right: 10px; 
-}
-
 .root-container {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: #f9fafb;
+  background-color: var(--c-bg-sub);
 }
 
 .main-content {
   flex-grow: 1;
-  background-color: #1890ff;
+  /* 原值为 #1890ff（高饱和蓝），疑为调试遗留；改为页面底色 */
+  background-color: var(--c-bg);
 }
 
 .section-container {
@@ -720,180 +747,14 @@ html {
   padding: 0 1rem;
 }
 
-/* 导航栏样式 */
-.header-nav {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  transition: all 0.3s ease;
-}
-
-.header-nav--unscrolled {
-  background-color: transparent;
-  padding: 1rem 0;
-}
-
-.header-nav--scrolled {
-  background-color: #ffffff;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  padding: 0.5rem 0;
-}
-
-.header-nav__container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.header-nav__logo-text {
-  outline: none;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #2563eb;
-  display: flex;
-  align-items: center;
-}
-
-.header-nav__logo-icon {
-  margin-right: 0.5rem;
-}
-
-.header-nav__desktop-nav {
-  display: none;
-  align-items: center;
-  gap: 2rem;
-}
-
-@media (min-width: 768px) {
-  .header-nav__desktop-nav {
-    display: flex;
-  }
-}
-
-.header-nav__nav-link {
-  font-weight: 500;
-  color: #4b5563;
-  transition: color 0.2s ease;
-  text-decoration: none;
-}
-
-.header-nav__nav-link:hover {
-  color: #2563eb;
-}
-
-.header-nav__nav-link--active {
-  color: #2563eb;
-}
-
-.header-nav__user-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-
-.header-nav__login-btn {
-  outline: none;
-  display: none;
-  align-items: center;
-  color: #4b5563;
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: color 0.2s ease;
-  gap: 0.5rem;
-}
-
-@media (min-width: 768px) {
-  .header-nav__login-btn {
-    display: flex;
-  }
-}
-
-.header-nav__login-btn:hover {
-  color: #2563eb;
-}
-
-.header-nav__mobile-btn {
-  display: block;
-  color: #4b5563;
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-
-@media (min-width: 768px) {
-  .header-nav__mobile-btn {
-    display: none;
-  }
-}
-
-.header-nav__mobile-menu {
-  display: block;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background-color: #ffffff;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  transform: translateY(-100%);
-  transition: transform 0.3s ease-in-out;
-  z-index: -1;
-}
-
-@media (min-width: 768px) {
-  .header-nav__mobile-menu {
-    display: none;
-  }
-}
-
-.mobile-menu--open {
-  transform: translateY(0);
-  z-index: 40;
-}
-
-.header-nav__mobile-menu-container {
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.header-nav__mobile-link {
-  padding: 0.5rem 0;
-  font-weight: 500;
-  color: #4b5563;
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-.header-nav__mobile-link:hover {
-  color: #2563eb;
-}
-
-.header-nav__mobile-link--active {
-  color: #2563eb;
-}
-
-.header-nav__mobile-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding-top: 0.5rem;
-  margin-top: 0.5rem;
-  border-top: 1px solid #f3f4f6;
-}
-
 /* 英雄区域样式 */
 .hero-section {
   position: relative;
-  height: 500px; 
+  /* 原来固定 500px，在矮屏笔记本上会占满整屏、在手机上又显得空 */
+  height: clamp(440px, 62vh, 640px);
   overflow: hidden;
+  background-color: var(--c-ink);
 }
-
 
 .hero-section__slides {
   position: absolute;
@@ -904,7 +765,6 @@ html {
   z-index: 1;
 }
 
-
 .hero-section__slides .el-carousel,
 .hero-section__slides .el-carousel__container,
 .hero-section__slides .el-carousel-item {
@@ -914,16 +774,44 @@ html {
   padding: 0 !important;
 }
 
-
 .carousel-image {
   width: 100%;
   height: 100%;
-  object-fit: cover; 
-  object-position: center; 
+  object-fit: cover;
+  object-position: center;
   display: block;
 }
 
+/* Ken Burns：轮播图缓慢推近，比纯淡入切换高级得多。
+   动画挂在 .is-active 上，Element Plus 每次激活都会重新应用动画 → 自动重播。 */
+.hero-section__slides .el-carousel-item.is-active .carousel-image {
+  animation: heroKenBurns 9s var(--ease-out) forwards;
+}
 
+@keyframes heroKenBurns {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+
+/* 双向渐变遮罩：顶部压暗保证导航可读，底部压暗保证标题与搜索框可读 */
+.hero-section__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+      180deg,
+      rgba(15, 23, 42, 0.55) 0%,
+      rgba(15, 23, 42, 0.12) 28%,
+      rgba(15, 23, 42, 0.28) 62%,
+      rgba(15, 23, 42, 0.82) 100%
+    ),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.5) 0%, rgba(15, 23, 42, 0) 68%);
+}
 
 .hero-section__content {
   position: relative;
@@ -931,85 +819,121 @@ html {
   height: 100%;
   display: flex;
   align-items: center;
-  max-width: 1200px;
+  max-width: var(--container-max);
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 var(--sp-4);
 }
 
+/* 原值 `max-width: 4xl` 是无效 CSS —— 把 Tailwind 的类名当成 CSS 值写了，
+   浏览器直接丢弃该声明，导致文字宽度约束完全失效。
+   注意：本容器同时包着下方的搜索表单，若直接给容器限宽会把 4 列搜索表单挤变形，
+   因此把宽度约束下沉到标题与描述两个子元素上。 */
 .hero-section__text {
-  max-width: 4xl;
+  width: 100%;
 }
 
 .hero-section__title {
-  font-size: clamp(2rem, 5vw, 3.5rem);
-  font-weight: bold;
+  max-width: 640px;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 700;
   color: #ffffff;
-  line-height: 1.2;
-  margin-bottom: 0.5rem;
+  line-height: var(--lh-display);
+  letter-spacing: -0.02em;
+  /* 由 h2 提升为 h1，显式写 margin 避免受浏览器默认外边距影响 */
+  margin: 0 0 var(--sp-3);
+  text-shadow: 0 2px 16px rgba(15, 23, 42, 0.35);
 }
 
 .hero-section__desc {
-  font-size: clamp(1rem, 2vw, 1.25rem);
-  color: #f3f4f6;
-  margin-bottom: 2rem;
-  max-width: 2xl;
+  max-width: 560px;
+  font-size: clamp(1rem, 1.6vw, 1.125rem);
+  color: rgba(255, 255, 255, 0.88);
+  line-height: var(--lh-body-lg);
+  margin-bottom: var(--sp-8);
+  text-shadow: 0 1px 8px rgba(15, 23, 42, 0.3);
 }
 
+/* 悬浮白卡：半透明 + 毛玻璃 + 大圆角，是"高级感"最直接的一处体现 */
 .search-form {
-  background-color: #ffffff;
-  border-radius: 0.75rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
-  padding: 0.5rem 1rem;
+  background-color: rgba(255, 255, 255, 0.96);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-3);
+  padding: var(--sp-3);
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.5rem;
+  gap: var(--sp-3);
 }
 
 @media (min-width: 768px) {
   .search-form {
     grid-template-columns: repeat(4, 1fr);
-    padding: 1rem;
+    padding: var(--sp-4);
   }
 }
 
 .search-form__group {
   display: flex;
   align-items: center;
-  padding: 0.5rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
+  padding: var(--sp-2) var(--sp-3);
+  background-color: var(--c-bg);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-sm);
+  transition: border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+
+.search-form__group:hover {
+  border-color: var(--c-primary-300);
+  box-shadow: 0 0 0 3px var(--c-primary-50);
 }
 
 .search-form__icon {
-  color: #2563eb;
-  margin-right: 0.5rem;
+  color: var(--c-primary-600);
+  margin-right: var(--sp-2);
+  font-size: var(--fs-body-lg);
+  flex-shrink: 0;
 }
 
 .search-form__label {
-  font-size: 0.75rem;
-  color: #9ca3af;
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+  color: var(--c-ink-3);
 }
 
 .search-form__hint {
   font-weight: 500;
-  color: #1f2937;
+  color: var(--c-ink);
 }
 
 .search-form__btn {
-  background-color: #2563eb;
+  background-color: var(--c-primary-600);
   color: #ffffff;
   border: none;
-  border-radius: 0.5rem;
-  padding: 0.75rem 1rem;
+  border-radius: var(--r-sm);
+  padding: var(--sp-3) var(--sp-4);
+  font-family: inherit;
+  font-size: var(--fs-body-lg);
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: var(--sp-2);
+  transition: background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
 
 .search-form__btn:hover {
-  background-color: #1d4ed8;
+  background-color: var(--c-primary-700);
+  box-shadow: var(--sh-primary);
+}
+
+.search-form__btn:active {
+  transform: scale(0.98);
 }
 
 /* 覆盖 Element Plus 样式 */
@@ -1023,8 +947,8 @@ html {
 :deep(.custom-input .el-input__inner),
 :deep(.custom-select .el-select__selected-item) {
   font-weight: 600;
-  color: #1f2937;
-  font-size: 0.95rem;
+  color: var(--c-ink);
+  font-size: var(--fs-body);
   height: auto;
   line-height: 1.2;
 }
@@ -1037,53 +961,27 @@ html {
   justify-content: center;
 }
 
-.hero-section__controls {
-  position: absolute;
-  bottom: 1.5rem;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  z-index: 10;
-}
-
-.hero-control__dot {
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.5);
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.hero-control__dot--active {
-  background-color: #ffffff;
-  width: 1.5rem;
-}
+/* 说明：原来这里还有 .hero-section__controls / .hero-control__dot 两组样式，
+   但模板中从未使用（首页轮播用的是 Element Plus 自带的指示器），已删除。 */
 
 /* 分类导航样式 */
 .category-nav {
-  padding: 2rem 0;
-  background-color: #ffffff;
+  padding: var(--sp-8) 0;
+  background-color: var(--c-bg);
 }
 
 .category-nav__list {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  /* 移动端由 2 列改为 3 列：56px 的图标在 390px 屏宽下 3 列完全放得下，
+     2 列会显得空旷 */
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-2);
 }
 
 @media (min-width: 640px) {
   .category-nav__list {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (min-width: 768px) {
-  .category-nav__list {
     grid-template-columns: repeat(6, 1fr);
+    gap: var(--sp-4);
   }
 }
 
@@ -1091,74 +989,114 @@ html {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0.75rem;
-  border-radius: 0.5rem;
+  padding: var(--sp-4) var(--sp-2);
+  border-radius: var(--r-md);
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color var(--dur-base) var(--ease-out);
 }
 
 .category-nav__item:hover {
-  background-color: #f9fafb;
+  background-color: var(--c-bg-sub);
 }
 
+/* 由正圆改为圆角方块（更现代），并加上悬浮上移 + 主色底 */
 .category-nav__icon-container {
-  width: 3rem;
-  height: 3rem;
-  background-color: #dbeafe;
-  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  /* 图标用 currentColor，颜色在这里统一给，子 svg 自动跟随 */
+  color: var(--c-primary-600);
+  background-color: var(--c-primary-50);
+  border-radius: var(--r-lg);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--sp-3);
+  cursor: pointer;
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
 }
 
-.category-nav__icon {
-  color: #2563eb;
-  font-size: 1.5rem;
+/* 尺寸统一下沉到 CSS，替掉模板里的 style="width:25px;height:25px" */
+.category-nav__icon-container > svg {
+  width: 26px;
+  height: 26px;
 }
+
+.category-nav__item:hover .category-nav__icon-container {
+  transform: translateY(-4px);
+  color: var(--c-primary-700);
+  background-color: var(--c-primary-100);
+  box-shadow: var(--sh-2);
+}
+
+.category-nav__item:active .category-nav__icon-container {
+  transform: translateY(-1px) scale(0.96);
+}
+
+/* 说明：原有一条 .category-nav__icon 规则，但模板中没有任何元素使用该类（图标是
+   直接放在 .category-nav__icon-container 里的 svg），属于死代码，已删除。 */
 
 .category-nav__text {
-  font-size: 0.875rem;
+  font-size: var(--fs-body);
   font-weight: 500;
-  color: #1f2937;
+  color: var(--c-ink);
+  transition: color var(--dur-base) var(--ease-out);
+}
+
+.category-nav__item:hover .category-nav__text {
+  color: var(--c-primary-600);
 }
 
 /* 通用区域标题样式 */
 .section-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
+  align-items: flex-end;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-8);
 }
 
 .section-title {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #1f2937;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--c-ink);
 }
 
 .section-more {
-  color: #2563eb;
-  font-weight: 500;
-  text-decoration: none;
   display: flex;
   align-items: center;
-  transition: color 0.2s ease;
+  gap: var(--sp-1);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  color: var(--c-primary-600);
+  text-decoration: none;
+  transition: color var(--dur-base) var(--ease-out);
 }
 
 .section-more:hover {
-  color: #1d4ed8;
+  color: var(--c-primary-700);
 }
 
 .section-more__icon {
-  margin-left: 0.25rem;
-  font-size: 0.875rem;
+  font-size: var(--fs-body);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.section-more:hover .section-more__icon {
+  transform: translateX(4px);
 }
 
 /* 热门目的地样式 */
 .destinations-section {
-  padding: 3rem 0;
-  background-color: #def5e9;
+  padding: var(--sp-16) 0;
+  /* 原值 #def5e9 是又一处薄荷绿，与蓝色主色系冲突，改为中性底色 */
+  background-color: var(--c-bg-sub);
 }
 
 .destinations-list {
@@ -1181,94 +1119,107 @@ html {
 
 .destination-card {
   position: relative;
-  border-radius: 0.75rem;
-  overflow: hidden;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
   height: 16rem;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--sh-2);
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
 }
 
 .destination-card:hover {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+  transform: translateY(-4px);
+  box-shadow: var(--sh-hover);
 }
 
 .destination-card__image {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.7s ease;
+  transition: transform var(--dur-slower) var(--ease-out);
 }
 
 .destination-card:hover .destination-card__image {
-  transform: scale(1.1);
+  transform: scale(1.08);
 }
 
 .destination-card__overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.2), transparent);
+  background: linear-gradient(
+    to top,
+    rgba(15, 23, 42, 0.82) 0%,
+    rgba(15, 23, 42, 0.25) 45%,
+    rgba(15, 23, 42, 0) 100%
+  );
 }
 
 .destination-card__content {
   position: absolute;
   bottom: 0;
   left: 0;
-  padding: 1rem;
+  padding: var(--sp-4);
   width: 100%;
 }
 
 .destination-card__name {
-  font-size: 1.25rem;
-  font-weight: bold;
+  font-size: var(--fs-h3);
+  line-height: 1.3;
+  font-weight: 600;
   color: #ffffff;
-  margin-bottom: 0.25rem;
+  margin-bottom: var(--sp-1);
 }
 
 .destination-card__location {
   display: flex;
   align-items: center;
-  color: #f3f4f6;
-  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: var(--fs-caption);
 }
 
 .destination-card__location-icon {
-  margin-right: 0.25rem;
-  font-size: 0.75rem;
+  margin-right: var(--sp-1);
+  font-size: var(--fs-caption);
 }
 
 .destination-card__rating {
   display: flex;
   align-items: center;
-  margin-top: 0.5rem;
+  margin-top: var(--sp-2);
 }
 
 .rating-tag {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.22);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
-  border-radius: 9999px;
-  padding: 0.25rem 0.5rem;
+  border-radius: var(--r-full);
+  padding: var(--sp-1) var(--sp-2);
   color: #ffffff;
-  font-size: 0.875rem;
+  font-size: var(--fs-caption);
   display: flex;
   align-items: center;
 }
 
 .rating-tag__star {
-  color: #facc15;
+  color: var(--c-star);
   margin-right: 0.25rem;
-  font-size: 0.75rem;
+  font-size: var(--fs-caption);
 }
 
 .destination-card__reviews {
-  margin-left: 0.5rem;
-  color: #ffffff;
-  font-size: 0.875rem;
+  margin-left: var(--sp-2);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: var(--fs-caption);
 }
 
-/* 特惠活动样式 */
+/* 特惠活动样式
+   原背景 var(--c-bg-sub) 是奶黄色，与「薄荷绿 + 蓝」凑成三种底色，
+   页面显得杂。改为白底，与上方 destinations 的浅灰底形成克制的交替。 */
 .deals-section {
-  padding: 3rem 0;
-  background-color: #f9eed7;
+  padding: var(--sp-16) 0;
+  background-color: var(--c-bg);
 }
 
 .deals-container {
@@ -1277,64 +1228,80 @@ html {
 
 .deals-scroll {
   overflow-x: auto;
-  padding-bottom: 1rem;
+  padding-bottom: var(--sp-4);
+  /* 横向滚动条在卡片下方很破坏观感，这里隐藏（仍可触摸/滚轮滚动） */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.deals-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .deals-list {
   display: flex;
-  gap: 1rem;
+  gap: var(--sp-4);
   width: max-content;
 }
 
 .deal-card {
   width: 18rem;
-  background-color: #f9fafb;
-  border-radius: 0.75rem;
+  background-color: var(--c-bg);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
   overflow: hidden;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.2s ease;
+  box-shadow: var(--sh-1);
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
 }
 
 .deal-card:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+  box-shadow: var(--sh-hover);
+  border-color: transparent;
 }
 
 .deal-card__image-container {
   position: relative;
   height: 12rem;
+  overflow: hidden;
 }
 
 .deal-card__image {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.5s ease;
+  transition: transform var(--dur-slower) var(--ease-out);
 }
 
 .deal-card:hover .deal-card__image {
-  transform: scale(1.05);
+  transform: scale(1.06);
 }
 
 .deal-card__discount {
   position: absolute;
-  top: 0.75rem;
-  left: 0.75rem;
-  background-color: #ef4444;
+  top: var(--sp-3);
+  left: var(--sp-3);
+  background-color: var(--c-danger);
   color: #ffffff;
-  font-size: 0.75rem;
-  font-weight: bold;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--r-xs);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
 }
 
 .deal-card__content {
-  padding: 1rem;
+  padding: var(--sp-4);
 }
 
 .deal-card__name {
-  font-weight: bold;
-  color: #1f2937;
-  margin-bottom: 0.25rem;
+  font-weight: 600;
+  color: var(--c-ink);
+  margin-bottom: var(--sp-1);
   display: -webkit-box;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
@@ -1342,9 +1309,10 @@ html {
 }
 
 .deal-card__desc {
-  color: #6b7280;
-  font-size: 0.875rem;
-  margin-bottom: 0.75rem;
+  color: var(--c-ink-3);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-body);
+  margin-bottom: var(--sp-3);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -1358,31 +1326,42 @@ html {
 }
 
 .deal-card__price {
-  color: #ef4444;
-  font-weight: bold;
-  font-size: 1.25rem;
+  color: var(--c-danger);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: var(--fs-h3);
 }
 
 .deal-card__original-price {
-  color: #9ca3af;
-  font-size: 0.875rem;
+  color: var(--c-ink-4);
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
   text-decoration: line-through;
-  margin-left: 0.25rem;
+  margin-left: var(--sp-1);
 }
 
 .deal-card__btn {
-  background-color: #2563eb;
+  background-color: var(--c-primary-600);
   color: #ffffff;
-  font-size: 0.875rem;
+  font-family: inherit;
+  font-size: var(--fs-caption);
   border: none;
-  border-radius: 9999px;
-  padding: 0.25rem 0.75rem;
+  border-radius: var(--r-full);
+  padding: var(--sp-2) var(--sp-3);
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
 
 .deal-card__btn:hover {
-  background-color: #1d4ed8;
+  background-color: var(--c-primary-700);
+  box-shadow: var(--sh-primary);
+}
+
+.deal-card__btn:active {
+  transform: scale(0.97);
 }
 
 .deals-indicators {
@@ -1396,22 +1375,24 @@ html {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
-  background-color: #d1d5db;
+  background-color: var(--c-line);
 }
 
 .deal-indicator--active {
-  background-color: #2563eb;
+  background-color: var(--c-primary-600);
 }
 
 /* 精选旅游套餐样式 */
 .packages-section {
-  padding: 3rem 0;
-  background-color: #f5ecfb;
+  padding: var(--sp-16) 0;
+  /* 原背景 #f5ecfb 是淡紫色 —— 加上前面的薄荷绿与奶黄，
+     整个首页出现三种粉彩底色，是"廉价感"的主要来源之一。改为中性浅灰。 */
+  background-color: var(--c-bg-sub);
 }
 
 .packages-filter {
   display: none;
-  gap: 0.5rem;
+  gap: var(--sp-2);
 }
 
 @media (min-width: 768px) {
@@ -1421,31 +1402,35 @@ html {
 }
 
 .filter-btn {
-  padding: 0.5rem 1rem;
-  border-radius: 9999px;
-  font-size: 0.875rem;
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-full);
+  font-family: inherit;
+  font-size: var(--fs-caption);
   font-weight: 500;
-  background-color: #ffffff;
-  color: #4b5563;
-  border: 1px solid #e5e7eb;
+  background-color: var(--c-bg);
+  color: var(--c-ink-2);
+  border: 1px solid var(--c-line);
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
 }
 
 .filter-btn:hover {
-  background-color: #f3f4f6;
+  background-color: var(--c-bg-mute);
+  border-color: var(--c-ink-4);
 }
 
 .filter-btn--active {
-  background-color: #2563eb;
+  background-color: var(--c-primary-600);
   color: #ffffff;
-  border-color: #2563eb;
+  border-color: var(--c-primary-600);
 }
 
 .packages-list {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1.5rem;
+  gap: var(--sp-6);
 }
 
 @media (min-width: 768px) {
@@ -1461,82 +1446,91 @@ html {
 }
 
 .package-card {
-  background-color: #ffffff;
-  border-radius: 0.75rem;
+  background-color: var(--c-bg);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
   overflow: hidden;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.2s ease;
+  box-shadow: var(--sh-1);
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
 }
 
 .package-card:hover {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+  box-shadow: var(--sh-hover);
+  border-color: transparent;
 }
 
 .package-card__image-container {
   position: relative;
   height: 12rem;
+  overflow: hidden;
 }
 
 .package-card__image {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.5s ease;
+  transition: transform var(--dur-slower) var(--ease-out);
 }
 
 .package-card:hover .package-card__image {
-  transform: scale(1.05);
+  transform: scale(1.06);
 }
 
 .package-card__days-tag {
   position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  background-color: rgba(255, 255, 255, 0.9);
+  top: var(--sp-3);
+  right: var(--sp-3);
+  background-color: rgba(255, 255, 255, 0.92);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
-  color: #2563eb;
-  font-size: 0.75rem;
+  color: var(--c-primary-600);
+  font-size: var(--fs-caption);
   font-weight: 500;
-  padding: 0.25rem 0.5rem;
-  border-radius: 9999px;
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--r-full);
 }
 
 .package-card__content {
-  padding: 1rem;
+  padding: var(--sp-4);
 }
 
 .package-card__header {
   display: flex;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--sp-2);
 }
 
 .package-card__type-tag {
-  background-color: #dbeafe;
-  color: #2563eb;
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  margin-right: 0.5rem;
+  background-color: var(--c-primary-50);
+  color: var(--c-primary-600);
+  font-size: var(--fs-caption);
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--r-xs);
+  margin-right: var(--sp-2);
 }
 
 .package-card__rating {
   display: flex;
   align-items: center;
-  color: #facc15;
-  font-size: 0.75rem;
+  color: var(--c-star);
+  font-size: var(--fs-caption);
 }
 
 .package-card__rating-text {
-  color: #6b7280;
-  margin-left: 0.25rem;
+  color: var(--c-ink-3);
+  margin-left: var(--sp-1);
 }
 
 .package-card__name {
-  font-weight: bold;
-  color: #1f2937;
-  margin-bottom: 0.5rem;
-  transition: color 0.2s ease;
+  font-weight: 600;
+  color: var(--c-ink);
+  margin-bottom: var(--sp-2);
+  transition: color var(--dur-base) var(--ease-out);
   display: -webkit-box;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
@@ -1544,13 +1538,14 @@ html {
 }
 
 .package-card:hover .package-card__name {
-  color: #2563eb;
+  color: var(--c-primary-600);
 }
 
 .package-card__desc {
-  color: #6b7280;
-  font-size: 0.875rem;
-  margin-bottom: 0.75rem;
+  color: var(--c-ink-3);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-body);
+  margin-bottom: var(--sp-3);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -1560,73 +1555,102 @@ html {
 .package-card__sales {
   display: flex;
   align-items: center;
-  color: #6b7280;
-  font-size: 0.875rem;
-  margin-bottom: 1rem;
+  color: var(--c-ink-3);
+  font-size: var(--fs-caption);
+  margin-bottom: var(--sp-4);
 }
 
 .package-card__sales-icon {
-  margin-right: 0.25rem;
+  margin-right: var(--sp-1);
+}
+
+/* 评分星：颜色继承自 .package-card__rating 的 --c-star */
+.package-card__star {
+  font-size: var(--fs-caption);
+}
+
+.package-card__star + .package-card__star {
+  margin-left: 1px;
 }
 
 .package-card__price-area {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--sp-3);
 }
 
 .package-card__price {
-  color: #ef4444;
-  font-weight: bold;
-  font-size: 1.25rem;
+  color: var(--c-danger);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: var(--fs-h3);
 }
 
 .package-card__price-unit {
-  color: #6b7280;
-  font-size: 0.875rem;
+  color: var(--c-ink-3);
+  font-size: var(--fs-caption);
 }
 
 .package-card__btn {
-  background-color: #2563eb;
+  background-color: var(--c-primary-600);
   color: #ffffff;
+  font-family: inherit;
+  font-size: var(--fs-caption);
+  font-weight: 500;
   border: none;
-  border-radius: 0.5rem;
-  padding: 0.5rem 1rem;
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-4);
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  white-space: nowrap;
+  transition: background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
 
 .package-card__btn:hover {
-  background-color: #1d4ed8;
+  background-color: var(--c-primary-700);
+  box-shadow: var(--sh-primary);
+}
+
+.package-card__btn:active {
+  transform: scale(0.97);
 }
 
 .load-more-btn {
   display: block;
-  margin: 2rem auto 0;
-  padding: 0.75rem 1.5rem;
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  color: #4b5563;
+  margin: var(--sp-10) auto 0;
+  padding: var(--sp-3) var(--sp-6);
+  background-color: var(--c-bg);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-sm);
+  color: var(--c-ink-2);
+  font-family: inherit;
+  font-size: var(--fs-body);
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
 }
 
 .load-more-btn:hover {
-  background-color: #f3f4f6;
+  background-color: var(--c-bg-mute);
+  border-color: var(--c-primary-300);
+  box-shadow: var(--sh-1);
 }
 
 /* 旅游攻略样式 */
 .guides-section {
-  padding: 3rem 0;
-  background-color: #ffffff;
+  padding: var(--sp-16) 0;
+  background-color: var(--c-bg);
 }
 
 .guides-list {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1.5rem;
+  gap: var(--sp-6);
 }
 
 @media (min-width: 768px) {
@@ -1646,18 +1670,25 @@ html {
 }
 
 .guide-card__content--featured {
-  background-color: #f9fafb;
-  border-radius: 0.75rem;
+  background-color: var(--c-bg);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
   overflow: hidden;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.2s ease;
+  box-shadow: var(--sh-1);
   display: flex;
   flex-direction: column;
   height: 100%;
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
 }
 
 .guide-card__content--featured:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+  box-shadow: var(--sh-hover);
+  border-color: transparent;
 }
 
 @media (min-width: 768px) {
@@ -1670,7 +1701,7 @@ html {
   width: 100%;
   height: 16rem;
   object-fit: cover;
-  transition: transform 0.5s ease;
+  transition: transform var(--dur-slower) var(--ease-out);
 }
 
 @media (min-width: 768px) {
@@ -1700,52 +1731,59 @@ html {
 .guide-card__tags {
   display: flex;
   align-items: center;
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--sp-3);
 }
 
 .guide-card__hot-tag {
-  background-color: #fef3c7;
-  color: #d97706;
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  margin-right: 1rem;
+  background-color: var(--c-accent-soft);
+  color: var(--c-accent-strong);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--r-xs);
+  margin-right: var(--sp-4);
 }
 
 .guide-card__views {
-  color: #9ca3af;
-  font-size: 0.875rem;
-  margin-right: 1rem;
+  display: flex;
+  align-items: center;
+  color: var(--c-ink-4);
+  font-size: var(--fs-caption);
+  margin-right: var(--sp-4);
 }
 
 .guide-card__views-icon {
-  margin-right: 0.25rem;
+  margin-right: var(--sp-1);
 }
 
 .guide-card__comments {
-  color: #9ca3af;
-  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  color: var(--c-ink-4);
+  font-size: var(--fs-caption);
 }
 
 .guide-card__comments-icon {
-  margin-right: 0.25rem;
+  margin-right: var(--sp-1);
 }
 
 .guide-card__title--featured {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #1f2937;
-  margin-bottom: 1rem;
-  transition: color 0.2s ease;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: 600;
+  color: var(--c-ink);
+  margin-bottom: var(--sp-4);
+  transition: color var(--dur-base) var(--ease-out);
 }
 
 .guide-card__content--featured:hover .guide-card__title--featured {
-  color: #2563eb;
+  color: var(--c-primary-600);
 }
 
 .guide-card__desc--featured {
-  color: #6b7280;
-  margin-bottom: 1rem;
+  color: var(--c-ink-3);
+  line-height: var(--lh-body-lg);
+  margin-bottom: var(--sp-4);
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -1765,53 +1803,60 @@ html {
 }
 
 .guide-card__author-info {
-  margin-left: 0.75rem;
+  margin-left: var(--sp-3);
 }
 
 .guide-card__author-name {
   font-weight: 500;
-  color: #1f2937;
+  color: var(--c-ink);
 }
 
 .guide-card__date {
-  color: #9ca3af;
-  font-size: 0.875rem;
+  color: var(--c-ink-4);
+  font-size: var(--fs-caption);
 }
 
 .guide-card--small {
   display: flex;
-  background-color: #f9fafb;
-  border-radius: 0.75rem;
+  background-color: var(--c-bg);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
   overflow: hidden;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.2s ease;
+  box-shadow: var(--sh-1);
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
 }
 
 .guide-card--small:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+  box-shadow: var(--sh-hover);
+  border-color: transparent;
 }
 
 .guide-card__image--small {
   width: 33.333%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.5s ease;
+  transition: transform var(--dur-slower) var(--ease-out);
 }
 
 .guide-card--small:hover .guide-card__image--small {
-  transform: scale(1.05);
+  transform: scale(1.06);
 }
 
 .guide-card__text--small {
   width: 66.666%;
-  padding: 1rem;
+  padding: var(--sp-4);
 }
 
 .guide-card__title--small {
-  font-weight: bold;
-  color: #1f2937;
-  margin-bottom: 0.5rem;
-  transition: color 0.2s ease;
+  font-weight: 600;
+  color: var(--c-ink);
+  margin-bottom: var(--sp-2);
+  transition: color var(--dur-base) var(--ease-out);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -1819,36 +1864,38 @@ html {
 }
 
 .guide-card--small:hover .guide-card__title--small {
-  color: #2563eb;
+  color: var(--c-primary-600);
 }
 
 .guide-card__date--small {
-  color: #9ca3af;
-  font-size: 0.875rem;
+  color: var(--c-ink-4);
+  font-size: var(--fs-caption);
 }
 
 .guide-card__date-icon {
-  margin-right: 0.25rem;
+  margin-right: var(--sp-1);
 }
 
 /* 用户评价样式 */
 .reviews-section {
-  padding: 3rem 0;
-  background-color: #f9fafb;
+  padding: var(--sp-16) 0;
+  background-color: var(--c-bg-sub);
 }
 
 .reviews-title {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #1f2937;
-  margin-bottom: 2rem;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--c-ink);
+  margin-bottom: var(--sp-8);
   text-align: center;
 }
 
 .reviews-list {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1.5rem;
+  gap: var(--sp-6);
 }
 
 @media (min-width: 768px) {
@@ -1858,21 +1905,28 @@ html {
 }
 
 .review-card {
-  background-color: #ffffff;
-  padding: 1.5rem;
-  border-radius: 0.75rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.2s ease;
+  background-color: var(--c-bg);
+  padding: var(--sp-6);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
 }
 
 .review-card:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+  box-shadow: var(--sh-hover);
+  border-color: transparent;
 }
 
 .review-card__user {
   display: flex;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: var(--sp-4);
 }
 
 .review-card__avatar {
@@ -1883,43 +1937,44 @@ html {
 }
 
 .review-card__user-info {
-  margin-left: 1rem;
+  margin-left: var(--sp-4);
 }
 
 .review-card__user-name {
-  font-weight: bold;
-  color: #1f2937;
+  font-weight: 600;
+  color: var(--c-ink);
 }
 
 .review-card__stars {
   display: flex;
-  color: #facc15;
-  font-size: 0.75rem;
+  color: var(--c-star);
+  font-size: var(--fs-caption);
   margin-top: 0.25rem;
 }
 
 .review-card__star--empty {
-  color: #e5e7eb;
+  color: var(--c-line);
 }
 
 .review-card__content {
-  color: #6b7280;
+  color: var(--c-ink-2);
   font-style: italic;
-  margin-bottom: 1rem;
+  line-height: var(--lh-body-lg);
+  margin-bottom: var(--sp-4);
 }
 
 .review-card__footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.875rem;
-  color: #6b7280;
+  font-size: var(--fs-caption);
+  color: var(--c-ink-3);
 }
 
 /* 订阅区域样式 */
 .subscribe-section {
-  padding: 4rem 0;
-  background-color: #2563eb;
+  padding: var(--sp-20) 0;
+  background-color: var(--c-primary-600);
   position: relative;
   overflow: hidden;
 }
@@ -1927,7 +1982,8 @@ html {
 .subscribe-section__decor {
   position: absolute;
   inset: 0;
-  opacity: 0.1;
+  opacity: 0.12;
+  pointer-events: none;
 }
 
 .decor-icon--plane {
@@ -1958,27 +2014,31 @@ html {
 .subscribe-section__content {
   position: relative;
   z-index: 10;
-  max-width: 2xl;
+  /* 原值 `max-width: 2xl` 为无效 CSS（Tailwind 类名误当 CSS 值），此处改为实际像素 */
+  max-width: 672px;
   margin: 0 auto;
   text-align: center;
 }
 
 .subscribe-section__title {
-  font-size: 1.875rem;
-  font-weight: bold;
+  font-size: clamp(1.5rem, 3vw, var(--fs-h1));
+  line-height: var(--lh-h1);
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: #ffffff;
-  margin-bottom: 1rem;
+  margin-bottom: var(--sp-3);
 }
 
 .subscribe-section__desc {
-  color: #dbeafe;
-  margin-bottom: 2rem;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: var(--lh-body-lg);
+  margin-bottom: var(--sp-8);
 }
 
 .subscribe-form {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--sp-3);
 }
 
 @media (min-width: 640px) {
@@ -1989,140 +2049,53 @@ html {
 
 .subscribe-form__input {
   flex-grow: 1;
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
+  padding: var(--sp-3) var(--sp-4);
+  font-family: inherit;
+  font-size: var(--fs-body-lg);
+  color: var(--c-ink);
+  background-color: #ffffff;
+  border-radius: var(--r-sm);
   border: none;
   outline: none;
-  transition: box-shadow 0.2s ease;
+  transition: box-shadow var(--dur-base) var(--ease-out);
+}
+
+.subscribe-form__input::placeholder {
+  color: var(--c-ink-4);
 }
 
 .subscribe-form__input:focus {
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.55);
 }
 
 .subscribe-form__btn {
-  background-color: #facc15;
-  color: #1f2937;
-  font-weight: bold;
+  background-color: var(--c-star);
+  color: var(--c-ink);
+  font-family: inherit;
+  font-size: var(--fs-body-lg);
+  font-weight: 600;
   border: none;
-  border-radius: 0.5rem;
-  padding: 0.75rem 1.5rem;
+  border-radius: var(--r-sm);
+  padding: var(--sp-3) var(--sp-6);
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  white-space: nowrap;
+  transition: background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
 
 .subscribe-form__btn:hover {
-  background-color: #fbbf24;
+  background-color: var(--c-accent);
+  box-shadow: 0 8px 24px -6px rgba(250, 204, 21, 0.5);
+}
+
+.subscribe-form__btn:active {
+  transform: scale(0.98);
 }
 
 .subscribe-section__privacy {
-  color: #bfdbfe;
-  font-size: 0.875rem;
-  margin-top: 1rem;
-}
-
-
-/* 滚动条样式优化 */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-
-
-/* 3. 核心样式：调整用户区域布局+会员标签美观度 */
-.header-nav__user-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px; /* 退出图标与用户区域的间距 */
-}
-
-/* 下拉触发区：头像与用户信息横向对齐 */
-.header-nav__login-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px; /* 头像与文字的间距 */
-  padding: 4px 8px;
-  cursor: pointer;
-}
-
-/* 用户名+会员等级：垂直居中排列 */
-.user-info-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: center; /* 文字与会员标签居中对齐 */
-}
-
-/* 用户名样式：简洁清晰 */
-.user-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-}
-
-/* 会员标签基础样式：圆角+内边距+紧凑布局 */
-.member-tag {
-  display: flex;
-  align-items: center;
-  gap: 4px; /* 图标与文字的间距 */
-  padding: 1px 6px;
-  border-radius: 12px; /* 大圆角更显柔和 */
-  font-size: 12px;
-  font-weight: 400;
-}
-
-/* 会员图标大小控制 */
-.member-icon {
-  font-size: 20px;
-}
-
-/* 4. 不同会员等级的颜色方案（美观且区分度高） */
-/* 普通会员：浅灰 */
-.member-tag--normal {
-  background-color: #f5f7fa;
-  color: #666;
-}
-
-/* 白银会员：浅蓝 */
-.member-tag--silver {
-  background-color: #e6f4ff;
-  color: #1890ff;
-}
-
-/* 黄金会员：浅金 */
-.member-tag--gold {
-  background: linear-gradient(120deg, #fffbe6, #fff1cc); /* 渐变更美观 */
-  color: #fa8c16;
-}
-
-/* 钻石会员：深蓝渐变 */
-.member-tag--diamond {
-  background: linear-gradient(120deg, #e6f7ff, #bae7ff);
-  color: #1890ff;
-}
-
-/* 退出图标样式：与整体协调 */
-.logout-icon {
-  font-size: 18px;
-  color: #666;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.logout-icon:hover {
-  color: #1890ff;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--fs-caption);
+  margin-top: var(--sp-4);
 }
 </style>

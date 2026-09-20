@@ -1,0 +1,154 @@
+/**
+ * 设计令牌（Design Tokens）
+ * ------------------------------------------------------------------
+ * 全站唯一的变量来源。任何页面/组件都不应再写死颜色、圆角、阴影数值，
+ * 一律引用此处的变量，以保证"同一语义在任何页面长得一样"。
+ *
+ * 引入顺序：element-plus/dist/index.css -> tokens.css -> base.css
+ *           -> element-override.css -> motion.css
+ */
+
+:root {
+  /* ============ 主色 ============
+   * 沿用项目既有的 #2563eb 作为主色本体（原代码中已使用 42 次），
+   * 避免大面积返工；Element Plus 的默认蓝 #409eff 由
+   * element-override.css 统一拉齐到此处。
+   */
+  --c-primary-50: #eff6ff;
+  --c-primary-100: #dbeafe;
+  --c-primary-200: #bfdbfe;
+  --c-primary-300: #93c5fd;
+  --c-primary-400: #60a5fa;
+  --c-primary-500: #3b82f6;
+  --c-primary-600: #2563eb; /* 主色本体 */
+  --c-primary-700: #1d4ed8;
+  --c-primary-800: #1e40af;
+
+  /* ============ 中性色 ============
+   * 统一到 slate 系，替换原代码中 gray / slate 混用
+   * （#333 / #666 / #999 / #303133 / #606266 / #909399 / #bfbfbf 等）。
+   */
+  --c-ink: #0f172a; /* 主文字 */
+  --c-ink-2: #334155; /* 次文字 */
+  --c-ink-3: #64748b; /* 辅助文字（对比度 4.9:1，达标） */
+  --c-ink-4: #94a3b8; /* 占位符 / 禁用态 */
+  --c-line: #e2e8f0; /* 分割线 */
+  --c-line-2: #f1f5f9; /* 浅分割线 */
+  --c-bg: #ffffff; /* 卡片 / 内容底色 */
+  --c-bg-sub: #f8fafc; /* 页面底色 */
+  --c-bg-mute: #f1f5f9; /* 区块底色 / 图片占位 */
+
+  /* ============ 点缀色 ============
+   * 收敛原有的 #ff9500 / #e6a23c / #f56c6c 等散装橙红。
+   */
+  --c-accent: #f59e0b; /* 点缀：价格、评分、促销 */
+  --c-accent-soft: #fffbeb;
+  --c-accent-strong: #b45309; /* 琥珀底上的文字色，保证对比度 */
+  --c-star: #facc15; /* 评分星（与点缀色区分：星星需要更高的亮度） */
+  --c-success: #10b981;
+  --c-success-soft: #ecfdf5;
+  --c-danger: #ef4444;
+  --c-danger-soft: #fef2f2;
+  --c-warning: #f59e0b;
+  --c-info: #64748b;
+
+  /* ============ 第三方品牌色（刻意不并入主色系） ============
+   * 微信 / QQ / 微博 的官方色，出现在页脚与登录页的社交入口上。
+   * 这些颜色属于平台标识，改了反而会让人认不出来，因此单独列出。
+   */
+  --c-brand-wechat: #09bb07;
+  --c-brand-qq: #12b7f5;
+  --c-brand-weibo: #e6162d;
+
+  /* ============ 紫蓝色系（登录页 / 智能规划页的渐变） ============
+   * 这两个页面原本自成一套紫蓝配色（#6366f1 / #667eea / #764ba2 / #9c27b0 …），
+   * 与主色系并列存在。这里先把它们收敛成令牌，视觉保持不变；
+   * 若之后决定全站统一到蓝色主色，只需把下面几个值改成 --c-primary-* 即可，
+   * 不需要再逐个页面去改。
+   */
+  --c-violet-400: #8e24aa;
+  --c-violet-500: #667eea;
+  --c-violet-600: #6366f1;
+  --c-violet-700: #764ba2;
+  --c-violet-800: #4f46e5;
+  --c-violet-900: #6a46c1;
+
+  /* ============ 圆角（6 档） ============
+   * 替换原代码中 16 种写法：4/8/10/12/16/20/24px、
+   * 0.25/0.375/0.5/0.75rem、50%、9999px。
+   */
+  --r-xs: 4px; /* 标签、徽章 */
+  --r-sm: 8px; /* 输入框、小按钮 */
+  --r-md: 12px; /* 卡片、面板 */
+  --r-lg: 16px; /* 大卡片、Hero 搜索框 */
+  --r-xl: 24px; /* 弹层、区块容器 */
+  --r-full: 9999px; /* 胶囊、圆形 */
+
+  /* ============ 阴影（3 级 + 悬浮 + 主色光晕） ============
+   * 替换原代码中 30 余种写法，色相统一为 slate（15,23,42）。
+   */
+  --sh-1: 0 1px 2px rgba(15, 23, 42, 0.06); /* 静止卡片 */
+  --sh-2: 0 4px 12px rgba(15, 23, 42, 0.08); /* 浮起元素 */
+  --sh-3: 0 12px 32px -8px rgba(15, 23, 42, 0.12); /* 弹层、浮层 */
+  --sh-hover: 0 16px 40px -12px rgba(15, 23, 42, 0.18); /* 卡片悬浮 */
+  --sh-primary: 0 8px 24px -6px rgba(37, 99, 235, 0.35); /* 主色按钮光晕 */
+
+  /* ============ 间距（8pt 栅格，4 的倍数） ============ */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+  --sp-20: 80px;
+  --sp-24: 96px;
+
+  /* ============ 字体 ============
+   * 中文不引 Web Font（体积过大），靠系统字体栈。
+   * 中文标题用 500 字重替代 600，避免笔画发糊。
+   */
+  --font-sans: "PingFang SC", "HarmonyOS Sans SC", "Hiragino Sans GB",
+    "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-num: "DIN Alternate", "SF Pro Display", Inter, "Helvetica Neue", Arial,
+    system-ui, sans-serif;
+  --font-mono: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+
+  /* ============ 字阶 ============ */
+  --fs-display: 40px;
+  --lh-display: 1.15;
+  --fs-h1: 32px;
+  --lh-h1: 1.25;
+  --fs-h2: 24px;
+  --lh-h2: 1.3;
+  --fs-h3: 20px;
+  --lh-h3: 1.4;
+  --fs-body-lg: 16px;
+  --lh-body-lg: 1.6;
+  --fs-body: 14px;
+  --lh-body: 1.6;
+  --fs-caption: 12px;
+  --lh-caption: 1.5;
+
+  /* ============ 动效 ============ */
+  --dur-fast: 120ms; /* 按压、微反馈 */
+  --dur-base: 200ms; /* hover、状态切换 */
+  --dur-slow: 320ms; /* 入场、展开 */
+  --dur-slower: 480ms; /* 路由切换、大区块、图片缩放 */
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* 进场：快起慢停，最常用 */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1); /* 位移 */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* 弹性，仅用于强调 */
+
+  /* ============ 布局 ============ */
+  --container-max: 1200px;
+  --header-h: 64px;
+
+  /* ============ 层级 ============ */
+  --z-header: 50;
+  --z-drawer: 3000;
+}

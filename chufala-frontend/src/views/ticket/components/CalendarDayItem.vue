@@ -42,38 +42,38 @@ const handleEdit = () => {
   flex-direction: column;
 }
 .day-item.is-past {
-  background-color: #f0f0f0;
-  color: #bbb;
+  background-color: var(--c-line);
+  color: var(--c-ink-4);
 }
 .day-item.is-sold-out {
-  background-color: #fef0f0;
-  color: #f56c6c;
+  background-color: var(--c-danger-soft);
+  color: var(--c-danger);
 }
 .day-number {
   font-weight: bold;
-  font-size: 16px;
+  font-size: var(--fs-body-lg);
 }
 .day-info {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  font-size: 12px;
+  font-size: var(--fs-caption);
 }
 .price {
-  color: #e6a23c;
+  color: var(--c-accent);
   font-weight: bold;
 }
 .stock {
-  color: #67c23a;
+  color: var(--c-success);
 }
 .no-data {
   flex-grow: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #999;
-  font-size: 12px;
+  color: var(--c-ink-4);
+  font-size: var(--fs-caption);
 }
 .edit-icon {
   position: absolute;

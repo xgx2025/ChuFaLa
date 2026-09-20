@@ -1,0 +1,267 @@
+/**
+ * Element Plus 主题覆盖
+ * ------------------------------------------------------------------
+ * 这是本次改造中「收益最高」的一步：
+ * 原项目从未覆写 --el-color-primary，导致 Element Plus 的默认蓝
+ * #409eff（31 处）与自定义主色 #2563eb（42 处）并存，
+ * 同一个页面里出现两种蓝，是最强的"廉价感"来源。
+ *
+ * 原则：优先靠 CSS 变量覆盖（--el-*），只在变量覆盖不到的地方
+ * 才写选择器，且集中在本文档内，不散落到各页面。
+ * !important 仅在必须压过 Element Plus 内联/高权重样式时使用。
+ */
+
+:root {
+  /* ============ 主色：拉齐到 #2563eb ============ */
+  --el-color-primary: #2563eb;
+  --el-color-primary-light-3: #6692f1;
+  --el-color-primary-light-5: #92b1f5;
+  --el-color-primary-light-7: #bed0f9;
+  --el-color-primary-light-8: #d3e0fb;
+  --el-color-primary-light-9: #e9effd;
+  --el-color-primary-dark-2: #1d4ed8;
+
+  /* ============ 语义色 ============ */
+  --el-color-success: #10b981;
+  --el-color-success-light-3: #58d0ac;
+  --el-color-success-light-5: #88dfc4;
+  --el-color-success-light-7: #b7eedb;
+  --el-color-success-light-8: #cff4e8;
+  --el-color-success-light-9: #e7faf3;
+  --el-color-success-dark-2: #0d9468;
+
+  --el-color-warning: #f59e0b;
+  --el-color-warning-light-3: #f8b551;
+  --el-color-warning-light-5: #fac985;
+  --el-color-warning-light-7: #fcdcb8;
+  --el-color-warning-light-8: #fde7cf;
+  --el-color-warning-light-9: #fef3e7;
+  --el-color-warning-dark-2: #c47d09;
+
+  --el-color-danger: #ef4444;
+  --el-color-danger-light-3: #f47c7c;
+  --el-color-danger-light-5: #f7a1a1;
+  --el-color-danger-light-7: #fac7c7;
+  --el-color-danger-light-8: #fcdada;
+  --el-color-danger-light-9: #fdeded;
+  --el-color-danger-dark-2: #bf3636;
+
+  --el-color-error: #ef4444;
+  --el-color-info: #64748b;
+  --el-color-info-light-3: #93a0b0;
+  --el-color-info-light-5: #b2bbc5;
+  --el-color-info-light-7: #d1d6dc;
+  --el-color-info-light-8: #e0e4e8;
+  --el-color-info-light-9: #f0f2f4;
+  --el-color-info-dark-2: #505d6f;
+
+  /* ============ 文字色：统一到 slate 系 ============ */
+  --el-text-color-primary: #0f172a;
+  --el-text-color-regular: #334155;
+  --el-text-color-secondary: #64748b;
+  --el-text-color-placeholder: #94a3b8;
+  --el-text-color-disabled: #cbd5e1;
+
+  /* ============ 边框 / 填充 ============ */
+  --el-border-color: #e2e8f0;
+  --el-border-color-light: #f1f5f9;
+  --el-border-color-lighter: #f1f5f9;
+  --el-border-color-extra-light: #f8fafc;
+  --el-border-color-hover: #cbd5e1;
+  --el-fill-color: #f1f5f9;
+  --el-fill-color-light: #f8fafc;
+  --el-fill-color-lighter: #fafbfc;
+  --el-fill-color-blank: #ffffff;
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #f8fafc;
+  --el-bg-color-overlay: #ffffff;
+
+  /* ============ 字体 ============ */
+  --el-font-family: var(--font-sans);
+  --el-font-size-base: 14px;
+  --el-font-size-small: 13px;
+  --el-font-size-extra-small: 12px;
+
+  /* ============ 圆角 ============ */
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 6px;
+  --el-border-radius-round: 9999px;
+
+  /* ============ 阴影 ============ */
+  --el-box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.12);
+  --el-box-shadow-light: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --el-box-shadow-lighter: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --el-box-shadow-dark: 0 16px 40px -12px rgba(15, 23, 42, 0.18);
+
+  /* ============ 过渡时长 ============ */
+  --el-transition-duration: 200ms;
+  --el-transition-duration-fast: 120ms;
+  --el-transition-function-ease-in-out-bezier: cubic-bezier(0.22, 1, 0.36, 1);
+  --el-transition-function-fast-bezier: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ==================================================================
+ * 按钮
+ * ================================================================== */
+.el-button {
+  font-weight: 500;
+  transition: transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out);
+}
+
+.el-button:active {
+  transform: scale(0.97);
+}
+
+.el-button--primary:not(.is-disabled):hover {
+  box-shadow: var(--sh-primary);
+}
+
+.el-button.is-round {
+  border-radius: var(--r-full);
+}
+
+/* ==================================================================
+ * 输入框 / 选择器
+ * ================================================================== */
+.el-input__wrapper,
+.el-textarea__inner {
+  transition: box-shadow var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out);
+}
+
+.el-input__wrapper:hover,
+.el-textarea__inner:hover {
+  box-shadow: 0 0 0 1px var(--c-primary-400) inset;
+}
+
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 1px var(--c-primary-600) inset,
+    0 0 0 3px var(--c-primary-100);
+}
+
+.el-select__wrapper {
+  transition: box-shadow var(--dur-base) var(--ease-out);
+}
+.el-select__wrapper.is-focused {
+  box-shadow: 0 0 0 1px var(--c-primary-600) inset,
+    0 0 0 3px var(--c-primary-100);
+}
+
+/* ==================================================================
+ * 卡片 / 弹层
+ * ================================================================== */
+.el-card {
+  border-radius: var(--r-md);
+  border-color: var(--c-line);
+}
+
+.el-dialog {
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.el-message-box {
+  border-radius: var(--r-md);
+}
+
+.el-drawer {
+  border-radius: 0;
+}
+
+.el-popover.el-popper,
+.el-dropdown__popper.el-popper {
+  border-radius: var(--r-sm);
+}
+
+.el-dropdown-menu__item {
+  transition: background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.el-message,
+.el-notification {
+  border-radius: var(--r-sm);
+}
+
+/* ==================================================================
+ * 标签 / 徽章
+ * ================================================================== */
+.el-tag {
+  border-radius: var(--r-xs);
+}
+
+/* ==================================================================
+ * 轮播（首页 Hero 使用）
+ * ================================================================== */
+.el-carousel__indicator .el-carousel__button {
+  width: 24px;
+  height: 3px;
+  border-radius: var(--r-full);
+  background-color: rgba(255, 255, 255, 0.5);
+  transition: width var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out);
+}
+
+.el-carousel__indicator.is-active .el-carousel__button {
+  width: 40px;
+  background-color: #ffffff;
+}
+
+.el-carousel__arrow {
+  background-color: rgba(15, 23, 42, 0.32);
+  backdrop-filter: blur(8px);
+  transition: background-color var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+
+.el-carousel__arrow:hover {
+  background-color: rgba(15, 23, 42, 0.5);
+}
+
+/* ==================================================================
+ * 表格 / 分页 / 空态
+ * ================================================================== */
+.el-table th.el-table__cell {
+  background-color: var(--c-bg-mute);
+  color: var(--c-ink-2);
+  font-weight: 500;
+}
+
+.el-pagination.is-background .el-pager li,
+.el-pagination.is-background .btn-prev,
+.el-pagination.is-background .btn-next {
+  border-radius: var(--r-xs);
+}
+
+.el-empty__description p {
+  color: var(--c-ink-3);
+}
+
+/* ==================================================================
+ * 回到顶部
+ * 原来在 Home.vue 里用内联 style 写成 rgb(82,233,200)（薄荷绿，
+ * 与主色系冲突），此处统一走主色。
+ * ================================================================== */
+.el-backtop {
+  --el-backtop-bg-color: var(--c-primary-600);
+  --el-backtop-text-color: #ffffff;
+  --el-backtop-hover-bg-color: var(--c-primary-700);
+}
+
+/* ==================================================================
+ * 骨架屏
+ * 直接覆写 Element Plus 自己的变量，避免与它的 keyframes 打架。
+ * ================================================================== */
+:root {
+  --el-skeleton-color: #f1f5f9;
+  --el-skeleton-to-color: #e8edf3;
+}
+
+.el-skeleton__item {
+  border-radius: var(--r-xs);
+}

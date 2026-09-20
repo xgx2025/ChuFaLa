@@ -73,13 +73,20 @@ instance.interceptors.response.use(
         // 处理401错误（Token过期）
         if (err.response?.status === 401) {
             if (!tokenStore.accessToken) {
-            router.push('/login')
-            return 
-        }
+                router.push('/login')
+                // 必须 reject。原实现这里是裸 `return`（返回 undefined），
+                // 调用方会拿到 undefined 继续执行 `result.data`，
+                // 抛出 "Cannot read properties of undefined (reading 'data')"
+                return Promise.reject(err)
+            }
 
-         if (!tokenStore.refreshToken) {
-            return 
-        }
+            if (!tokenStore.refreshToken) {
+                // 没有 refreshToken 就无法续期，清理登录态并回到登录页
+                tokenStore.removeToken()
+                ElMessage.warning('登录已过期，请重新登录')
+                router.push('/login')
+                return Promise.reject(err)
+            }
         // 如果不在刷新中，发起刷新请求
         if (!isRefreshing) {
             isRefreshing = true

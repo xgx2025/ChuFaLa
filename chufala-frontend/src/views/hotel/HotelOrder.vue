@@ -1,5 +1,8 @@
 <template>
   <div class="hotel-booking-page">
+    <!-- 流程页的标题已由步骤条表达，这里只补一个供读屏软件识别的 h1 -->
+    <h1 class="sr-only">填写酒店订单</h1>
+
     <!-- 顶部步骤条 -->
     <el-steps :active="1" align-center finish-status="success" style="margin-bottom: 24px;">
       <el-step title="已选"></el-step>
@@ -100,7 +103,7 @@
           <el-form-item label="特别要求（选填）">
             <div>
               <p class="special-request-desc">我们会将您的需求转达给酒店，但无法确保一定能够满足。</p>
-              <el-link type="text" @click="toggleSpecialRequest" style="color: #0065f2;">
+              <el-link type="text" @click="toggleSpecialRequest" style="color: var(--c-primary-600);">
                 {{ specialRequestExpanded ? '收起' : '展开' }}
               </el-link>
               <el-input
@@ -119,17 +122,19 @@
           <el-button type="primary"  @click="confirmDate" >提交订单信息</el-button>
           <!-- 协议与支付 -->
           <div class="agreement">
-            <el-link type="primary" @click="viewTerms" style="color: #0065f2;">预订条款</el-link>
+            <el-link type="primary" @click="viewTerms" style="color: var(--c-primary-600);">预订条款</el-link>
             <span>，</span>
-            <el-link type="primary" @click="viewAuthAgreement" style="color: #0065f2;">个人信息授权协议</el-link>
+            <el-link type="primary" @click="viewAuthAgreement" style="color: var(--c-primary-600);">个人信息授权协议</el-link>
             <span>，前往下一步即代表已阅读并同意上述条件</span>
           </div>
           <div class="payment-bar">
-            <span style="font-size: 14px;">在线付 <span style="font-size: 24px; font-weight: bold; color: #0065f2;">¥{{ totalAmount }}</span></span>
-            <el-button type="primary" size="large" @click="goToPay" style="background-color: #ff9500;border-color: #ff9500;">立即预定</el-button>
+            <span style="font-size: 14px;">在线付 <span style="font-size: 24px; font-weight: bold; color: var(--c-primary-600);">¥{{ totalAmount }}</span></span>
+            <el-button type="primary" size="large" @click="goToPay">立即预定</el-button>
           </div>
           <el-link type="text" @click="changeSelection">
-            <i class="el-icon-back"></i> 更改我的选择
+            <!-- 原为 <i class="el-icon-back">：el-icon-* 是 Element UI v2 的类名写法，
+                 Element Plus 里图标是组件，这样写渲染为空 -->
+            <el-icon><Back /></el-icon> 更改我的选择
           </el-link>
         </el-form>
       </el-col>
@@ -185,6 +190,7 @@ import { ref, watch,onMounted } from 'vue';
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
 import { useRoute } from 'vue-router';
 import { Locate } from '@/components/Icon.vue';
+import { Back } from '@element-plus/icons-vue';
 import { getRoomInfoService, getRoomTotalPriceService, bookRoomService, payOrderService } from '@/api/hotel';
 // 引入dayjs核心库（若需要处理时区，可额外引入dayjs/plugin/timezone等插件）
 import dayjs from 'dayjs';
@@ -505,20 +511,20 @@ const viewServiceGuarantee = () => {
 
 /* 酒店信息卡片 */
 .hotel-info-card {
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--c-line);
   border-radius: 4px;
   padding: 16px;
   margin-bottom: 20px;
 }
 
 .hotel-info-card h2 {
-  font-size: 18px;
+  font-size: var(--fs-body-lg);
   font-weight: 600;
   margin-bottom: 8px;
 }
 
 .hotel-location {
-  color: #606266;
+  color: var(--c-ink-2);
   margin-bottom: 8px;
 }
 
@@ -531,33 +537,33 @@ const viewServiceGuarantee = () => {
 }
 
 .policy-desc {
-  color: #606266;
-  font-size: 13px;
+  color: var(--c-ink-2);
+  font-size: var(--fs-caption);
   line-height: 1.5;
 }
 
 /* 预订表单 */
 .booking-form {
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--c-line);
   border-radius: 4px;
   padding: 16px;
   margin-bottom: 20px;
 }
 
 .special-request-desc {
-  color: #606266;
-  font-size: 13px;
+  color: var(--c-ink-2);
+  font-size: var(--fs-caption);
   margin-bottom: 8px;
 }
 
 .invoice-desc {
-  color: #606266;
-  font-size: 13px;
+  color: var(--c-ink-2);
+  font-size: var(--fs-caption);
 }
 
 .agreement {
   margin: 16px 0;
-  font-size: 13px;
+  font-size: var(--fs-caption);
   line-height: 1.5;
 }
 
@@ -575,19 +581,19 @@ const viewServiceGuarantee = () => {
 .phone-prefix {
   display: inline-block;
   margin-right: 8px;
-  color: #606266;
+  color: var(--c-ink-2);
 }
 
 /* 费用明细卡片 */
 .cost-detail-card {
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--c-line);
   border-radius: 4px;
   padding: 16px;
   height: fit-content;
 }
 
 .cost-detail-card h3 {
-  font-size: 16px;
+  font-size: var(--fs-body-lg);
   font-weight: 600;
   margin-bottom: 16px;
 }
@@ -596,12 +602,12 @@ const viewServiceGuarantee = () => {
   display: flex;
   justify-content: space-between;
   margin-bottom: 8px;
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .divider {
   height: 1px;
-  background-color: #ebeef5;
+  background-color: var(--c-line);
   margin: 16px 0;
 }
 
@@ -610,13 +616,13 @@ const viewServiceGuarantee = () => {
   justify-content: space-between;
   font-weight: 600;
   margin-bottom: 10px;
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 
 .policy-desc,
 .description {
   margin-bottom: 16px;
-  font-size: 13px;
+  font-size: var(--fs-caption);
   line-height: 1.5;
 }
 
@@ -629,9 +635,9 @@ const viewServiceGuarantee = () => {
 /* 底部版权 */
 .footer {
   text-align: center;
-  color: #606266;
+  color: var(--c-ink-2);
   margin-top: 40px;
-  font-size: 13px;
+  font-size: var(--fs-caption);
 }
 
 .date-wrapper {
@@ -656,8 +662,8 @@ const viewServiceGuarantee = () => {
 
 /* “晚”字标签样式不变，可微调 */
 .time-tag {
-  font-size: 14px;
-  color: #333;
+  font-size: var(--fs-body);
+  color: var(--c-ink);
   margin-top: 0 !important; /* 清除可能的默认边距 */
 }
 </style>

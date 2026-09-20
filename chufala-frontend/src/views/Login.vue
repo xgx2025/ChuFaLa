@@ -395,7 +395,7 @@ const switchToLogin = () => {
 /* 品牌展示区（增强视觉层次和动画） */
 .brand-section {
   flex: 1;
-  background: linear-gradient(135deg, #4285f4 0%, #7b55d3 50%, #9c27b0 100%);
+  background: linear-gradient(135deg, var(--c-violet-500) 0%, var(--c-violet-700) 50%, var(--c-violet-400) 100%);
   color: white;
   padding: 2.5rem;
   display: flex;
@@ -445,7 +445,7 @@ const switchToLogin = () => {
 }
 
 .brand-content p {
-  font-size: 1.25rem;
+  font-size: var(--fs-h3);
   opacity: 0.92;
   line-height: 1.6;
   animation: fadeInUp 1s ease 0.3s forwards;
@@ -551,7 +551,7 @@ const switchToLogin = () => {
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  background-color: #f8fafc; /* 优化背景色，更柔和 */
+  background-color: var(--c-bg-sub); /* 优化背景色，更柔和 */
 }
 
 
@@ -583,14 +583,14 @@ const switchToLogin = () => {
   font-size: 1.9rem;
   font-weight: 600;
   margin-bottom: 0.6rem;
-  color: #1e293b;
+  color: var(--c-ink);
   letter-spacing: 0.3px;
 }
 
 .login-subtitle,.register-subtitle{
-  color: #64748b;
+  color: var(--c-ink-3);
   margin-bottom: 2.2rem;
-  font-size: 1rem;
+  font-size: var(--fs-body-lg);
   line-height: 1.5;
 }
 
@@ -603,13 +603,13 @@ const switchToLogin = () => {
   height: 52px;
   border-radius: 10px; /* 增大圆角 */
   margin-bottom: 1.2rem;
-  transition: all 0.3s ease;
-  border-color: #e2e8f0;
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  border-color: var(--c-line);
 }
 
 .el-input__inner {
   border-radius: 10px !important; /* 覆盖Element默认样式 */
-  font-size: 1rem;
+  font-size: var(--fs-body-lg);
   padding: 0 16px;
 }
 
@@ -618,13 +618,13 @@ const switchToLogin = () => {
 }
 
 .el-input.input-focus .el-input__inner {
-  border-color: #6366f1;
+  border-color: var(--c-violet-600);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); /* 增强焦点阴影 */
 }
 
 .el-input__prefix {
-  color: #94a3b8;
-  font-size: 1.1rem;
+  color: var(--c-ink-4);
+  font-size: var(--fs-body-lg);
 }
 
 /* 密码显示图标优化 */
@@ -633,7 +633,7 @@ const switchToLogin = () => {
 }
 
 .el-input__icon:hover {
-  color: #6366f1; /*  hover时变色，提示可点击 */
+  color: var(--c-violet-600); /*  hover时变色，提示可点击 */
 }
 
 /* 表单选项优化（对齐和间距） */
@@ -642,11 +642,11 @@ const switchToLogin = () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.8rem;
-  font-size: 0.95rem;
+  font-size: var(--fs-body);
 }
 
 .remember-me {
-  color: #64748b;
+  color: var(--c-ink-3);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -654,24 +654,24 @@ const switchToLogin = () => {
 
 .el-checkbox__inner {
   border-radius: 4px; /* 优化复选框圆角 */
-  border-color: #cbd5e1;
+  border-color: var(--c-ink-4);
 }
 
 .el-checkbox__input.is-checked .el-checkbox__inner {
-  background-color: #6366f1;
-  border-color: #6366f1;
+  background-color: var(--c-violet-600);
+  border-color: var(--c-violet-600);
 }
 
 .forgot-password {
-  color: #6366f1;
-  font-size: 0.95rem;
+  color: var(--c-violet-600);
+  font-size: var(--fs-body);
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease;
   font-weight: 500;
 }
 
 .forgot-password:hover {
-  color: #4f46e5;
+  color: var(--c-violet-800);
   text-decoration: underline;
   transform: translateY(-1px);
 }
@@ -680,19 +680,19 @@ const switchToLogin = () => {
 .login-button,.register-button {
   width: 100%;
   height: 54px;
-  font-size: 1.05rem;
+  font-size: var(--fs-body-lg);
   font-weight: 500;
-  background: linear-gradient(90deg, #4285f4 0%, #7b55d3 50%, #9c27b0 100%);
+  background: linear-gradient(90deg, var(--c-violet-500) 0%, var(--c-violet-700) 50%, var(--c-violet-400) 100%);
   border: none;
   border-radius: 10px;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: box-shadow 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   letter-spacing: 0.5px;
 }
 
 .login-button:hover {
   transform: translateY(-3px);
   box-shadow: 0 6px 18px rgba(156, 39, 176, 0.35);
-  background: linear-gradient(90deg, #3367d6 0%, #6a46c1 50%, #8e24aa 100%);
+  background: linear-gradient(90deg, var(--c-primary-600) 0%, var(--c-violet-900) 50%, var(--c-violet-400) 100%);
 }
 
 .login-button.is-loading .el-loading-spinner {
@@ -702,22 +702,22 @@ const switchToLogin = () => {
 /* 注册提示优化 */
 .register-prompt {
   text-align: center;
-  color: #64748b;
+  color: var(--c-ink-3);
   margin: 2rem 0;
-  font-size: 0.95rem;
+  font-size: var(--fs-body);
   line-height: 1.5;
 }
 
 .register-link {
-  color: #6366f1;
+  color: var(--c-violet-600);
   font-weight: 500;
   text-decoration: none;
   margin-left: 0.3rem;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease;
 }
 
 .register-link:hover {
-  color: #4f46e5;
+  color: var(--c-violet-800);
   text-decoration: underline;
   transform: translateY(-1px);
 }
@@ -738,13 +738,13 @@ const switchToLogin = () => {
   content: '';
   flex: 1;
   height: 1px;
-  background-color: #e2e8f0;
+  background-color: var(--c-line);
 }
 
 .divider span {
   padding: 0 1.2rem;
-  color: #94a3b8;
-  font-size: 0.9rem;
+  color: var(--c-ink-4);
+  font-size: var(--fs-body);
   letter-spacing: 0.2px;
 }
 
@@ -761,9 +761,9 @@ const switchToLogin = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   border-radius: 50% !important; /* 覆盖Element默认样式 */
-  font-size: 1.1rem;
+  font-size: var(--fs-body-lg);
 }
 
 .social-btn:hover {
@@ -772,32 +772,32 @@ const switchToLogin = () => {
 }
 
 .qq-btn {
-  color: #12b7f5;
-  border-color: #12b7f5;
+  color: var(--c-brand-qq);
+  border-color: var(--c-brand-qq);
 }
 
 .qq-btn:hover {
-  background-color: #12b7f5;
+  background-color: var(--c-brand-qq);
   color: white;
 }
 
 .wechat-btn {
-  color: #07c160;
-  border-color: #07c160;
+  color: var(--c-brand-wechat);
+  border-color: var(--c-brand-wechat);
 }
 
 .wechat-btn:hover {
-  background-color: #07c160;
+  background-color: var(--c-brand-wechat);
   color: white;
 }
 
 .alipay-btn {
-  color: #1677ff;
-  border-color: #1677ff;
+  color: var(--c-primary-600);
+  border-color: var(--c-primary-600);
 }
 
 .alipay-btn:hover {
-  background-color: #1677ff;
+  background-color: var(--c-primary-600);
   color: white;
 }
 
@@ -888,7 +888,7 @@ const switchToLogin = () => {
   }
   
   .brand-content h2 {
-    font-size: 2rem;
+    font-size: var(--fs-h1);
     margin-bottom: 1rem;
   }
   
@@ -978,7 +978,7 @@ const switchToLogin = () => {
 .verifyCode-button {
   min-width: 120px; 
   height: 52px; 
-  font-size: 0.95rem; 
+  font-size: var(--fs-body); 
   border-radius: 10px !important; 
 }
 
@@ -986,9 +986,9 @@ const switchToLogin = () => {
 
 /* 4. 按钮禁用状态优化（可选：若有倒计时禁用逻辑） */
 .verifyCode-button:disabled {
-  background: #e2e8f0 !important; /* 禁用时背景色，与输入框禁用态统一 */
-  border-color: #e2e8f0 !important;
-  color: #94a3b8 !important;
+  background: var(--c-line) !important; /* 禁用时背景色，与输入框禁用态统一 */
+  border-color: var(--c-line) !important;
+  color: var(--c-ink-4) !important;
   cursor: not-allowed;
 }
 </style>

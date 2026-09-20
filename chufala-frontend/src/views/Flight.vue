@@ -89,10 +89,12 @@
       <h2 class="section-title">热门航线特惠</h2>
       <div class="routes-grid">
         <el-card v-for="route in popularRoutes" :key="route.id" class="route-card" :body-style="{ padding: '0px' }">
-          <img :src="route.image" class="route-image">
+          <img v-lazy-img loading="lazy" :src="route.image" :alt="`${route.from} 到 ${route.to} 航线`" class="route-image">
           <div class="route-info">
             <div class="route-header">
-              <span class="route-cities">{{ route.from }} <i class="el-icon-right"></i> {{ route.to }}</span>
+              <!-- 原为 <i class="el-icon-right">：el-icon-* 是 Element UI v2 的类名写法，
+                   Element Plus 里图标是组件，这样写渲染为空 -->
+              <span class="route-cities">{{ route.from }} <el-icon class="route-arrow"><Right /></el-icon> {{ route.to }}</span>
               <span class="route-price">¥{{ route.price }}起</span>
             </div>
             <p class="route-date">{{ route.date }}</p>
@@ -125,12 +127,12 @@
       </div>
     </div>
     
-    <el-backtop :right="100" :bottom="100" style="color:rgb(82, 233, 200);"/>
+    <el-backtop :right="100" :bottom="100" />
   </div>
 </template>
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Location, Switch, User, Timer, Service } from '@element-plus/icons-vue'
+import { Location, Switch, User, Timer, Service, Right } from '@element-plus/icons-vue'
 import { Plane } from '@/components/Icon.vue'
 
 const activeTab = ref('one-way')
@@ -216,7 +218,7 @@ const popularRoutes = [
 <style scoped>
 .flight-page {
   min-height: 100vh;
-  background-color: #f5f7fa;
+  background-color: var(--c-bg-sub);
   padding-bottom: 40px;
 }
 
@@ -262,7 +264,7 @@ const popularRoutes = [
 
 .hero-subtitle {
   color: rgba(255, 255, 255, 0.9);
-  font-size: 1.5rem;
+  font-size: var(--fs-h2);
   margin-bottom: 40px;
   text-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
@@ -299,7 +301,7 @@ const popularRoutes = [
 .search-btn {
   width: 100%;
   height: 50px;
-  font-size: 18px;
+  font-size: var(--fs-body-lg);
   border-radius: 8px;
   margin-top: 10px;
 }
@@ -316,18 +318,20 @@ const popularRoutes = [
 }
 
 .section-container {
-  max-width: 1200px;
+  max-width: var(--container-max);
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 var(--sp-5);
 }
 
 .section-title {
-  font-size: 24px;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
   font-weight: 600;
-  margin-bottom: 30px;
-  color: #333;
+  letter-spacing: -0.01em;
+  margin-bottom: var(--sp-8);
+  color: var(--c-ink);
   position: relative;
-  padding-left: 15px;
+  padding-left: var(--sp-4);
 }
 
 .section-title::before {
@@ -338,36 +342,47 @@ const popularRoutes = [
   transform: translateY(-50%);
   width: 4px;
   height: 24px;
-  background: var(--el-color-primary);
-  border-radius: 2px;
+  background: var(--c-primary-600);
+  border-radius: var(--r-full);
 }
 
 .routes-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-  margin-bottom: 60px;
+  gap: var(--sp-5);
+  margin-bottom: var(--sp-16);
 }
 
 .route-card {
-  transition: transform 0.3s;
+  transition: transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
   cursor: pointer;
   border: none;
   overflow: hidden;
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-1);
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .route-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-4px);
+  box-shadow: var(--sh-hover);
 }
 
 .route-image {
   width: 100%;
   height: 180px;
   object-fit: cover;
+  transition: transform var(--dur-slower) var(--ease-out);
+}
+
+.route-card:hover .route-image {
+  transform: scale(1.06);
 }
 
 .route-info {
-  padding: 15px;
+  padding: var(--sp-4);
 }
 
 .route-header {
@@ -378,19 +393,30 @@ const popularRoutes = [
 }
 
 .route-cities {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
   font-weight: 600;
-  font-size: 16px;
+  font-size: var(--fs-body-lg);
+  color: var(--c-ink);
+}
+
+.route-arrow {
+  color: var(--c-ink-4);
+  font-size: var(--fs-body);
 }
 
 .route-price {
-  color: #f56c6c;
+  color: var(--c-danger);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
-  font-size: 18px;
+  font-size: var(--fs-body-lg);
 }
 
 .route-date {
-  color: #909399;
-  font-size: 14px;
+  color: var(--c-ink-3);
+  font-size: var(--fs-body);
   margin-bottom: 10px;
 }
 
@@ -409,12 +435,12 @@ const popularRoutes = [
 
 .feature-item h3 {
   margin: 15px 0 10px;
-  font-size: 18px;
+  font-size: var(--fs-body-lg);
 }
 
 .feature-item p {
-  color: #666;
-  font-size: 14px;
+  color: var(--c-ink-3);
+  font-size: var(--fs-body);
 }
 
 .feature-icon {
@@ -428,11 +454,11 @@ const popularRoutes = [
 
 @media (max-width: 768px) {
   .hero-title {
-    font-size: 2rem;
+    font-size: var(--fs-h1);
   }
   
   .hero-subtitle {
-    font-size: 1rem;
+    font-size: var(--fs-body-lg);
   }
   
   .form-row {

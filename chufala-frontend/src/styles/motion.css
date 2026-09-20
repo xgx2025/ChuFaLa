@@ -1,0 +1,196 @@
+/**
+ * 动效
+ * ------------------------------------------------------------------
+ * 全站动效的唯一来源。三条铁律：
+ *   1. 只动 transform 和 opacity（不动 width/height/top/left/padding/margin，避免重排）
+ *   2. 频繁 hover 的元素提前上 GPU 层（.gpu）
+ *   3. 列表超过 50 项时关闭 stagger，改用整体淡入
+ *
+ * 时长四档：120ms 按压 / 200ms hover / 320ms 入场 / 480ms 路由与图片
+ * 缓动三条：--ease-out 最常用 / --ease-in-out 位移 / --ease-spring 强调
+ */
+
+/* ==================================================================
+ * 顶层路由过渡（App.vue 的 <transition name="fade">）
+ * 只动 opacity —— 见 App.vue 中的说明，避免破坏 fixed 定位子元素。
+ * ================================================================== */
+.fade-enter-active {
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+
+.fade-leave-active {
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* ==================================================================
+ * 页面切换过渡（Layout.vue 内层 router-view 的 <transition name="page">）
+ * out-in 模式下总时长 = leave + enter = 120 + 200 = 320ms
+ * ================================================================== */
+.page-enter-active {
+  transition: opacity var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+
+.page-leave-active {
+  transition: opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* ==================================================================
+ * 滚动进场（配合 v-reveal 指令）
+ * ================================================================== */
+.reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  will-change: opacity, transform;
+}
+
+.reveal.is-in {
+  opacity: 1;
+  transform: none;
+  transition: opacity var(--dur-slow) var(--ease-out),
+    transform var(--dur-slow) var(--ease-out);
+  /* 动画结束后释放 GPU 层，避免长时间占用显存 */
+  will-change: auto;
+}
+
+/* 安全网：打印 / 导出 PDF 时 IntersectionObserver 不会触发，
+   必须强制显示，否则整页内容会以 opacity:0 输出成空白。 */
+@media print {
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* ==================================================================
+ * 图片淡入（配合 v-lazy-img 指令）
+ * ================================================================== */
+.img-fade {
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease-out);
+  background-color: var(--c-bg-mute);
+}
+
+.img-fade.is-loaded {
+  opacity: 1;
+}
+
+/* ==================================================================
+ * 通用工具
+ * ================================================================== */
+
+/* 高频 hover 元素提前上 GPU 层，避免掉帧 */
+.gpu {
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* 统一的"可交互卡片"：hover 抬升 + 阴影加深 */
+.hover-lift {
+  transition: transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--sh-hover);
+}
+
+/* 卡片内图片的微缩放，需父级带 .hover-lift 且父级 overflow: hidden */
+.hover-zoom {
+  transition: transform var(--dur-slower) var(--ease-out);
+}
+
+.hover-lift:hover .hover-zoom,
+.hover-zoom:hover {
+  transform: scale(1.05);
+}
+
+/* 按压反馈 */
+.press {
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.press:active {
+  transform: scale(0.97);
+}
+
+/* ==================================================================
+ * 强调动画
+ * ================================================================== */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 收藏/点赞等强调反馈 */
+@keyframes heartbeat {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.25);
+  }
+  70% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.anim-fade-up {
+  animation: fadeInUp var(--dur-slow) var(--ease-out) both;
+}
+.anim-fade-in {
+  animation: fadeIn var(--dur-slow) var(--ease-out) both;
+}
+.anim-pop-in {
+  animation: popIn var(--dur-base) var(--ease-spring) both;
+}
+.anim-heartbeat {
+  animation: heartbeat 400ms var(--ease-spring);
+}

@@ -136,7 +136,9 @@
               :before-upload="beforeAvatarUpload"
               accept="image/jpeg,image/png,image/jpg"
             >
-              <el-button type="text" icon="el-icon-plus">更换头像</el-button>
+              <!-- 原为 type="text" icon="el-icon-plus"：
+                   Element Plus 里 text 类型改用 text 属性，且 icon 接受的是组件而不是类名字符串 -->
+              <el-button text :icon="Plus">更换头像</el-button>
             </el-upload>
           </div>
         </el-form-item>
@@ -221,7 +223,7 @@ import { ref,reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { getUserInfoService,updateUserInfoService,updateUserAvatarService } from '@/api/user';
 import { ElMessage } from 'element-plus';
-import {Edit, Trophy} from '@element-plus/icons-vue';
+import {Edit, Trophy, Plus} from '@element-plus/icons-vue';
 import { Gift } from '@/components/Icon.vue';
 import dayjs from 'dayjs';
 
@@ -402,14 +404,14 @@ const handleFormSubmit = async () => {
 }
 
 .page-header h1 {
-  font-size: 24px;
+  font-size: var(--fs-h2);
   font-weight: 600;
   margin-bottom: 8px;
 }
 
 .page-header p {
-  font-size: 14px;
-  color: #666;
+  font-size: var(--fs-body);
+  color: var(--c-ink-3);
 }
 
 /* 个人信息卡片 */
@@ -429,13 +431,13 @@ const handleFormSubmit = async () => {
 }
 
 .user-avatar {
-  border: 4px solid #f0f0f0;
-  transition: all 0.3s ease;
+  border: 4px solid var(--c-line);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
 }
 
 .user-avatar:hover {
   transform: scale(1.05);
-  border-color: #409eff;
+  border-color: var(--c-primary-600);
 }
 
 .user-status {
@@ -455,13 +457,13 @@ const handleFormSubmit = async () => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #13ce66;
+  background-color: var(--c-success);
   margin-right: 4px;
 }
 
 .status-text {
-  font-size: 12px;
-  color: #333;
+  font-size: var(--fs-caption);
+  color: var(--c-ink);
 }
 
 .user-info {
@@ -476,7 +478,7 @@ const handleFormSubmit = async () => {
 }
 
 .user-name-section h2 {
-  font-size: 20px;
+  font-size: var(--fs-h3);
   font-weight: 600;
   margin-right: 12px;
 }
@@ -499,14 +501,14 @@ const handleFormSubmit = async () => {
 
 .stat-value {
   display: block;
-  font-size: 18px;
+  font-size: var(--fs-body-lg);
   font-weight: 600;
-  color: #333;
+  color: var(--c-ink);
 }
 
 .stat-label {
-  font-size: 12px;
-  color: #666;
+  font-size: var(--fs-caption);
+  color: var(--c-ink-3);
 }
 
 .action-buttons {
@@ -527,7 +529,7 @@ const handleFormSubmit = async () => {
 }
 
 .card-header h2 {
-  font-size: 16px;
+  font-size: var(--fs-body-lg);
   font-weight: 600;
 }
 
@@ -546,7 +548,7 @@ const handleFormSubmit = async () => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--c-line);
 }
 
 .security-item:last-child {
@@ -556,7 +558,7 @@ const handleFormSubmit = async () => {
 .security-icon {
   width: 40px;
   height: 40px;
-  background-color: #f5f7fa;
+  background-color: var(--c-bg-sub);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -565,8 +567,8 @@ const handleFormSubmit = async () => {
 }
 
 .security-icon i {
-  font-size: 18px;
-  color: #409eff;
+  font-size: var(--fs-body-lg);
+  color: var(--c-primary-600);
 }
 
 .security-info {
@@ -574,21 +576,21 @@ const handleFormSubmit = async () => {
 }
 
 .security-title {
-  font-size: 14px;
-  color: #333;
+  font-size: var(--fs-body);
+  color: var(--c-ink);
   margin-right: 8px;
 }
 
 .security-status {
-  font-size: 12px;
+  font-size: var(--fs-caption);
 }
 
 .status-verified {
-  color: #13ce66;
+  color: var(--c-success);
 }
 
 .status-unverified {
-  color: #ff4949;
+  color: var(--c-danger);
 }
 
 /* 信息卡片容器 */
@@ -614,14 +616,14 @@ const handleFormSubmit = async () => {
 }
 
 .info-label {
-  font-size: 12px;
-  color: #999;
+  font-size: var(--fs-caption);
+  color: var(--c-ink-4);
   margin-bottom: 4px;
 }
 
 .info-value {
-  font-size: 14px;
-  color: #333;
+  font-size: var(--fs-body);
+  color: var(--c-ink);
 }
 
 .preferences-grid {
@@ -636,8 +638,8 @@ const handleFormSubmit = async () => {
 }
 
 .preference-label {
-  font-size: 12px;
-  color: #999;
+  font-size: var(--fs-caption);
+  color: var(--c-ink-4);
   margin-bottom: 8px;
 }
 
@@ -648,23 +650,23 @@ const handleFormSubmit = async () => {
 }
 
 .travel-type-tag {
-  background-color: #e6f7ff;
-  color: #1890ff;
+  background-color: var(--c-primary-50);
+  color: var(--c-primary-600);
 }
 
 .transport-tag {
-  background-color: #f0f9f0;
-  color: #52c41a;
+  background-color: var(--c-success-soft);
+  color: var(--c-success);
 }
 
 .hotel-tag {
-  background-color: #fff7e6;
-  color: #faad14;
+  background-color: var(--c-accent-soft);
+  color: var(--c-accent);
 }
 
 .food-tag {
-  background-color: #fff0f0;
-  color: #f5222d;
+  background-color: var(--c-danger-soft);
+  color: var(--c-danger);
 }
 
 /* 地址卡片 */
@@ -680,14 +682,14 @@ const handleFormSubmit = async () => {
 
 .address-item {
   padding: 16px;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--c-line);
   border-radius: 4px;
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .address-item:hover {
-  border-color: #409eff;
-  background-color: #f5fafe;
+  border-color: var(--c-primary-600);
+  background-color: var(--c-primary-50);
 }
 
 .address-header {
@@ -697,9 +699,9 @@ const handleFormSubmit = async () => {
 }
 
 .address-type {
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 600;
-  color: #333;
+  color: var(--c-ink);
 }
 
 .address-actions {
@@ -712,14 +714,14 @@ const handleFormSubmit = async () => {
 }
 
 .address-name {
-  font-size: 14px;
-  color: #333;
+  font-size: var(--fs-body);
+  color: var(--c-ink);
   margin-bottom: 4px;
 }
 
 .address-full {
-  font-size: 13px;
-  color: #666;
+  font-size: var(--fs-caption);
+  color: var(--c-ink-3);
   line-height: 1.5;
 }
 
@@ -738,7 +740,7 @@ const handleFormSubmit = async () => {
 .stat-card {
   flex: 1;
   min-width: 250px;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .stat-card:hover {
@@ -753,13 +755,13 @@ const handleFormSubmit = async () => {
 }
 
 .stat-icon {
-  font-size: 24px;
-  color: #409eff;
+  font-size: var(--fs-h2);
+  color: var(--c-primary-600);
   margin-right: 12px;
 }
 
 .stat-card-header h3 {
-  font-size: 16px;
+  font-size: var(--fs-body-lg);
   font-weight: 600;
 }
 
@@ -769,22 +771,22 @@ const handleFormSubmit = async () => {
 }
 
 .stat-number {
-  font-size: 32px;
+  font-size: var(--fs-h1);
   font-weight: 700;
-  color: #333;
+  color: var(--c-ink);
   line-height: 1;
 }
 
 .stat-label {
-  font-size: 14px;
-  color: #666;
+  font-size: var(--fs-body);
+  color: var(--c-ink-3);
   margin-top: 8px;
 }
 
 .stat-card-footer {
   text-align: center;
-  font-size: 12px;
-  color: #999;
+  font-size: var(--fs-caption);
+  color: var(--c-ink-4);
 }
 
 /* 响应式样式 */
@@ -833,7 +835,7 @@ const handleFormSubmit = async () => {
 }
 
 .preview-avatar {
-  border: 2px solid #f0f0f0;
+  border: 2px solid var(--c-line);
 }
 
 .avatar-uploader {

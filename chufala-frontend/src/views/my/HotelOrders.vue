@@ -1,5 +1,7 @@
 <template>
   <div class="hotel-orders">
+    <h1 class="page-title">酒店订单</h1>
+
     <!-- 筛选栏 -->
     <el-card shadow="hover" class="filter-card">
       <el-select v-model="orderStatus" placeholder="订单类型" style="width: 180px; margin-right: 20px;">
@@ -214,10 +216,10 @@ const cancelHotelOrder = async (id) => {
 }
 .order-id, .order-date {
   margin-right: 5px;
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 .delete-btn {
-  color: #06c;
+  color: var(--c-primary-600);
 }
 .order-info {
   display: flex;
@@ -228,11 +230,11 @@ const cancelHotelOrder = async (id) => {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 .hotel-info h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--fs-body-lg);
 }
 .order-status {
   display: flex;
@@ -241,14 +243,14 @@ const cancelHotelOrder = async (id) => {
   gap: 80px;
 }
 .status-tag {
-  color: #aaaaaa;
+  color: var(--c-ink-4);
   padding: 2px 6px;
   border-radius: 4px;
 }
 .price {
-  font-size: 24px;
+  font-size: var(--fs-h2);
   font-weight: bold;
-  color: #333333;
+  color: var(--c-ink);
 }
 .order-actions {
   display: flex;

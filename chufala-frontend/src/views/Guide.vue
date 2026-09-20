@@ -4,7 +4,7 @@
     <div class="planner-header">
       <div class="header-content">
         <h1 class="main-title">
-          <i class="el-icon-compass"></i>
+          <el-icon><Compass /></el-icon>
           AI 智能旅行规划师
         </h1>
         <p class="subtitle">让每一次旅行都成为美好回忆</p>
@@ -111,7 +111,7 @@
             
             <el-form-item>
               <el-button type="primary" @click="generateItinerary" :loading="isGenerating" class="generate-btn">
-                <i class="el-icon-magic-stick"></i>
+                <el-icon><MagicStick /></el-icon>
                 {{ isGenerating ? 'AI正在规划中...' : '生成行程' }}
               </el-button>
             </el-form-item>
@@ -138,7 +138,7 @@
           </template>
           
           <div v-if="!itinerary.length && !isGenerating" class="empty-state">
-            <i class="el-icon-suitcase"></i>
+            <el-icon class="empty-state__icon"><Suitcase /></el-icon>
             <p>请填写您的旅行需求，AI将为您定制专属行程</p>
           </div>
           
@@ -160,8 +160,8 @@
                     <div class="activity-content">
                       <div class="activity-header">
                         <h3>{{ item.time }} {{ item.name }}</h3>
-                        <el-button type="text" @click.stop="navigateToDestination(item)" class="nav-btn">
-                          <i class="el-icon-position"></i> 📍导航
+                        <el-button text @click.stop="navigateToDestination(item)" class="nav-btn">
+                          📍导航
                         </el-button>
                       </div>
                       <p class="activity-desc">{{ item.description }}</p>
@@ -217,7 +217,7 @@
           <div class="map-legend">
             <span v-for="(day, dayIdx) in itinerary" :key="dayIdx">
               <span v-for="(activity, actIdx) in day.activities" :key="actIdx" class="legend-item">
-                <i class="el-icon-location" style="color: #409eff;"></i> {{ activity.name }}
+                <el-icon style="color: var(--c-primary-600);"><Location /></el-icon> {{ activity.name }}
               </span>
             </span>
           </div>
@@ -349,7 +349,7 @@
             <div v-for="(msg, index) in chatMessages" :key="msg.id" class="message-row" :class="msg.role">
               <div class="message-avatar">
                 <img v-if="msg.role === 'ai'" src="@/assets/b.jpg" alt="AI">
-                <el-avatar v-else :src="userInfoStore.info?.avatar" :size="40" style="background:#409eff">
+                <el-avatar v-else :src="userInfoStore.info?.avatar" :size="40" style="background:var(--c-primary-600)">
                   <span v-if="!userInfoStore.info?.avatar">User</span>
                 </el-avatar>
               </div>
@@ -431,7 +431,7 @@ import { ElMessage, ElNotification } from 'element-plus';
 import * as echarts from 'echarts';
 import { loadAMap } from '@/utils/amap-loader';
 import {Document,Itinerary,Route,Budget} from '@/components/Icon.vue'
-import { Clock, Delete, ChatDotRound, MapLocation, Promotion, Food, Ticket, Lock, Plus, Download, Link, Picture, House, Loading, CircleClose } from '@element-plus/icons-vue'
+import { Clock, Delete, ChatDotRound, MapLocation, Promotion, Food, Ticket, Lock, Plus, Download, Link, Picture, House, Loading, CircleClose, Compass, MagicStick, Suitcase, Location } from '@element-plus/icons-vue'
 import router from '@/router'
 import request from '@/utils/request';
 import { getTripPlanService,getPlanHistoryService,getHistoricalItineraryService, sendChatStream, getChatHistoryService, getChatMessagesService, deleteConversationService, uploadChatImageService } from '@/api/agent';
@@ -930,7 +930,7 @@ const applyHistory = async(item) => {
 // 注意：这里的经纬度是高德地图坐标系(GCJ02)
 const locations = [
   {id:1, name: '张家界森林公园南门', position: [110.4801, 29.3322], color: '#f56c6c' },
-  {id:2, name: '袁家界景区', position: [110.5225, 29.3389], color: '#409eff' },
+  {id:2, name: '袁家界景区', position: [110.5225, 29.3389], color: '#2563eb' },
   {id:3, name: '天子山景区', position: [110.5158, 29.3582], color: '#67c23a' },
   {id:4, name: '湘味特色餐厅', position: [110.4822, 29.3356], color: '#e6a23c' },
 ];
@@ -952,7 +952,7 @@ const getProgressColor = (category) => {
     '交通费用': '#81D4FA', // 蓝色-交通
     '其他费用': '#909399'  // 灰色-其他
   };
-  return colors[category] || '#409eff'; // 默认蓝色
+  return colors[category] || '#2563eb'; // 默认蓝色（与设计令牌主色 #2563eb 保持一致）
 };
 
 // 渲染 ECharts 饼图
@@ -1131,7 +1131,7 @@ const addMarkersToMap = () => {
     day.activities.forEach(activity => {
       if (activity.position && activity.name) {
         // 固定使用默认蓝色，移除color字段
-        const markerColor = '#409eff';
+        const markerColor = '#2563eb';
 
         // 自定义 Marker 图标
         const customIcon = new AMap.Icon({
@@ -1232,7 +1232,7 @@ onMounted(async () => {
 <style scoped>
 .travel-planner {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--c-violet-500) 0%, var(--c-violet-700) 100%);
   font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
 }
 
@@ -1251,7 +1251,7 @@ onMounted(async () => {
   background-color: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.4);
   color: white;
-  font-size: 1.2rem;
+  font-size: var(--fs-body-lg);
   width: 40px;
   height: 40px;
 }
@@ -1262,14 +1262,14 @@ onMounted(async () => {
 }
 
 .header-content .main-title {
-  font-size: 2.5rem;
+  font-size: var(--fs-h1);
   margin-bottom: 0.5rem;
   font-weight: 300;
   text-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .subtitle {
-  font-size: 1.1rem;
+  font-size: var(--fs-body-lg);
   opacity: 0.9;
 }
 
@@ -1284,10 +1284,10 @@ onMounted(async () => {
 
 .generate-btn {
   width: 100%;
-  font-size: 1rem;
+  font-size: var(--fs-body-lg);
   padding: 12px 0;
   border-radius: 8px;
-  background: linear-gradient(90deg, #667eea, #764ba2);
+  background: linear-gradient(90deg, var(--c-violet-500), var(--c-violet-700));
   border: none;
 }
 
@@ -1297,18 +1297,22 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #999;
-  padding: 3rem 1rem;
+  color: var(--c-ink-3);
+  padding: var(--sp-12) var(--sp-4);
 }
+/* el-icon 渲染出的就是 <i class="el-icon">，因此这条规则依然命中新图标 */
 .empty-state i, .loading-state i {
   font-size: 4rem;
-  margin-bottom: 1rem;
+  margin-bottom: var(--sp-4);
+}
+.empty-state__icon {
+  color: var(--c-primary-200);
 }
 .loading-spinner {
   width: 50px;
   height: 50px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #764ba2;
+  border: 4px solid var(--c-line-2);
+  border-top: 4px solid var(--c-primary-600);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
@@ -1334,7 +1338,7 @@ onMounted(async () => {
 }
 
 :deep(.custom-timeline-item .el-timeline-item__timestamp) {
-  font-size: 20px; 
+  font-size: var(--fs-h3); 
   color: black;   
   font-weight: bold;
 }
@@ -1348,11 +1352,11 @@ onMounted(async () => {
   align-items: flex-start; 
   gap: 16px; 
   padding:1rem 0.5rem 1rem 0.5rem;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--c-line);
   cursor: pointer;
   transition: background-color 0.3s;
   border-radius: 10px;
-  background-color: #f6f8f9;
+  background-color: var(--c-bg-sub);
 }
 
 .activity-item img {
@@ -1370,7 +1374,7 @@ onMounted(async () => {
   border-bottom: none;
 }
 .activity-item:hover {
-  background-color: #d4f3e1;
+  background-color: var(--c-bg-sub);
 }
 .activity-header {
   display: flex;
@@ -1381,16 +1385,16 @@ onMounted(async () => {
 }
 .activity-header h3 {
   margin: 0;
-  font-size: 1.1rem;
-  color: #303133;
+  font-size: var(--fs-body-lg);
+  color: var(--c-ink);
 }
 .nav-btn {
-  color: #409eff;
+  color: var(--c-primary-600);
   padding: 0;
 }
 .activity-desc {
-  color: #606266;
-  font-size: 0.9rem;
+  color: var(--c-ink-2);
+  font-size: var(--fs-body);
   margin-bottom: 0.8rem;
 }
 
@@ -1408,8 +1412,8 @@ onMounted(async () => {
   margin-bottom: 0.8rem;
 }
 .activity-tip {
-  font-size: 0.85rem;
-  color: #909399;
+  font-size: var(--fs-caption);
+  color: var(--c-ink-3);
   margin: 0;
 }
 
@@ -1434,7 +1438,7 @@ onMounted(async () => {
   padding: 8px 0;
   scroll-behavior: smooth;
   border-radius: 10px;
-  background-color: #f3e3f8;
+  background-color: var(--c-bg-sub);
 }
 
 .hotel-cards-container::-webkit-scrollbar {
@@ -1442,12 +1446,12 @@ onMounted(async () => {
 }
 
 .hotel-cards-container::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--c-bg-sub);
   border-radius: 10px;
 }
 
 .hotel-cards-container::-webkit-scrollbar-thumb {
-  background: #888;
+  background: var(--c-ink-3);
   border-radius: 10px;
 }
 
@@ -1483,47 +1487,47 @@ onMounted(async () => {
 
 .hotel-info h4 {
   margin: 0 0 5px 0;
-  font-size: 16px;
-  color: #333;
+  font-size: var(--fs-body-lg);
+  color: var(--c-ink);
   white-space: normal;
   word-break: break-all;
 }
 
 .rating {
-  color: #ff6b6b;
+  color: var(--c-danger);
   font-weight: bold;
   margin: 0 0 3px 0;
 }
 
 .location {
-  color: #666;
-  font-size: 12px;
+  color: var(--c-ink-3);
+  font-size: var(--fs-caption);
   margin: 0 0 3px 0;
 }
 
 .price {
-  font-size: 20px;
+  font-size: var(--fs-h3);
   font-weight: bold;
-  color: #2ecc71;
+  color: var(--c-success);
   margin:0 0 6px 0;
 }
 
 .select-btn {
   width: 100%;
   padding: 10px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--c-violet-500) 0%, var(--c-violet-700) 100%);
   color: white;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: bold;
   transition: background 0.3s ease;
   margin-top: auto;
 }
 
 .select-btn:hover {
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  background: linear-gradient(135deg, var(--c-violet-700) 0%, var(--c-violet-500) 100%);
 }
 
 #amap-container {
@@ -1543,12 +1547,12 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 1rem;
   padding-top: 10px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--c-line);
   margin-top: 10px;
 }
 .legend-item {
-  font-size: 0.9rem;
-  color: #606266;
+  font-size: var(--fs-body);
+  color: var(--c-ink-2);
   display: flex;
   align-items: center;
 }
@@ -1566,24 +1570,24 @@ onMounted(async () => {
   align-items: center;
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--c-line);
 }
 .total-budget .label {
-  font-size: 0.9rem;
-  color: #909399;
+  font-size: var(--fs-body);
+  color: var(--c-ink-3);
 }
 .total-budget .amount {
   display: block;
   font-size: 1.8rem;
   font-weight: bold;
-  color: #303133;
+  color: var(--c-ink);
 }
 .budget-comparison {
   text-align: right;
-  font-size: 0.9rem;
+  font-size: var(--fs-body);
 }
 .budget-comparison .over-budget {
-  color: #f56c6c;
+  color: var(--c-danger);
   font-weight: bold;
 }
 .budget-breakdown {
@@ -1597,13 +1601,13 @@ onMounted(async () => {
   margin-bottom: 0.5rem;
 }
 .item-label {
-  font-size: 0.9rem;
-  color: #606266;
+  font-size: var(--fs-body);
+  color: var(--c-ink-2);
 }
 .item-amount {
-  font-size: 0.9rem;
+  font-size: var(--fs-body);
   font-weight: bold;
-  color: #303133;
+  color: var(--c-ink);
 }
 
 /* ECharts 图表容器样式 */
@@ -1637,17 +1641,17 @@ onMounted(async () => {
   padding: 0 10px;
 }
 .history-item {
-  background-color: #f5f7fa;
+  background-color: var(--c-bg-sub);
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 12px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: background-color 0.3s, box-shadow 0.3s;
   border: 1px solid transparent;
 }
 .history-item:hover {
-  background-color: #e6f7ff;
-  border-color: #91d5ff;
+  background-color: var(--c-primary-50);
+  border-color: var(--c-primary-300);
   transform: translateY(-2px);
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
@@ -1659,8 +1663,8 @@ onMounted(async () => {
 }
 .history-dest {
   font-weight: bold;
-  font-size: 16px;
-  color: #303133;
+  font-size: var(--fs-body-lg);
+  color: var(--c-ink);
 }
 .history-info {
   display: flex;
@@ -1671,9 +1675,9 @@ onMounted(async () => {
   background-color: #fff;
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 12px;
-  color: #606266;
-  border: 1px solid #dcdfe6;
+  font-size: var(--fs-caption);
+  color: var(--c-ink-2);
+  border: 1px solid var(--c-line);
 }
 .history-preferences {
   display: flex;
@@ -1682,15 +1686,15 @@ onMounted(async () => {
   margin-bottom: 8px;
 }
 .pref-tag {
-  background-color: #ecf5ff;
-  color: #409eff;
-  font-size: 12px;
+  background-color: var(--c-primary-50);
+  color: var(--c-primary-600);
+  font-size: var(--fs-caption);
   padding: 2px 6px;
   border-radius: 4px;
 }
 .history-time {
-  font-size: 12px;
-  color: #909399;
+  font-size: var(--fs-caption);
+  color: var(--c-ink-3);
   text-align: right;
 }
 .delete-btn {
@@ -1698,7 +1702,7 @@ onMounted(async () => {
   height: auto;
 }
 .delete-btn:hover {
-  color: #f56c6c;
+  color: var(--c-danger);
   background-color: rgba(245, 108, 108, 0.1);
 }
 
@@ -1720,8 +1724,8 @@ onMounted(async () => {
   border-radius: 20px;
   color: white;
   cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 1rem;
+  transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+  font-size: var(--fs-body-lg);
 }
 
 .mode-item:hover {
@@ -1730,7 +1734,7 @@ onMounted(async () => {
 
 .mode-item.active {
   background: white;
-  color: #764ba2;
+  color: var(--c-violet-700);
   font-weight: bold;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
@@ -1776,7 +1780,7 @@ onMounted(async () => {
   width: 260px;
   flex-shrink: 0;
   height: fit-content;
-  background: linear-gradient(135deg, #e6f7ff 0%, #f0f9eb 100%);
+  background: linear-gradient(135deg, var(--c-primary-50) 0%, var(--c-success-soft) 100%);
   border: 1px solid #fff;
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   border-radius: 12px;
@@ -1788,12 +1792,12 @@ onMounted(async () => {
 
 .sidebar-header h3 {
   margin: 0;
-  color: #303133;
+  color: var(--c-ink);
 }
 .sidebar-header p {
   margin: 5px 0 0;
-  color: #909399;
-  font-size: 0.9rem;
+  color: var(--c-ink-3);
+  font-size: var(--fs-body);
 }
 
 .quick-actions {
@@ -1810,12 +1814,12 @@ onMounted(async () => {
   background: rgba(255, 255, 255, 0.8);
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
   border: 1px solid rgba(255,255,255,0.5);
 }
 
 .action-card:hover {
-  background: #e6f7ff;
+  background: var(--c-primary-50);
   transform: translateX(5px);
 }
 
@@ -1827,20 +1831,20 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #409eff;
+  color: var(--c-primary-600);
 }
 
 .context-card {
   margin-top: auto;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--c-violet-500) 0%, var(--c-violet-700) 100%);
   color: white;
   padding: 1rem;
   border-radius: 8px;
 }
 .context-card h4 { margin: 0 0 8px 0; }
-.context-card p { margin: 0 0 8px 0; font-size: 0.9rem; opacity: 0.9; }
+.context-card p { margin: 0 0 8px 0; font-size: var(--fs-body); opacity: 0.9; }
 .context-tags { display: flex; gap: 8px; }
-.context-tags .tag { background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
+.context-tags .tag { background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px; font-size: var(--fs-caption); }
 
 .chat-main {
   flex: 1;
@@ -1876,7 +1880,7 @@ onMounted(async () => {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #f0f2f5;
+  background: var(--c-bg-sub);
 }
 
 .message-content {
@@ -1888,7 +1892,7 @@ onMounted(async () => {
 .message-bubble {
   padding: 16px 20px;
   border-radius: 16px;
-  font-size: 15px;
+  font-size: var(--fs-body);
   line-height: 1.6;
   box-shadow: 0 2px 12px rgba(0,0,0,0.08);
   max-width: 100%;
@@ -1896,21 +1900,21 @@ onMounted(async () => {
 
 .message-row.ai .message-bubble {
   background: #ffffff;
-  color: #2c3e50;
+  color: var(--c-ink);
   border-top-left-radius: 4px;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--c-line);
 }
 
 .message-row.user .message-bubble {
-  background: #409eff;
+  background: var(--c-primary-600);
   color: white;
   border-top-right-radius: 4px;
-  box-shadow: 0 2px 12px rgba(64, 158, 255, 0.2);
+  box-shadow: 0 2px 12px rgba(37, 99, 235, 0.2);
 }
 
 .message-time {
-  font-size: 0.75rem;
-  color: #909399;
+  font-size: var(--fs-caption);
+  color: var(--c-ink-3);
   align-self: flex-start;
 }
 .message-row.user .message-time {
@@ -1920,7 +1924,7 @@ onMounted(async () => {
 .chat-footer {
   padding: 1.5rem;
   background: white;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--c-line);
 }
 
 .input-wrapper {
@@ -1935,7 +1939,7 @@ onMounted(async () => {
 .new-chat-btn {
   width: 100%;
   justify-content: center;
-  background: linear-gradient(90deg, #667eea, #764ba2);
+  background: linear-gradient(90deg, var(--c-violet-500), var(--c-violet-700));
   border: none;
 }
 
@@ -1947,8 +1951,8 @@ onMounted(async () => {
 }
 
 .section-title {
-  font-size: 0.85rem;
-  color: #909399;
+  font-size: var(--fs-caption);
+  color: var(--c-ink-3);
   margin-bottom: 0.5rem;
   padding-left: 4px;
 }
@@ -1966,18 +1970,18 @@ onMounted(async () => {
   padding: 10px 12px;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s;
-  color: #606266;
-  font-size: 0.95rem;
+  transition: background-color 0.2s;
+  color: var(--c-ink-2);
+  font-size: var(--fs-body);
 }
 
 .chat-session-item:hover {
-  background-color: #f0f2f5;
+  background-color: var(--c-bg-sub);
 }
 
 .chat-session-item.active {
-  background-color: #e6f7ff;
-  color: #409eff;
+  background-color: var(--c-primary-50);
+  color: var(--c-primary-600);
   font-weight: 500;
 }
 
@@ -1991,11 +1995,11 @@ onMounted(async () => {
 .delete-session-btn {
   opacity: 0;
   transition: opacity 0.2s;
-  font-size: 14px;
+  font-size: var(--fs-body);
   padding: 4px;
 }
 .delete-session-btn:hover {
-  color: #f56c6c;
+  color: var(--c-danger);
   background-color: rgba(245, 108, 108, 0.1);
   border-radius: 4px;
 }
@@ -2006,13 +2010,13 @@ onMounted(async () => {
 
 .sidebar-header-small h3 {
   margin: 0;
-  font-size: 1rem;
-  color: #303133;
+  font-size: var(--fs-body-lg);
+  color: var(--c-ink);
 }
 .sidebar-header-small p {
   margin: 4px 0 10px;
-  color: #909399;
-  font-size: 0.8rem;
+  color: var(--c-ink-3);
+  font-size: var(--fs-caption);
 }
 
 :deep(.chat-input .el-input__wrapper) {
@@ -2023,14 +2027,14 @@ onMounted(async () => {
 }
 
 :deep(.chat-input .el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.5), 0 2px 12px rgba(64, 158, 255, 0.2);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.5), 0 2px 12px rgba(37, 99, 235, 0.2);
 }
 
 /* Markdown Styles */
 :deep(.markdown-body) {
-  font-size: 15px;
+  font-size: var(--fs-body);
   line-height: 1.7;
-  color: #2c3e50;
+  color: var(--c-ink);
 }
 
 :deep(.markdown-body p) {
@@ -2044,7 +2048,7 @@ onMounted(async () => {
   margin-top: 24px;
   margin-bottom: 16px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--c-ink);
   border-bottom: none;
 }
 
@@ -2072,7 +2076,7 @@ onMounted(async () => {
 }
 
 :deep(.markdown-body code) {
-  color: #e6a23c;
+  color: var(--c-accent);
   background-color: rgba(230, 162, 60, 0.1);
   padding: 2px 6px;
   border-radius: 4px;
@@ -2080,8 +2084,8 @@ onMounted(async () => {
 }
 
 :deep(.markdown-body pre) {
-  background-color: #282c34;
-  color: #abb2bf;
+  background-color: var(--c-ink);
+  color: var(--c-ink-4);
   padding: 16px;
   border-radius: 8px;
   margin: 16px 0;
@@ -2103,15 +2107,15 @@ onMounted(async () => {
 
 :deep(.markdown-body blockquote) {
   padding: 12px 16px;
-  color: #5e6d82;
-  background-color: #f8f9fa;
-  border-left: 4px solid #409eff;
+  color: var(--c-ink-3);
+  background-color: var(--c-bg-sub);
+  border-left: 4px solid var(--c-primary-600);
   border-radius: 4px;
   margin: 16px 0;
 }
 
 :deep(.markdown-body a) {
-  color: #409eff;
+  color: var(--c-primary-600);
   text-decoration: none;
   font-weight: 500;
 }
@@ -2126,27 +2130,27 @@ onMounted(async () => {
   overflow: auto;
   margin-bottom: 16px;
   border-radius: 8px;
-  box-shadow: 0 0 0 1px #ebeef5;
+  box-shadow: 0 0 0 1px var(--c-line);
   border-spacing: 0;
   border-collapse: collapse;
 }
 
 :deep(.markdown-body th) {
-  background-color: #f5f7fa;
+  background-color: var(--c-bg-sub);
   font-weight: 600;
-  color: #606266;
-  border: 1px solid #ebeef5;
+  color: var(--c-ink-2);
+  border: 1px solid var(--c-line);
   padding: 12px;
 }
 
 :deep(.markdown-body td) {
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--c-line);
   padding: 12px;
-  color: #606266;
+  color: var(--c-ink-2);
 }
 
 :deep(.markdown-body tr:nth-child(2n)) {
-  background-color: #fafafa;
+  background-color: var(--c-bg-sub);
 }
 
 :deep(.markdown-body img) {
@@ -2172,7 +2176,7 @@ onMounted(async () => {
   display: inline-block;
   width: 8px;
   height: 16px;
-  background-color: #409eff;
+  background-color: var(--c-primary-600);
   margin-left: 4px;
   vertical-align: middle;
   animation: blink 1s step-end infinite;
@@ -2196,7 +2200,7 @@ onMounted(async () => {
 .typing-indicator span {
   width: 6px;
   height: 6px;
-  background-color: #909399;
+  background-color: var(--c-ink-3);
   border-radius: 50%;
   animation: typing 1.4s infinite ease-in-out both;
 }
@@ -2241,7 +2245,7 @@ onMounted(async () => {
   height: 60px;
   border-radius: 4px;
   overflow: hidden;
-  border: 1px solid #eee;
+  border: 1px solid var(--c-line-2);
 }
 .preview-img {
   width: 100%;
@@ -2275,18 +2279,18 @@ onMounted(async () => {
 .upload-btn {
   border: none !important;
   background: transparent !important;
-  font-size: 20px;
-  color: #606266;
+  font-size: var(--fs-h3);
+  color: var(--c-ink-2);
   padding: 8px !important;
   height: auto !important;
   width: auto !important;
 }
 .upload-btn:hover {
-  color: #409eff;
-  background: #f5f7fa !important;
+  color: var(--c-primary-600);
+  background: var(--c-bg-sub) !important;
 }
 .upload-btn.is-disabled {
-  color: #c0c4cc;
+  color: var(--c-ink-4);
   cursor: not-allowed;
 }
 </style>

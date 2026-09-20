@@ -317,7 +317,7 @@ const handleBuyNow = () => {
 <style scoped>
 /* 通用布局 */
 .page-container {
-  background-color: #f5f7fa;
+  background-color: var(--c-bg-sub);
   min-height: 100vh;
   padding-bottom: 40px;
 }
@@ -338,9 +338,9 @@ const handleBuyNow = () => {
 }
 
 .attraction-title {
-  font-size: 32px;
+  font-size: var(--fs-h1);
   font-weight: 700;
-  color: #2c3e50;
+  color: var(--c-ink);
   margin-bottom: 8px;
 }
 
@@ -348,7 +348,7 @@ const handleBuyNow = () => {
   display: flex;
   align-items: center;
   gap: 15px;
-  color: #666;
+  color: var(--c-ink-3);
 }
 
 /* 图片网格布局 (Airbnb 风格) */
@@ -398,7 +398,7 @@ const handleBuyNow = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: var(--fs-h3);
   font-weight: bold;
 }
 
@@ -423,7 +423,7 @@ const handleBuyNow = () => {
 
 /* 左侧信息 */
 .detail-tabs :deep(.el-tabs__item) {
-  font-size: 16px;
+  font-size: var(--fs-body-lg);
   font-weight: bold;
 }
 
@@ -432,14 +432,14 @@ const handleBuyNow = () => {
 }
 
 .block-title {
-  font-size: 20px;
+  font-size: var(--fs-h3);
   margin-bottom: 15px;
 }
 
 .text-content {
   line-height: 1.8;
-  color: #4a4a4a;
-  font-size: 15px;
+  color: var(--c-ink-2);
+  font-size: var(--fs-body);
 }
 
 .info-grid {
@@ -455,20 +455,20 @@ const handleBuyNow = () => {
 }
 
 .info-item .el-icon {
-  font-size: 24px;
-  color: #409EFF;
+  font-size: var(--fs-h2);
+  color: var(--c-primary-600);
   margin-top: 2px;
 }
 
 .info-text strong {
   display: block;
   margin-bottom: 4px;
-  color: #333;
+  color: var(--c-ink);
 }
 
 .info-text p {
-  color: #666;
-  font-size: 14px;
+  color: var(--c-ink-3);
+  font-size: var(--fs-body);
   margin: 0;
 }
 
@@ -478,7 +478,7 @@ const handleBuyNow = () => {
   border-radius: 12px;
   padding: 25px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-  border: 1px solid #eee;
+  border: 1px solid var(--c-line-2);
   position: sticky; /* 吸顶核心代码 */
   top: 20px; 
 }
@@ -488,18 +488,18 @@ const handleBuyNow = () => {
   justify-content: space-between;
   align-items: baseline;
   margin-bottom: 20px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--c-line);
   padding-bottom: 15px;
 }
 
 .price-display {
-  color: #FF4D4F;
+  color: var(--c-danger);
   font-weight: bold;
 }
 
-.currency { font-size: 18px; }
-.amount { font-size: 28px; }
-.unit { font-size: 14px; color: #999; font-weight: normal; }
+.currency { font-size: var(--fs-body-lg); }
+.amount { font-size: var(--fs-h2); }
+.unit { font-size: var(--fs-body); color: var(--c-ink-4); font-weight: normal; }
 
 .selection-area {
   display: flex;
@@ -508,9 +508,9 @@ const handleBuyNow = () => {
 }
 
 .sub-label {
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: bold;
-  color: #333;
+  color: var(--c-ink);
   margin-bottom: -5px;
   display: block;
 }
@@ -522,23 +522,23 @@ const handleBuyNow = () => {
 }
 
 .ticket-chip {
-  border: 1px solid #dcdfe6;
+  border: 1px solid var(--c-line);
   border-radius: 8px;
   padding: 10px 15px;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
-  transition: all 0.2s;
+  transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
 }
 
 .ticket-chip:hover {
-  border-color: #409EFF;
+  border-color: var(--c-primary-600);
 }
 
 .ticket-chip.active {
-  border-color: #409EFF;
-  background-color: #ecf5ff;
-  color: #409EFF;
+  border-color: var(--c-primary-600);
+  background-color: var(--c-primary-50);
+  color: var(--c-primary-600);
 }
 
 .ticket-chip-price {
@@ -548,7 +548,7 @@ const handleBuyNow = () => {
 .card-footer {
   margin-top: 25px;
   padding-top: 20px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--c-line);
 }
 
 .total-preview {
@@ -556,13 +556,13 @@ const handleBuyNow = () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 15px;
-  font-size: 16px;
+  font-size: var(--fs-body-lg);
   font-weight: bold;
 }
 
 .total-preview .highlight {
-  color: #FF4D4F;
-  font-size: 20px;
+  color: var(--c-danger);
+  font-size: var(--fs-h3);
 }
 
 .book-btn {
@@ -580,9 +580,9 @@ const handleBuyNow = () => {
 }
 
 .footer-price {
-  font-size: 18px;
+  font-size: var(--fs-body-lg);
   font-weight: bold;
-  color: #FF4D4F;
+  color: var(--c-danger);
 }
 
 /* 推荐酒店区域 */
@@ -591,10 +591,10 @@ const handleBuyNow = () => {
 }
 
 .section-title {
-  font-size: 24px;
+  font-size: var(--fs-h2);
   font-weight: 600;
   margin-bottom: 20px;
-  color: #333;
+  color: var(--c-ink);
 }
 
 .hotel-grid {
@@ -637,7 +637,7 @@ const handleBuyNow = () => {
   padding: 4px 8px;
   border-radius: 4px;
   font-weight: bold;
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .hotel-info {
@@ -645,7 +645,7 @@ const handleBuyNow = () => {
 }
 
 .hotel-name {
-  font-size: 16px;
+  font-size: var(--fs-body-lg);
   font-weight: bold;
   margin-bottom: 8px;
   white-space: nowrap;
@@ -654,30 +654,30 @@ const handleBuyNow = () => {
 }
 
 .hotel-location {
-  color: #666;
-  font-size: 13px;
+  color: var(--c-ink-3);
+  font-size: var(--fs-caption);
   margin-bottom: 10px;
 }
 
 .hotel-price {
-  color: #f56c6c;
+  color: var(--c-danger);
   display: flex;
   align-items: baseline;
 }
 
 .hotel-price .currency {
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .hotel-price .amount {
-  font-size: 20px;
+  font-size: var(--fs-h3);
   font-weight: bold;
   margin: 0 2px;
 }
 
 .hotel-price .unit {
-  font-size: 12px;
-  color: #999;
+  font-size: var(--fs-caption);
+  color: var(--c-ink-4);
 }
 
 /* 响应式适配 */

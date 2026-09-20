@@ -140,14 +140,14 @@ const handleSubscribe = async () => {
 }
 
 .subscription-header h1 {
-  font-size: 36px;
-  color: #333;
+  font-size: var(--fs-h1);
+  color: var(--c-ink);
   margin-bottom: 16px;
 }
 
 .subscription-header p {
-  font-size: 18px;
-  color: #666;
+  font-size: var(--fs-body-lg);
+  color: var(--c-ink-3);
 }
 
 .plans-container {
@@ -165,7 +165,7 @@ const handleSubscribe = async () => {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   position: relative;
-  border: 1px solid #eee;
+  border: 1px solid var(--c-line-2);
 }
 
 .plan-card:hover {
@@ -174,8 +174,8 @@ const handleSubscribe = async () => {
 }
 
 .plan-card.pro {
-  border: 2px solid #68BF7B;
-  background: linear-gradient(to bottom, #fcfdfc, #fff);
+  border: 2px solid var(--c-success);
+  background: linear-gradient(to bottom, var(--c-bg-sub), #fff);
 }
 
 .popular-tag {
@@ -183,40 +183,40 @@ const handleSubscribe = async () => {
   top: -15px;
   left: 50%;
   transform: translateX(-50%);
-  background: #68BF7B;
+  background: var(--c-success);
   color: white;
   padding: 6px 16px;
   border-radius: 20px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: bold;
 }
 
 .plan-header {
   text-align: center;
   margin-bottom: 30px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--c-line-2);
   padding-bottom: 20px;
 }
 
 .plan-header h2 {
-  font-size: 24px;
-  color: #333;
+  font-size: var(--fs-h2);
+  color: var(--c-ink);
   margin-bottom: 10px;
 }
 
 .price {
-  font-size: 36px;
+  font-size: var(--fs-h1);
   font-weight: bold;
-  color: #333;
+  color: var(--c-ink);
 }
 
 .plan-card.pro .price {
-  color: #68BF7B;
+  color: var(--c-success);
 }
 
 .period {
-  font-size: 16px;
-  color: #999;
+  font-size: var(--fs-body-lg);
+  color: var(--c-ink-4);
   font-weight: normal;
 }
 
@@ -230,30 +230,33 @@ const handleSubscribe = async () => {
   display: flex;
   align-items: center;
   margin-bottom: 16px;
-  color: #555;
-  font-size: 16px;
+  color: var(--c-ink-2);
+  font-size: var(--fs-body-lg);
 }
 
 .features-list li.disabled {
-  color: #ccc;
+  /* 原为 #e5e7eb，令牌化时被映射成线条令牌 --c-line。
+     这里其实需要的是「禁用态文字色」，改用 --c-ink-4 —— 原来的值太淡，
+     用户几乎看不出那里有文字，属于无障碍问题。 */
+  color: var(--c-ink-4);
 }
 
 .check-icon {
-  color: #68BF7B;
+  color: var(--c-success);
   margin-right: 12px;
-  font-size: 18px;
+  font-size: var(--fs-body-lg);
 }
 
 .close-icon {
-  color: #ccc;
+  color: var(--c-ink-4);
   margin-right: 12px;
-  font-size: 18px;
+  font-size: var(--fs-body-lg);
 }
 
 .action-btn {
   width: 100%;
   height: 48px;
-  font-size: 16px;
+  font-size: var(--fs-body-lg);
   border-radius: 24px;
 }
 </style>

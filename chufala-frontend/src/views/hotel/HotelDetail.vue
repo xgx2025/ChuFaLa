@@ -310,18 +310,18 @@ onMounted(() => {
   text-align: right;
 }
 .stock{
-  font-size: 12px;
-  color: #f5190a;
+  font-size: var(--fs-caption);
+  color: var(--c-danger);
 }
 .price {
-  font-size: 24px;
+  font-size: var(--fs-h2);
   font-weight: bold;
-  color: #006ff6;
+  color: var(--c-primary-600);
   margin-right: 10px;
 }
 .price-desc {
-  font-size: 14px;
-  color: #666;
+  font-size: var(--fs-body);
+  color: var(--c-ink-3);
 }
 
 /* 图片与右侧文字的整体容器（水平排列） */
@@ -362,7 +362,7 @@ onMounted(() => {
   margin-right: 0;;
 }
 .score {
-  font-size: 20px;
+  font-size: var(--fs-h3);
   margin-right: 10px;
 }
 
@@ -374,7 +374,7 @@ onMounted(() => {
 }
 .room-item {
   display: flex;
-  border: 1px solid #eee;
+  border: 1px solid var(--c-line-2);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -410,7 +410,7 @@ onMounted(() => {
 .map-placeholder {
   width: 400px;
   height: 300px;
-  background: #f5f5f5;
+  background: var(--c-bg-sub);
   display: flex;
   align-items: center;
   justify-content: center;

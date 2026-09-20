@@ -1,24 +1,27 @@
-<!-- App.vue（根组件） -->
+<!-- Layout.vue（全局壳层：导航栏 + 内容区 + 页脚） -->
 <template>
   <div class="app-container">
-     <!-- 导航栏 -->
-    <header 
+    <!-- 导航栏 -->
+    <header
       class="header-nav"
       :class="scrolled ? 'header-nav--scrolled' : 'header-nav--unscrolled'"
     >
       <div class="header-nav__container">
         <div class="header-nav__logo">
-          <h1 class="header-nav__logo-text">
-             <a href="/">
-              <img src="@/assets/logo2.png" class="header-nav__logo-img">
-             </a>
+          <!-- 这里原来是 <h1>。导航 logo 是站点标识而不是页面标题，
+               用 h1 会让**每一个**页面都多出一个内容为"出发啦"的一级标题，
+               与页面自身真正的 h1 冲突（Flight / Guide / Profile 等页面实测都是双 h1）。
+               改为 div 后，全站每个页面只剩一个 h1。 -->
+          <div class="header-nav__logo-text">
+            <router-link to="/" class="header-nav__logo-link">
+              <img src="@/assets/logo2.png" class="header-nav__logo-img" alt="出发啦" />
+            </router-link>
             <span>出发啦</span>
-          </h1>
+          </div>
         </div>
-        
-       <!-- 导航链接 -->
+
+        <!-- 导航链接 -->
         <nav class="header-nav__desktop-nav">
-          <!-- 用 router-link 替代 a 标签 -->
           <router-link to="/" class="header-nav__nav-link" exact-active-class="header-nav__nav-link--active" exact>首页</router-link>
           <router-link to="/attraction" class="header-nav__nav-link" exact-active-class="header-nav__nav-link--active">景点</router-link>
           <router-link to="/hotel" class="header-nav__nav-link" exact-active-class="header-nav__nav-link--active">酒店</router-link>
@@ -27,22 +30,24 @@
           <router-link to="/guide" class="header-nav__nav-link" exact-active-class="header-nav__nav-link--active">智能规划</router-link>
         </nav>
 
-      
         <!-- 用户功能 -->
-         <div class="header-nav__user-actions">
+        <div class="header-nav__user-actions">
           <template v-if="userInfoStore.info.id">
-            <el-dropdown placement="top" trigger="hover">
+            <el-dropdown placement="bottom-end" trigger="hover">
               <div class="header-nav__login-btn">
-                <el-avatar :src="userInfoStore.info.avatar" size="medium" class="user-avatar"/>
+                <el-avatar :src="userInfoStore.info.avatar" size="medium" class="user-avatar" />
                 <div class="user-info-wrapper">
                   <span class="user-name">{{ userInfoStore.info.username }}</span>
-                  <div class="member-tag" :class="`member-tag--${userInfoStore.info.vip === 1 ? 'diamond' : 'normal'}`" >
-                    <el-icon class="member-icon" >
+                  <div
+                    class="member-tag"
+                    :class="`member-tag--${userInfoStore.info.vip === 1 ? 'diamond' : 'normal'}`"
+                  >
+                    <el-icon class="member-icon">
                       <template v-if="userInfoStore.info.vip === 1">
-                        <SuperVip /> <!-- 高级会员 -->
+                        <SuperVip />
                       </template>
                       <template v-else>
-                        <NormalVip /> <!-- 普通会员 -->
+                        <NormalVip />
                       </template>
                     </el-icon>
                     <span class="member-text">
@@ -51,7 +56,7 @@
                   </div>
                 </div>
               </div>
-             <template #dropdown>
+              <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click="">我的积分</el-dropdown-item>
                   <el-dropdown-item>我的收藏</el-dropdown-item>
@@ -61,26 +66,29 @@
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
-            <el-icon @click="logout">
-              <Logout/>
-            </el-icon>
+
+            <button type="button" class="logout-btn" title="退出登录" @click="logout">
+              <el-icon><Logout /></el-icon>
+            </button>
           </template>
+
           <template v-else>
-            <div class="header-nav__login-btn" @click="router.push('/login')" style="cursor: pointer;">
+            <button type="button" class="header-nav__login-btn" @click="router.push('/login')">
               <span class="user-name">登录 / 注册</span>
-            </div>
+            </button>
           </template>
         </div>
       </div>
     </header>
 
-
     <!-- 主内容区 -->
     <main class="main-content">
-      <router-view v-slot="{ Component }">
-        <keep-alive include="Guide">
-          <component :is="Component" />
-        </keep-alive>
+      <router-view v-slot="{ Component, route }">
+        <transition name="page" mode="out-in">
+          <keep-alive include="Guide">
+            <component :is="Component" :key="route.path" />
+          </keep-alive>
+        </transition>
       </router-view>
     </main>
 
@@ -90,28 +98,28 @@
         <div class="footer__content">
           <div class="footer__brand">
             <h3 class="footer__logo">
-              <i class="fa fa-paper-plane footer__logo-icon"></i>
+              <el-icon class="footer__logo-icon"><Plane /></el-icon>
               <span>出发啦</span>
             </h3>
             <p class="footer__brand-desc">
               让每一次旅行都成为难忘的回忆，我们致力于为您提供最优质的旅游服务和体验。
             </p>
             <div class="footer__social">
-              <a href="javascript:void(0)" class="footer__social-icon" @click="showQrCode('wechat')">
-                <WeChat style="color: #09BB07;"/>
+              <a href="javascript:void(0)" class="footer__social-icon footer__social-icon--wechat" aria-label="微信公众号" @click="showQrCode('wechat')">
+                <WeChat />
               </a>
-              <a href="javascript:void(0)" class="footer__social-icon" @click="showQrCode('qq')">
-               <QQ />
+              <a href="javascript:void(0)" class="footer__social-icon footer__social-icon--qq" aria-label="QQ 交流群" @click="showQrCode('qq')">
+                <QQ />
               </a>
-               <a href="javascript:void(0)" class="footer__social-icon" @click="showQrCode('weibo')">
+              <a href="javascript:void(0)" class="footer__social-icon footer__social-icon--weibo" aria-label="官方微博" @click="showQrCode('weibo')">
                 <WeiBo />
               </a>
-              <a href="javascript:void(0)" class="footer__social-icon" @click="showQrCode('tiktok')">
+              <a href="javascript:void(0)" class="footer__social-icon footer__social-icon--tiktok" aria-label="抖音号" @click="showQrCode('tiktok')">
                 <TikTok />
               </a>
             </div>
           </div>
-          
+
           <div class="footer__column">
             <h4 class="footer__column-title">目的地</h4>
             <ul class="footer__list">
@@ -122,7 +130,7 @@
               <li><a href="#" class="footer__link">美食推荐</a></li>
             </ul>
           </div>
-          
+
           <div class="footer__column">
             <h4 class="footer__column-title">关于我们</h4>
             <ul class="footer__list">
@@ -133,26 +141,26 @@
               <li><a href="#" class="footer__link">服务条款</a></li>
             </ul>
           </div>
-          
+
           <div class="footer__column">
             <h4 class="footer__column-title">客户服务</h4>
             <ul class="footer__list">
               <li class="footer__contact-item">
-                <Phone class="footer__contact-icon"/>
-                <span>400-123-4567</span>
+                <el-icon class="footer__contact-icon"><Phone /></el-icon>
+                <span class="num">400-123-4567</span>
               </li>
               <li class="footer__contact-item">
-                <Email class="footer__contact-icon"/>
+                <el-icon class="footer__contact-icon"><Email /></el-icon>
                 <span>service@chufala.com</span>
               </li>
               <li class="footer__contact-item">
-                <Clock class="footer__contact-icon"/>
+                <el-icon class="footer__contact-icon"><Clock /></el-icon>
                 <span>7:00-23:00 全年无休</span>
               </li>
             </ul>
           </div>
         </div>
-        
+
         <div class="footer__copyright">
           <p>© 2025 XGX出发啦旅游网 版权所有 | 营业执照 | 旅行社资质</p>
         </div>
@@ -167,11 +175,10 @@
       center
       align-center
       destroy-on-close
-      class="qr-dialog"
     >
       <div class="qr-code-container">
         <div class="qr-code-wrapper">
-          <img :src="qrImage" alt="QR Code" class="qr-code-img" />
+          <img :src="qrImage" alt="二维码" class="qr-code-img" />
         </div>
         <p class="qr-code-desc">{{ qrDesc }}</p>
         <p class="qr-code-tip">请使用手机扫一扫</p>
@@ -185,7 +192,7 @@
 <script setup>
 // 导航栏滚动效果（公共逻辑，放在根组件）
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { Logout, NormalVip, SuperVip, WeChat, QQ, WeiBo,Phone,Email,Clock,TikTok } from '@/components/Icon.vue';
+import { Logout, NormalVip, SuperVip, WeChat, QQ, WeiBo, Phone, Email, Clock, TikTok, Plane } from '@/components/Icon.vue';
 import { useUserInfoStore } from '@/stores/userInfo';
 import { useTokenStore } from '@/stores/token';
 import { getUserInfoService } from '@/api/user';
@@ -206,13 +213,12 @@ const currentQrType = ref('');
 const qrMap = {
   wechat: {
     title: '关注微信公众号',
-    // 使用占位图，实际项目中请替换为真实二维码图片路径
-    image: 'https://chufala.oss-cn-shenzhen.aliyuncs.com/9eb8dde2-e493-4f05-addf-3f0b6c670e4c.jpg', 
+    image: 'https://chufala.oss-cn-shenzhen.aliyuncs.com/9eb8dde2-e493-4f05-addf-3f0b6c670e4c.jpg',
     desc: '扫码关注“出发啦”微信公众号，获取最新旅游资讯'
   },
   qq: {
     title: '加入QQ交流群',
-    image: ' https://chufala.oss-cn-shenzhen.aliyuncs.com/1a5f4d3e-a0fb-4b4c-a462-adee6edc4f7e.jpg',
+    image: 'https://chufala.oss-cn-shenzhen.aliyuncs.com/1a5f4d3e-a0fb-4b4c-a462-adee6edc4f7e.jpg',
     desc: '扫码加入官方QQ交流群，与驴友畅聊'
   },
   weibo: {
@@ -236,13 +242,26 @@ const showQrCode = (type) => {
   qrDialogVisible.value = true;
 };
 
-// 滚动监听（公共逻辑）
+/**
+ * 滚动监听
+ * - passive: true  避免滚动被事件回调阻塞
+ * - rAF 节流       每帧最多计算一次，避免高频 setState 触发无谓渲染
+ * 阈值从 50 降到 8：原来滚过 50px 之前导航栏一直是透明的，
+ * 内容会从导航文字下方穿过，观感很差。
+ */
+let ticking = false;
 const handleScroll = () => {
-  scrolled.value = window.scrollY > 50;
+  if (ticking) return;
+  ticking = true;
+  requestAnimationFrame(() => {
+    scrolled.value = window.scrollY > 8;
+    ticking = false;
+  });
 };
 
 onMounted(() => {
-  window.addEventListener('scroll', handleScroll);
+  window.addEventListener('scroll', handleScroll, { passive: true });
+  handleScroll();
   getUserInfo();
   geoStore.getCityByBrowser();
 });
@@ -251,13 +270,12 @@ onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
 });
 
-const getUserInfo = async() => { 
-  console.log('getUserInfo')
-  const result = await getUserInfoService()
-  userInfoStore.setInfo(result.data)
+const getUserInfo = async () => {
+  const result = await getUserInfoService();
+  userInfoStore.setInfo(result.data);
 };
 
-const logout = ()=>{
+const logout = () => {
   ElMessageBox.confirm(
     '是否要退出登录?',
     '提示',
@@ -268,21 +286,28 @@ const logout = ()=>{
     }
   )
     .then(() => {
-      tokenStore.removeToken()
-      userInfoStore.removeInfo()
-      router.push('/login')
+      tokenStore.removeToken();
+      userInfoStore.removeInfo();
+      router.push('/login');
       ElNotification.success({
         title: '提示',
-        message: '您已成功退出登录！'})
+        message: '您已成功退出登录！'
+      });
     })
     .catch(() => {
-      ElNotification.primary('您已取消 “退出登录” 操作',)
-    })
-}
+      ElNotification.primary('您已取消 “退出登录” 操作');
+    });
+};
 </script>
 
 <style scoped>
-/* 只保留公共样式：导航栏、页脚、main 容器的基础样式 */
+/* ==================================================================
+ * 说明：原文件有两个 <style scoped> 块，且包含大量「死代码」——
+ * .root-container / .section-container / .hero-section* / .header-nav__mobile-*
+ * 这些类名在本组件的模板中并未使用（它们真正生效的定义在各子页面自己的
+ * scoped 样式里）。此处已全部清理，只保留本模板实际用到的类。
+ * ================================================================== */
+
 .app-container {
   min-height: 100vh;
   display: flex;
@@ -290,109 +315,88 @@ const logout = ()=>{
 }
 
 .main-content {
-  background-color: rgb(255, 255, 255);
   flex-grow: 1;
+  background-color: var(--c-bg);
 }
 
-/* 导航栏样式（原样式中与导航栏相关的部分） */
+/* ==================================================================
+ * 导航栏
+ * ================================================================== */
 .header-nav {
   position: sticky;
   top: 0;
-  z-index: 50;
-  transition: all 0.3s ease;
-}
-
-/* 页脚样式（原样式中与页脚相关的部分） */
-.footer {
-  background-color: #111827;
-  color: #9ca3af;
-  padding: 3rem 0;
-}
-
-/* 其他公共样式... */
-</style>
-
-<style scoped>
-/* 基础样式 */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
-.header-nav__logo-img {
-  height: 54px; 
-  width: auto;  
-  vertical-align: middle; 
-  margin-right: 10px; 
-}
-
-.root-container {
-  min-height: 100vh;
+  z-index: var(--z-header);
+  height: var(--header-h);
   display: flex;
-  flex-direction: column;
-  background-color: #f9fafb;
+  align-items: center;
+  border-bottom: 1px solid transparent;
+  /* 只过渡颜色类属性，不动 padding（原实现过渡 padding 会触发重排） */
+  transition: background-color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
 }
 
-.main-content {
-  flex-grow: 1;
-}
-
-.section-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-
-/* 导航栏样式 */
-.header-nav {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  transition: all 0.3s ease;
-}
-
+/* 未滚动：透明，让首屏更干净 */
 .header-nav--unscrolled {
   background-color: transparent;
-  padding: 1rem 0;
 }
 
+/* 已滚动：毛玻璃白（替换原来的薄荷绿 #a5f5e5，与蓝色主色系冲突） */
 .header-nav--scrolled {
-  background-color: #a5f5e5;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  padding: 0.5rem 0;
+  background-color: rgba(255, 255, 255, 0.78);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(16px) saturate(180%);
+  border-bottom-color: var(--c-line);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .header-nav__container {
-  max-width: 1200px;
+  width: 100%;
+  max-width: var(--container-max);
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 var(--sp-4);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--sp-6);
+}
+
+.header-nav__logo {
+  flex-shrink: 0;
 }
 
 .header-nav__logo-text {
-  outline: none;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #2563eb;
+  margin: 0;
+  font-size: var(--fs-h3);
+  font-weight: 600;
+  color: var(--c-primary-600);
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.header-nav__logo-link {
   display: flex;
   align-items: center;
 }
 
-.header-nav__logo-icon {
-  margin-right: 0.5rem;
+/* 54px 在 64px 高的导航里只剩 5px 余量，过于局促；收到 40px */
+.header-nav__logo-img {
+  height: 40px;
+  width: auto;
+  display: block;
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.header-nav__logo-link:hover .header-nav__logo-img {
+  transform: scale(1.06);
 }
 
 .header-nav__desktop-nav {
   display: none;
   align-items: center;
-  gap: 2rem;
+  gap: var(--sp-8);
 }
 
 @media (min-width: 768px) {
@@ -402,37 +406,66 @@ html {
 }
 
 .header-nav__nav-link {
+  position: relative;
+  padding: var(--sp-1) 0;
+  font-size: var(--fs-body);
   font-weight: 500;
-  color: #4b5563;
-  transition: color 0.2s ease;
+  color: var(--c-ink-2);
   text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--dur-base) var(--ease-out);
+}
+
+/* 下划线滑出：用 transform: scaleX 而不是 width，避免重排 */
+.header-nav__nav-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 2px;
+  border-radius: var(--r-full);
+  background-color: var(--c-primary-600);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--dur-base) var(--ease-out);
 }
 
 .header-nav__nav-link:hover {
-  color: #2563eb;
+  color: var(--c-primary-600);
+}
+
+.header-nav__nav-link:hover::after,
+.header-nav__nav-link--active::after {
+  transform: scaleX(1);
 }
 
 .header-nav__nav-link--active {
-  color: #2563eb;
+  color: var(--c-primary-600);
+  font-weight: 600;
 }
 
+/* ---- 用户区域 ---- */
 .header-nav__user-actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--sp-3);
+  flex-shrink: 0;
 }
 
-
 .header-nav__login-btn {
-  outline: none;
   display: none;
   align-items: center;
-  color: #4b5563;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2);
   background: none;
   border: none;
+  border-radius: var(--r-sm);
+  font-family: inherit;
+  color: var(--c-ink-2);
   cursor: pointer;
-  transition: color 0.2s ease;
-  gap: 0.5rem;
+  transition: color var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out);
 }
 
 @media (min-width: 768px) {
@@ -442,199 +475,98 @@ html {
 }
 
 .header-nav__login-btn:hover {
-  color: #2563eb;
+  color: var(--c-primary-600);
+  background-color: var(--c-primary-50);
 }
 
-.header-nav__mobile-btn {
-  display: block;
-  color: #4b5563;
-  background: none;
-  border: none;
-  cursor: pointer;
+.user-avatar {
+  border: 1px solid var(--c-line);
 }
 
-@media (min-width: 768px) {
-  .header-nav__mobile-btn {
-    display: none;
-  }
-}
-
-.header-nav__mobile-menu {
-  display: block;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background-color: #ffffff;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  transform: translateY(-100%);
-  transition: transform 0.3s ease-in-out;
-  z-index: -1;
-}
-
-@media (min-width: 768px) {
-  .header-nav__mobile-menu {
-    display: none;
-  }
-}
-
-.mobile-menu--open {
-  transform: translateY(0);
-  z-index: 40;
-}
-
-.header-nav__mobile-menu-container {
-  padding: 1rem;
+.user-info-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--sp-1);
+  align-items: flex-start;
 }
 
-.header-nav__mobile-link {
-  padding: 0.5rem 0;
+.user-name {
+  font-size: var(--fs-body);
   font-weight: 500;
-  color: #4b5563;
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-.header-nav__mobile-link:hover {
-  color: #2563eb;
-}
-
-.header-nav__mobile-link--active {
-  color: #2563eb;
-}
-
-.header-nav__mobile-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding-top: 0.5rem;
-  margin-top: 0.5rem;
-  border-top: 1px solid #f3f4f6;
-}
-
-/* 英雄区域样式 */
-.hero-section {
-  position: relative;
-  height: 500px;
-  overflow: hidden;
-}
-
-@media (min-width: 768px) {
-  .hero-section {
-    height: 600px;
-  }
-}
-
-.hero-section__slides {
-  position: absolute;
-  inset: 0;
-}
-
-.hero-slide {
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
-  opacity: 0;
-  transition: opacity 1s ease;
-  background-image: var(--slide-image);
-}
-
-.hero-slide--active {
-  position: relative;
-  opacity: 1;
-}
-
-.hero-section__overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
-}
-
-.hero-section__content {
-  position: relative;
-  z-index: 10;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-
-.hero-section__text {
-  max-width: 4xl;
-}
-
-.hero-section__title {
-  font-size: clamp(2rem, 5vw, 3.5rem);
-  font-weight: bold;
-  color: #ffffff;
+  color: var(--c-ink);
   line-height: 1.2;
-  margin-bottom: 0.5rem;
 }
 
-.hero-section__desc {
-  font-size: clamp(1rem, 2vw, 1.25rem);
-  color: #f3f4f6;
-  margin-bottom: 2rem;
-  max-width: 2xl;
-}
-
-.hero-section__controls {
-  position: absolute;
-  bottom: 1.5rem;
-  left: 0;
-  right: 0;
+.member-tag {
   display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 1px var(--sp-2);
+  border-radius: var(--r-full);
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+}
+
+.member-icon {
+  font-size: var(--fs-body-lg);
+}
+
+.member-tag--normal {
+  background-color: var(--c-bg-mute);
+  color: var(--c-ink-3);
+}
+
+.member-tag--diamond {
+  background-color: var(--c-primary-50);
+  color: var(--c-primary-600);
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  z-index: 10;
-}
-
-.hero-control__dot {
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.5);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: none;
   border: none;
+  border-radius: var(--r-sm);
+  color: var(--c-ink-3);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out);
 }
 
-.hero-control__dot--active {
-  background-color: #ffffff;
-  width: 1.5rem;
+.logout-btn:hover {
+  color: var(--c-primary-600);
+  background-color: var(--c-primary-50);
 }
 
-
-
-
-/* 页脚样式 */
+/* ==================================================================
+ * 页脚
+ * ================================================================== */
 .footer {
-  background-color: #111827;
-  color: #9ca3af;
-  padding: 3rem 0;
+  background-color: var(--c-ink);
+  color: var(--c-ink-4);
+  padding: var(--sp-16) 0 var(--sp-8);
 }
 
 .footer__container {
-  max-width: 1200px;
+  max-width: var(--container-max);
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 var(--sp-4);
 }
 
 .footer__content {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 2rem;
+  gap: var(--sp-10);
 }
 
 @media (min-width: 768px) {
   .footer__content {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: 2fr 1fr 1fr 1.2fr;
+    gap: var(--sp-8);
   }
 }
 
@@ -649,56 +581,90 @@ html {
 }
 
 .footer__logo {
-  font-size: 1.5rem;
-  font-weight: bold;
+  margin: 0 0 var(--sp-4);
+  font-size: var(--fs-h3);
+  font-weight: 600;
   color: #ffffff;
   display: flex;
   align-items: center;
-  margin-bottom: 1rem;
+  gap: var(--sp-2);
 }
 
 .footer__logo-icon {
-  margin-right: 0.5rem;
+  font-size: var(--fs-h3);
+  color: var(--c-primary-400);
 }
 
 .footer__brand-desc {
-  margin-bottom: 1rem;
-  line-height: 1.6;
+  margin: 0 0 var(--sp-5);
+  max-width: 320px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body-lg);
+  color: var(--c-ink-4);
 }
 
 .footer__social {
   display: flex;
-  gap: 1rem;
+  gap: var(--sp-3);
 }
 
 .footer__social-icon {
-  color: #9ca3af;
-  transition: color 0.2s ease;
-  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-sm);
+  background-color: rgba(255, 255, 255, 0.06);
+  font-size: var(--fs-body-lg);
+  color: var(--c-ink-4);
+  text-decoration: none;
+  transition: transform var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out);
 }
 
 .footer__social-icon:hover {
+  transform: translateY(-2px);
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.footer__social-icon--wechat:hover {
+  color: var(--c-brand-wechat);
+}
+.footer__social-icon--qq:hover {
+  color: var(--c-brand-qq);
+}
+.footer__social-icon--weibo:hover {
+  color: var(--c-brand-weibo);
+}
+.footer__social-icon--tiktok:hover {
   color: #ffffff;
 }
 
 .footer__column-title {
-  color: #ffffff;
-  font-weight: bold;
-  margin-bottom: 1rem;
+  margin: 0 0 var(--sp-4);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--c-ink-4);
+  text-transform: uppercase;
 }
 
 .footer__list {
   list-style: none;
-}
-
-.footer__list li {
-  margin-bottom: 0.5rem;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
 }
 
 .footer__link {
-  color: #9ca3af;
+  font-size: var(--fs-body);
+  color: var(--c-ink-4);
   text-decoration: none;
-  transition: color 0.2s ease;
+  transition: color var(--dur-base) var(--ease-out);
 }
 
 .footer__link:hover {
@@ -708,142 +674,65 @@ html {
 .footer__contact-item {
   display: flex;
   align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-body);
+  color: var(--c-ink-4);
 }
 
 .footer__contact-icon {
-  margin-right: 0.5rem;
-  width: 1.25rem;
+  font-size: var(--fs-body-lg);
+  color: var(--c-ink-4);
 }
 
 .footer__copyright {
-  border-top: 1px solid #1f2937;
-  margin-top: 2.5rem;
-  padding-top: 1.5rem;
-  font-size: 0.875rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: var(--sp-12);
+  padding-top: var(--sp-6);
+  font-size: var(--fs-caption);
   text-align: center;
+  color: var(--c-ink-4);
 }
 
-/* 3. 核心样式：调整用户区域布局+会员标签美观度 */
-.header-nav__user-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px; /* 退出图标与用户区域的间距 */
+.footer__copyright p {
+  margin: 0;
 }
 
-/* 下拉触发区：头像与用户信息横向对齐 */
-.header-nav__login-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px; /* 头像与文字的间距 */
-  padding: 4px 8px;
-  cursor: pointer;
-}
-
-/* 用户名+会员等级：垂直居中排列 */
-.user-info-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: center; /* 文字与会员标签居中对齐 */
-}
-
-/* 用户名样式：简洁清晰 */
-.user-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-}
-
-/* 会员标签基础样式：圆角+内边距+紧凑布局 */
-.member-tag {
-  display: flex;
-  align-items: center;
-  gap: 4px; /* 图标与文字的间距 */
-  padding: 1px 6px;
-  border-radius: 12px; /* 大圆角更显柔和 */
-  font-size: 12px;
-  font-weight: 400;
-}
-
-/* 会员图标大小控制 */
-.member-icon {
-  font-size: 20px;
-}
-
-/* 4. 不同会员等级的颜色方案（美观且区分度高） */
-/* 普通会员：浅灰 */
-.member-tag--normal {
-  background-color: #f5f7fa;
-  color: #666;
-}
-
-/* 白银会员：浅蓝 */
-.member-tag--silver {
-  background-color: #e6f4ff;
-  color: #1890ff;
-}
-
-/* 黄金会员：浅金 */
-.member-tag--gold {
-  background: linear-gradient(120deg, #fffbe6, #fff1cc); /* 渐变更美观 */
-  color: #fa8c16;
-}
-
-/* 钻石会员：深蓝渐变 */
-.member-tag--diamond {
-  background: linear-gradient(120deg, #e6f7ff, #bae7ff);
-  color: #1890ff;
-}
-
-/* 退出图标样式：与整体协调 */
-.logout-icon {
-  font-size: 18px;
-  color: #666;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.logout-icon:hover {
-  color: #1890ff;
-}
-
-/* 二维码弹窗样式 */
-.qr-dialog {
-  border-radius: 12px;
-  overflow: hidden;
-}
-
+/* ==================================================================
+ * 二维码弹窗内容（弹窗本体样式由全局 element-override.css 统一处理）
+ * ================================================================== */
 .qr-code-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 10px;
+  padding: var(--sp-2);
 }
 
 .qr-code-wrapper {
   background: #fff;
-  padding: 10px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  margin-bottom: 16px;
+  padding: var(--sp-2);
+  border-radius: var(--r-sm);
+  box-shadow: var(--sh-2);
+  margin-bottom: var(--sp-4);
 }
 
 .qr-code-img {
   width: 200px;
   height: 200px;
   display: block;
+  border-radius: var(--r-xs);
 }
 
 .qr-code-desc {
-  font-size: 14px;
-  color: #333;
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--c-ink);
   text-align: center;
-  margin-bottom: 8px;
-  line-height: 1.5;
 }
 
 .qr-code-tip {
-  font-size: 12px;
-  color: #999;
+  margin: 0;
+  font-size: var(--fs-caption);
+  color: var(--c-ink-3);
 }
 </style>
