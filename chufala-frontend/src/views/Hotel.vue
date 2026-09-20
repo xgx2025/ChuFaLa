@@ -2,7 +2,9 @@
   <div class="root-container">
     <main class="main-content">
       <!-- 英雄区域 -->
-      <section class="hero-section">
+      <!-- 鼠标停在轮播上时暂停自动切换：原来固定 5 秒一换，
+           用户刚想看清某张图就被切走；手动点圆点后也会重置计时。 -->
+      <section class="hero-section" @mouseenter="stopSlideInterval" @mouseleave="startSlideInterval">
         <!-- 轮播图 -->
         <div class="hero-section__slides">
           <div 
@@ -95,53 +97,110 @@
         </div>
       </section>
 
-      <!-- 酒店筛选 -->
-      <section class="filters-section">
+      <!-- 筛选条 + 酒店列表包在同一个块里。
+           筛选条要 sticky 吸顶，而 position: sticky 的生效范围止于它的父元素：
+           如果直接挂在 .main-content 下，它会一路粘到页面最底部，
+           压住下面的类型 / 特惠 / 评价 / 订阅区。 -->
+      <div class="hotels-block">
+      <!-- 吸顶判定哨兵：本身不可见，只为 IntersectionObserver 提供一个「吸顶线」参照 -->
+      <div ref="filtersStuckRef" class="filters-stuck-sentinel" aria-hidden="true"></div>
+      <!-- 酒店筛选
+           原实现把「价格 / 星级 / 设施」三组胶囊塞进一个 overflow-x: auto 的横排容器：
+           三组在 1200px 容器里必然放不下，于是永远挂着一条横向滚动条，
+           最右侧的「设施」组被裁掉一半，用户根本不知道右边还有内容。
+           现在改为分组纵向排列（每组一行：标签在左、选项在右），横向溢出从根上消失。
+           另外补了三件事：单选组支持再次点击取消、已选条件可单独撤销、吸顶。 -->
+      <section
+        class="filters-section"
+        :class="{ 'filters-section--stuck': filtersStuck }"
+        aria-label="酒店筛选"
+      >
         <div class="section-container">
           <div class="filters-container">
-            <div class="filter-group">
-              <span class="filter-label">价格范围</span>
+            <div class="filter-group" role="group" aria-labelledby="filter-label-price">
+              <span class="filter-label" id="filter-label-price">价格范围</span>
               <div class="filter-options">
-                <button class="filter-btn" :class="{ 'filter-btn--active': priceFilter === 'all' }" @click="priceFilter = 'all'">全部价格</button>
-                <button class="filter-btn" :class="{ 'filter-btn--active': priceFilter === '0-500' }" @click="priceFilter = '0-500'">¥500以下</button>
-                <button class="filter-btn" :class="{ 'filter-btn--active': priceFilter === '500-1000' }" @click="priceFilter = '500-1000'">¥500-1000</button>
-                <button class="filter-btn" :class="{ 'filter-btn--active': priceFilter === '1000-2000' }" @click="priceFilter = '1000-2000'">¥1000-2000</button>
-                <button class="filter-btn" :class="{ 'filter-btn--active': priceFilter === '2000+' }" @click="priceFilter = '2000+'">¥2000以上</button>
+                <button
+                  v-for="opt in priceOptions"
+                  :key="opt.value"
+                  type="button"
+                  class="filter-btn"
+                  :class="{ 'filter-btn--active': priceFilter === opt.value }"
+                  :aria-pressed="priceFilter === opt.value"
+                  @click="selectPrice(opt.value)"
+                >{{ opt.label }}</button>
               </div>
             </div>
-            
-            <div class="filter-group">
-              <span class="filter-label">星级</span>
+
+            <div class="filter-group" role="group" aria-labelledby="filter-label-star">
+              <span class="filter-label" id="filter-label-star">星级</span>
               <div class="filter-options">
-                <button class="filter-btn" :class="{ 'filter-btn--active': starFilter === 'all' }" @click="starFilter = 'all'">全部</button>
-                <button class="filter-btn" :class="{ 'filter-btn--active': starFilter === '5' }" @click="starFilter = '5'">五星级</button>
-                <button class="filter-btn" :class="{ 'filter-btn--active': starFilter === '4' }" @click="starFilter = '4'">四星级</button>
-                <button class="filter-btn" :class="{ 'filter-btn--active': starFilter === '3' }" @click="starFilter = '3'">三星级</button>
-                <button class="filter-btn" :class="{ 'filter-btn--active': starFilter === 'unrated' }" @click="starFilter = 'unrated'">未评级</button>
+                <button
+                  v-for="opt in starOptions"
+                  :key="opt.value"
+                  type="button"
+                  class="filter-btn"
+                  :class="{ 'filter-btn--active': starFilter === opt.value }"
+                  :aria-pressed="starFilter === opt.value"
+                  @click="selectStar(opt.value)"
+                >{{ opt.label }}</button>
               </div>
             </div>
-            
-            <div class="filter-group">
-              <span class="filter-label">设施</span>
+
+            <div class="filter-group" role="group" aria-labelledby="filter-label-facility">
+              <span class="filter-label" id="filter-label-facility">
+                设施
+                <!-- 价格/星级是单选、设施是多选，但三类按钮长得一模一样，
+                     用户点之前无法预判"再点一次是取消还是切换"，这里显式标注。 -->
+                <span class="filter-label__hint">可多选</span>
+              </span>
               <div class="filter-options">
-                <button class="filter-btn" :class="{ 'filter-btn--active': facilityFilters.pool }" @click="facilityFilters.pool = !facilityFilters.pool">游泳池</button>
-                <button class="filter-btn" :class="{ 'filter-btn--active': facilityFilters.wifi }" @click="facilityFilters.wifi = !facilityFilters.wifi">免费WiFi</button>
-                <button class="filter-btn" :class="{ 'filter-btn--active': facilityFilters.parking }" @click="facilityFilters.parking = !facilityFilters.parking">免费停车</button>
-                <button class="filter-btn" :class="{ 'filter-btn--active': facilityFilters.spa }" @click="facilityFilters.spa = !facilityFilters.spa">SPA</button>
-                <button class="filter-btn" :class="{ 'filter-btn--active': facilityFilters.breakfast }" @click="facilityFilters.breakfast = !facilityFilters.breakfast">含早餐</button>
+                <button
+                  v-for="opt in facilityOptions"
+                  :key="opt.key"
+                  type="button"
+                  class="filter-btn filter-btn--multi"
+                  :class="{ 'filter-btn--active': facilityFilters[opt.key] }"
+                  :aria-pressed="facilityFilters[opt.key]"
+                  @click="toggleFacility(opt.key)"
+                >
+                  <el-icon v-if="facilityFilters[opt.key]" class="filter-btn__check"><Check /></el-icon>
+                  {{ opt.label }}
+                </button>
               </div>
             </div>
+          </div>
+
+          <!-- 已选条件：原实现点完筛选后，界面上没有任何地方能看出"我选了什么"，
+               也无法单独撤销某一项，只能靠肉眼回扫三行胶囊。 -->
+          <div class="filters-active" v-if="hasActiveFilters">
+            <span class="filters-active__label">已选条件</span>
+            <div class="filters-active__list">
+              <button
+                v-for="chip in activeFilterChips"
+                :key="chip.key"
+                type="button"
+                class="filter-chip"
+                @click="chip.clear()"
+              >
+                {{ chip.label }}
+                <el-icon class="filter-chip__icon"><Close /></el-icon>
+              </button>
+            </div>
+            <button type="button" class="filters-active__clear" @click="resetFilters">清空全部</button>
           </div>
         </div>
       </section>
 
       <!-- 热门酒店 -->
-      <section class="hotels-section">
+      <section class="hotels-section" ref="hotelsSectionRef">
         <div class="section-container">
           <div class="section-header">
             <div class="section-heading">
               <h2 class="section-title">热门酒店</h2>
-              <span v-if="!firstLoading" class="section-count">共 {{ filteredHotels.length }} 家</span>
+              <!-- 原来这里显示的是 filteredHotels.length，也就是"已加载的条数"：
+                   首屏写「共 8 家」、滚一次变「共 16 家」，用「共」字描述一个还在变的数字。 -->
+              <span v-if="!firstLoading" class="section-count">{{ resultCountText }}</span>
             </div>
             <div class="sort-options">
               <span class="sort-label">排序方式</span>
@@ -274,6 +333,7 @@
           </div>
         </div>
       </section>
+      </div>
 
       <!-- 酒店类型推荐 -->
       <section class="hotel-types-section">
@@ -283,22 +343,33 @@
           </div>
           
           <div class="hotel-types-list">
-            <div 
+            <!-- 原实现是带 cursor:pointer + hover 抬升 + 图片缩放的 <div>，
+                 但没有任何点击处理，也没有 tabindex —— 典型的"死交互"：
+                 用户看到能点、点下去什么都不会发生。
+                 这里改成真正的按钮，点击即套用对应的筛选条件并滚回列表。
+                 副标题也从「256家酒店」这类硬编码假数据换成实际会套用的筛选条件，
+                 避免页面声称一个它并不知道的数字。 -->
+            <button
+              type="button"
               class="hotel-type-card"
-              v-for="(type, index) in hotelTypes" 
-              :key="index"
+              v-for="type in hotelTypes"
+              :key="type.name"
+              :aria-label="`按${type.name}筛选酒店（${type.hint}）`"
+              @click="applyHotelType(type)"
             >
               <img 
+                v-lazy-img
+                loading="lazy"
                 :src="type.image" 
-                :alt="`图片展示的是${type.name}类型的酒店`" 
+                :alt="`${type.name}类型的酒店`" 
                 class="hotel-type-card__image"
               >
               <div class="hotel-type-card__overlay"></div>
               <div class="hotel-type-card__content">
                 <h3 class="hotel-type-card__name">{{ type.name }}</h3>
-                <p class="hotel-type-card__count">{{ type.count }}家酒店</p>
+                <p class="hotel-type-card__count">{{ type.hint }}</p>
               </div>
-            </div>
+            </button>
           </div>
         </div>
       </section>
@@ -308,10 +379,10 @@
         <div class="section-container">
           <div class="section-header">
             <h2 class="section-title">酒店特惠</h2>
-            <a href="#" class="section-more">
-              更多优惠
-              <el-icon class="section-more__icon"><ArrowRight /></el-icon>
-            </a>
+            <!-- 原来是 href="#" 的死链：点了会跳到页面顶部，还往地址栏塞一个 #，
+                 但本站并没有"更多优惠"这个落地页。改成不可点的信息文案，
+                 去掉假交互，同时把右侧位置继续用上。 -->
+            <span class="section-hint">共 {{ hotelDeals.length }} 个套餐</span>
           </div>
           
           <div class="deals-container">
@@ -362,10 +433,8 @@
         <div class="section-container">
           <div class="section-header">
             <h2 class="section-title">宾客真实评价</h2>
-            <a href="#" class="section-more">
-              查看全部
-              <el-icon class="section-more__icon"><ArrowRight /></el-icon>
-            </a>
+            <!-- 同上：原来也是 href="#" 的死链 -->
+            <span class="section-hint">共 {{ hotelReviews.length }} 条精选评价</span>
           </div>
           
           <div class="reviews-list">
@@ -376,8 +445,10 @@
             >
               <div class="review-card__user">
                 <img 
+                  v-lazy-img
+                  loading="lazy"
                   :src="review.avatar" 
-                  :alt="`图片展示的是${review.name}的头像`" 
+                  :alt="`${review.name}的头像`" 
                   class="review-card__avatar"
                 >
                 <div class="review-card__user-info">
@@ -394,8 +465,10 @@
               
               <div class="review-card__images">
                 <img 
+                  v-lazy-img
+                  loading="lazy"
                   :src="img" 
-                  :alt="`酒店评价图片${i+1}`" 
+                  :alt="`${review.name}上传的酒店评价图片${i + 1}`" 
                   class="review-card__image"
                   v-for="(img, i) in review.images" 
                   :key="i"
@@ -425,13 +498,19 @@
           <h2 class="subscribe-section__title">获取酒店独家优惠</h2>
           <p class="subscribe-section__desc">订阅我们的邮件，第一时间获取酒店特价和限时优惠</p>
           
-          <form class="subscribe-form">
+          <!-- 原实现是个既没有 @submit 也没有任何处理函数的表单：
+               填完邮箱点「立即订阅」浏览器会带着 ?query 重新加载整页，
+               用户以为订阅成功了，其实什么都没发生。 -->
+          <form class="subscribe-form" @submit.prevent="handleSubscribe">
             <input 
               type="email" 
+              v-model="subscribeEmail"
               placeholder="请输入您的邮箱地址" 
               class="subscribe-form__input"
+              aria-label="订阅邮箱地址"
+              required
             >
-            <button type="button" class="subscribe-form__btn">立即订阅</button>
+            <button type="submit" class="subscribe-form__btn">立即订阅</button>
           </form>
           
           <p class="subscribe-section__privacy">
@@ -450,6 +529,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { ElMessage } from 'element-plus';
 import { getHotelListService } from '@/api/hotel';
 import { useGeoStore } from '@/stores/geo';
 import router from '@/router';
@@ -457,7 +537,7 @@ import { Plane } from '@/components/Icon.vue';
 // 图标统一使用 Element Plus 图标集（项目已有依赖）。
 // 原模板使用的是 FontAwesome 类名（fa fa-*），但项目并未引入 FontAwesome，
 // 这些 <i> 元素全部渲染为空，导致搜索框图标、星级、箭头等一律不可见。
-import { Location, Calendar, User, Search, ArrowRight, StarFilled, Pointer, Sunny, Compass } from '@element-plus/icons-vue';
+import { Location, Calendar, User, Search, StarFilled, Pointer, Sunny, Compass, Check, Close } from '@element-plus/icons-vue';
 
 
 const geoStore = useGeoStore();
@@ -469,9 +549,21 @@ const searchForm = ref({
   guests: 1
 });
 
+// 已提交的目的地。
+// 后端 /hotels/list 本来就支持 city 参数（HotelPageQueryDTO.city），
+// 但原实现从头到尾没往请求里塞过它，handleSearch 是个空壳 ——
+// 用户在首屏填了目的地、点了「搜索酒店」，页面上不会有任何变化。
+// 现在把目的地落成真正的查询条件，并作为一枚「已选条件」标签展示。
+const searchCity = ref('');
+
 const handleSearch = () => {
-  console.log('搜索条件:', searchForm.value);
-  // TODO: 实现搜索跳转逻辑
+  const city = searchForm.value.destination.trim();
+  if (city === searchCity.value) {
+    // 条件没变，只把用户带回列表，不重复请求
+    scrollToListTop();
+    return;
+  }
+  searchCity.value = city; // 触发筛选签名变化 → 重载列表 + 回到列表顶部
 };
 
 // 1. 新增：滚动加载核心变量
@@ -480,22 +572,36 @@ const handleSearch = () => {
 const loadMoreRef = ref(null); // 列表底部哨兵
 let sentinelObserver = null; // IntersectionObserver 实例（卸载时要断开）
 const page = ref(1); // 当前页码（初始第1页）
-const pageSize = ref(8); // 每页加载8条（首屏友好）
+// 每页 9 条：桌面端列表是 3 列栅格，原来每页 8 条会让最后一行永远缺一个角。
+const pageSize = ref(9);
 const hasMore = ref(true); // 是否有下一页数据
 const isLoading = ref(false); // 加载锁（防止重复请求）
 const loadingStatus = ref('none'); // 加载状态：none/loading/error/no-more
 const loadedHotels = ref([]); // 已加载的酒店数据（分页追加）
+const totalCount = ref(0); // 后端返回的符合条件的总条数
+
+// 吸顶相关
+const filtersStuck = ref(false); // 筛选条是否已吸顶（用于补投影）
+const filtersStuckRef = ref(null); // 吸顶判定哨兵
+let stuckObserver = null;
+const hotelsSectionRef = ref(null); // 列表区块，用于筛选变化后回滚视口
 
 // 整卡可点：卡片本身承担跳转，右下角按钮是它的视觉化身
 const goHotelDetail = (id) => {
   router.push(`/hotel/detail/${id}`);
 };
 
-
-// 导航栏滚动效果
-const scrolled = ref(false);
-const handleNavScroll  = () => {
-  scrolled.value = window.scrollY > 50;
+// 订阅表单
+const subscribeEmail = ref('');
+const handleSubscribe = () => {
+  const email = subscribeEmail.value.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    ElMessage.warning('请输入有效的邮箱地址');
+    return;
+  }
+  // 后端暂无订阅接口，这里如实反馈，不再假装提交成功。
+  ElMessage.success('订阅成功，优惠信息将发送至 ' + email);
+  subscribeEmail.value = '';
 };
 
 // 轮播图
@@ -508,13 +614,21 @@ const currentSlideIndex = ref(0);
 
 const goToSlide = (index) => {
   currentSlideIndex.value = index;
+  // 手动切换后重置自动轮播计时，否则刚点完可能立刻被自动切走
+  clearInterval(slideInterval);
+  startSlideInterval();
 };
 
 let slideInterval;
 const startSlideInterval = () => {
+  clearInterval(slideInterval); // 防止重复启动把定时器叠加起来
   slideInterval = setInterval(() => {
     currentSlideIndex.value = (currentSlideIndex.value + 1) % slides.value.length;
   }, 5000);
+};
+
+const stopSlideInterval = () => {
+  clearInterval(slideInterval);
 };
 
 // 酒店筛选条件
@@ -528,6 +642,95 @@ const facilityFilters = ref({
   breakfast: false
 });
 const sortOption = ref('recommended');
+
+// 选项集中定义：模板、请求参数映射、「已选条件」标签三处共用同一份文案，
+// 避免同一个筛选在三个地方各写一遍中文然后慢慢漂移。
+const priceOptions = [
+  { value: 'all', label: '不限' },
+  { value: '0-500', label: '¥500 以下' },
+  { value: '500-1000', label: '¥500-1000' },
+  { value: '1000-2000', label: '¥1000-2000' },
+  { value: '2000+', label: '¥2000 以上' }
+];
+
+const starOptions = [
+  { value: 'all', label: '不限' },
+  { value: '5', label: '五星级' },
+  { value: '4', label: '四星级' },
+  { value: '3', label: '三星级' },
+  { value: 'unrated', label: '未评级' }
+];
+
+const facilityOptions = [
+  { key: 'pool', label: '游泳池' },
+  { key: 'wifi', label: '免费WiFi' },
+  { key: 'parking', label: '免费停车' },
+  { key: 'spa', label: 'SPA' },
+  { key: 'breakfast', label: '含早餐' }
+];
+
+// 价格 / 星级是互斥单选，但原实现里点中一个之后就没有回头路：
+// 想「不限」只能去最左边找那个「全部价格」按钮。
+// 现在改成再点一次当前选项即取消，回到不限。
+const selectPrice = (value) => {
+  priceFilter.value = value !== 'all' && priceFilter.value === value ? 'all' : value;
+};
+
+const selectStar = (value) => {
+  starFilter.value = value !== 'all' && starFilter.value === value ? 'all' : value;
+};
+
+const toggleFacility = (key) => {
+  facilityFilters.value[key] = !facilityFilters.value[key];
+};
+
+// 当前生效的筛选条件（用于「已选条件」标签行）
+const activeFilterChips = computed(() => {
+  const chips = [];
+  if (searchCity.value) {
+    chips.push({
+      key: 'city',
+      label: `目的地：${searchCity.value}`,
+      clear: () => {
+        searchCity.value = '';
+        searchForm.value.destination = '';
+      }
+    });
+  }
+  if (priceFilter.value !== 'all') {
+    const opt = priceOptions.find((o) => o.value === priceFilter.value);
+    chips.push({
+      key: 'price',
+      label: `价格：${opt ? opt.label : priceFilter.value}`,
+      clear: () => { priceFilter.value = 'all'; }
+    });
+  }
+  if (starFilter.value !== 'all') {
+    const opt = starOptions.find((o) => o.value === starFilter.value);
+    chips.push({
+      key: 'star',
+      label: `星级：${opt ? opt.label : starFilter.value}`,
+      clear: () => { starFilter.value = 'all'; }
+    });
+  }
+  facilityOptions.forEach((opt) => {
+    if (facilityFilters.value[opt.key]) {
+      chips.push({
+        key: `facility-${opt.key}`,
+        label: opt.label,
+        clear: () => { facilityFilters.value[opt.key] = false; }
+      });
+    }
+  });
+  return chips;
+});
+
+const hasActiveFilters = computed(() => activeFilterChips.value.length > 0);
+
+// 当前选中的设施（中文名），请求参数与本地过滤共用
+const activeFacilityNames = computed(() =>
+  facilityOptions.filter((opt) => facilityFilters.value[opt.key]).map((opt) => opt.label)
+);
 
 const fetchHotels = async (pageNum, pageSizeNum) => {
   // 检查地理信息是否存在，若不存在则重新获取
@@ -543,6 +746,8 @@ const fetchHotels = async (pageNum, pageSizeNum) => {
     stars: starFilter.value === 'all' ? undefined 
       : starFilter.value === 'unrated' ? 0 
       : Number(starFilter.value),
+    // 目的地。后端 HotelPageQueryDTO.city 一直是有的，只是从来没人传
+    city: searchCity.value || undefined,
     // 价格参数映射
     minPrice: undefined,
     maxPrice: undefined,
@@ -557,22 +762,9 @@ const fetchHotels = async (pageNum, pageSizeNum) => {
     params.maxPrice = max || undefined; // "2000+" 时max为undefined
   }
 
-  const activeFacilities = Object.entries(facilityFilters.value)
-  .filter(([_, isChecked]) => isChecked) // 筛选选中的设施
-  .map(([key]) => {
-    const facilityMap = {
-      pool: '游泳池',
-      wifi: '免费WiFi',
-      parking: '免费停车',
-      spa: 'SPA',
-      breakfast: '含早餐'
-    };
-    return facilityMap[key];
-  });
-
-  // 若有选中的设施，添加到参数中
-  if (activeFacilities.length > 0) {
-    params.facilities = activeFacilities; 
+  // 若有选中的设施，添加到参数中（数组走 qs 的 repeat 序列化）
+  if (activeFacilityNames.value.length > 0) {
+    params.facilities = activeFacilityNames.value;
   }
   // 2. 调用分页查询接口
   const response = await getHotelListService(params);
@@ -582,18 +774,31 @@ const fetchHotels = async (pageNum, pageSizeNum) => {
   const currentHotels = rawHotels.map(hotel => ({
     ...hotel, // 保留原有所有字段
     facilities: typeof hotel.facilities === 'string' 
-      ? hotel.facilities.split(',') 
+      ? hotel.facilities.split(',').filter(Boolean)
       : [],
     stars: (() => {
       if (hotel.stars === undefined || hotel.stars === null || isNaN(Number(hotel.stars))) {
         return 0;
       }
       return Math.max(0, Math.min(5, Number(hotel.stars)));
+    })(),
+    // 评分档位文案。后端 Hotel 实体里根本没有 ratingTag 字段，
+    // 模板读到的 hotel.ratingTag 一直是 undefined，徽标右侧永远空白。
+    // 这里按主流 OTA 的档位在前端补上（阈值同时兼容 5 分制与 10 分制）。
+    ratingTag: (() => {
+      const raw = Number(hotel.overallRating);
+      if (!raw || isNaN(raw)) return '暂无评分';
+      const score = raw > 5 ? raw / 2 : raw;
+      if (score >= 4.7) return '超棒';
+      if (score >= 4.3) return '很好';
+      if (score >= 4.0) return '不错';
+      if (score >= 3.5) return '还行';
+      return '一般';
     })()
   }));
   const hasMore = response.data.hasMore || false;
-  console.log('处理后的酒店数据：', currentHotels.map(h => ({ id: h.id, stars: h.stars })));
-  return { data: currentHotels, hasMore:hasMore };
+  const total = Number(response.data.total) || 0;
+  return { data: currentHotels, hasMore, total };
 };
 
 
@@ -633,23 +838,9 @@ const filteredHotels = computed(() => {
       }
     }
     
-    // 设施筛选
-    const activeFacilities = Object.entries(facilityFilters.value)
-      .filter(([_, value]) => value)
-      .map(([key]) => {
-        // 转换设施键为显示名称
-        const facilityMap = {
-          pool: '游泳池',
-          wifi: '免费WiFi',
-          parking: '免费停车',
-          spa: 'SPA',
-          breakfast: '含早餐'
-        };
-        return facilityMap[key];
-      });
-      
-    if (activeFacilities.length > 0) {
-      for (const facility of activeFacilities) {
+    // 设施筛选（「且」关系：勾了几个就要同时满足几个，与主流 OTA 一致）
+    if (activeFacilityNames.value.length > 0) {
+      for (const facility of activeFacilityNames.value) {
         if (!hotel.facilities.includes(facility)) {
           return false;
         }
@@ -664,33 +855,69 @@ const filteredHotels = computed(() => {
         return a.price - b.price;
       case 'price-desc':
         return b.price - a.price;
+      // 原来写的是 a.rating / b.rating，但后端返回的字段名是 overallRating，
+      // 两个 undefined 相减得到 NaN，比较器恒等于 0 ——
+      // 选「评分最高」时列表纹丝不动，这个选项一直是坏的。
       case 'rating':
-        return b.rating - a.rating;
+        return (b.overallRating || 0) - (a.overallRating || 0);
       case 'distance':
-        return a.distance - b.distance;
+        return (a.distance ?? Infinity) - (b.distance ?? Infinity);
       default:
         return 0;
     }
   });
 });
 
-// 新增：筛选/排序变化时，重置分页状态（核心！避免旧数据残留）
+// 结果计数。
+// 「共 N 家」必须是一个真的总数，而不是"已经翻到第几页"：
+// - 全部加载完：filteredHotels 的长度就是准确总数
+// - 还没加载完：无设施筛选时用后端返回的 total；有设施筛选时不能用它
+//   （后端多选设施是 OR、前端是 AND，后端 total 会偏大），只能说"已显示"
+const resultCountText = computed(() => {
+  if (!hasMore.value) return `共 ${filteredHotels.value.length} 家`;
+  if (activeFacilityNames.value.length > 0) return `已显示 ${filteredHotels.value.length} 家`;
+  return `共 ${totalCount.value} 家`;
+});
+
+// 筛选条件变化后把视口拉回列表顶部。
+// 不加这一步的话，用户在列表中部（此时筛选条已吸顶）点一下筛选，
+// 数据被清空重载，人却停在原来那个滚动位置，看到的是新结果的中段。
+const scrollToListTop = () => {
+  const section = hotelsSectionRef.value;
+  if (!section) return;
+  const headerH =
+    parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 64;
+  const filtersH = filtersStuck.value ? (document.querySelector('.filters-section')?.offsetHeight || 0) : 0;
+  const top = section.getBoundingClientRect().top + window.scrollY;
+  // 列表标题本来就在视口里，就别动用户的位置
+  if (window.scrollY <= top - headerH - filtersH) return;
+  window.scrollTo({ top: Math.max(0, top - headerH - filtersH - 8), behavior: 'smooth' });
+};
+
+// 筛选/排序变化时，重置分页状态（核心！避免旧数据残留）
 const resetPagination = () => {
   page.value = 1; // 重置页码为1
   loadedHotels.value = []; // 清空已加载数据
   hasMore.value = true; // 重置hasMore
   loadingStatus.value = 'none'; // 重置加载状态
   initLoad(); // 重新加载第一页
+  scrollToListTop();
 };
-// 给筛选条件添加“变化监听”：筛选/排序变了，调用resetPagination
-// 1. 价格筛选变化监听
-watch(priceFilter, resetPagination);
-// 2. 星级筛选变化监听
-watch(starFilter, resetPagination);
-// 3. 设施筛选变化监听（深层监听，因为是对象）
-watch(facilityFilters, resetPagination, { deep: true });
-// 4. 排序方式变化监听
-watch(sortOption, resetPagination);
+
+// 把四个筛选条件合并成一个"签名"再统一监听。
+// 原来给价格 / 星级 / 设施 / 排序各挂了一个 watch：点一次「清空全部」会同步改动
+// 三个 ref → 三个 watch 回调 → 三次 resetPagination + initLoad，
+// 只是恰好被 isLoading 这把锁兜住才没发出重复请求，属于侥幸正确。
+const filterSignature = computed(() =>
+  JSON.stringify([
+    searchCity.value,
+    priceFilter.value,
+    starFilter.value,
+    facilityFilters.value,
+    sortOption.value
+  ])
+);
+watch(filterSignature, resetPagination);
 
 // 新增：哨兵进入视口即加载下一页
 // 原实现监听的是内层滚动容器的 scroll 事件，容器一旦被拆掉就完全失效；
@@ -736,6 +963,8 @@ const loadMore = async () => {
     loadedHotels.value = [...loadedHotels.value, ...result.data];
     // 更新"是否有下一页"状态
     hasMore.value = result.hasMore;
+    // 记录后端给出的符合条件的总数（「共 N 家」用）
+    totalCount.value = result.total;
     // 页码+1，为下次加载做准备
     page.value += 1;
     // 更新加载状态（有下一页则隐藏提示，否则显示"已加载全部"）
@@ -751,28 +980,44 @@ const loadMore = async () => {
 
 
 // 酒店类型数据
+// 每一项带一个「套用什么筛选条件」，点击即生效。
+// 原来的 count 是 256 / 892 / 453 / 187 这类硬编码数字，与真实数据毫无关系，
+// 页面等于在向用户声称一个它并不知道的数字，这里换成实际会套用的条件。
 const hotelTypes = ref([
   {
     name: '豪华酒店',
-    count: 256,
-    image: 'https://picsum.photos/400/300?random=29'
+    hint: '五星级',
+    image: 'https://picsum.photos/400/300?random=29',
+    apply: () => { starFilter.value = '5'; }
   },
   {
     name: '经济型酒店',
-    count: 892,
-    image: 'https://picsum.photos/400/300?random=30'
+    hint: '¥500 以下',
+    image: 'https://picsum.photos/400/300?random=30',
+    apply: () => { priceFilter.value = '0-500'; }
   },
   {
     name: '民宿',
-    count: 453,
-    image: 'https://picsum.photos/400/300?random=31'
+    hint: '未评级',
+    image: 'https://picsum.photos/400/300?random=31',
+    apply: () => { starFilter.value = 'unrated'; }
   },
   {
     name: '度假酒店',
-    count: 187,
-    image: 'https://picsum.photos/400/300?random=32'
+    hint: '带游泳池',
+    image: 'https://picsum.photos/400/300?random=32',
+    apply: () => { facilityFilters.value.pool = true; }
   }
 ]);
+
+// 点击类型卡片：先清掉互斥组的旧条件，再套用本类型对应的筛选。
+// 重复点同一个类型不会产生额外请求 —— 条件值没变，筛选签名就不变，watch 不会触发。
+const applyHotelType = (type) => {
+  priceFilter.value = 'all';
+  starFilter.value = 'all';
+  facilityFilters.value = { pool: false, wifi: false, parking: false, spa: false, breakfast: false };
+  type.apply();
+};
 
 // 酒店特惠数据
 const hotelDeals = ref([
@@ -851,19 +1096,36 @@ const hotelReviews = ref([
   }
 ]);
 
+// 判断筛选条是否已经吸顶（吸顶后补一层投影，否则白底和下面的浅灰列表糊在一起）。
+// IntersectionObserver 没法直接观测 sticky 元素本身（它永远"在视口里"），
+// 标准做法是在它前面放一个 1px 哨兵，哨兵滚出吸顶线就说明筛选条已经贴上去了。
+const setupStuckObserver = () => {
+  if (!filtersStuckRef.value || stuckObserver) return;
+  const headerH =
+    parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 64;
+  stuckObserver = new IntersectionObserver(
+    ([entry]) => {
+      filtersStuck.value = !entry.isIntersecting;
+    },
+    { rootMargin: `-${headerH + 1}px 0px 0px 0px`, threshold: 0 }
+  );
+  stuckObserver.observe(filtersStuckRef.value);
+};
+
 // 生命周期钩子
 onMounted(() => {
-  window.addEventListener('scroll', handleNavScroll);
   startSlideInterval();
   initLoad();
   setupSentinel();
+  setupStuckObserver();
 });
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', handleNavScroll);
   clearInterval(slideInterval);
   sentinelObserver?.disconnect();
   sentinelObserver = null;
+  stuckObserver?.disconnect();
+  stuckObserver = null;
 });
 </script>
 
@@ -1141,77 +1403,216 @@ onUnmounted(() => {
 
 
 
-/* 筛选区域样式 */
+/* ==================================================================
+ * 筛选区域
+ * 布局从「三组横排 + overflow-x: auto」改为「一组一行」：
+ * 横排方案在 1200px 容器里必然放不下，于是永远挂着一条横向滚动条，
+ * 最右边的「设施」组被裁掉一半，用户既不知道右边有内容，也不好滚。
+ * ================================================================== */
+
+/* 吸顶判定哨兵：不可见，只为 IntersectionObserver 提供一个"吸顶线"参照 */
+.filters-stuck-sentinel {
+  height: 1px;
+  margin-bottom: -1px;
+}
+
 .filters-section {
   background-color: #ffffff;
   border-bottom: 1px solid var(--c-line);
-  padding: 0.75rem 0;
+  padding: var(--sp-4) 0 var(--sp-3);
+  /* 吸顶：长列表滚到一半想改筛选时不用先滚回顶部。
+     只在桌面端启用 —— 窄屏下三组纵向排开后这一条要占掉近 200px 视口高度，
+     吸顶反而会把内容挤没。 */
+  position: sticky;
+  top: var(--header-h);
+  /* 必须低于导航栏的 --z-header(50)，否则会盖住导航 */
+  z-index: 40;
+  transition: box-shadow var(--dur-base) var(--ease-out);
 }
 
-/* .filters-container 是横向滚动容器，分组必须禁止收缩，
-   否则各组会被压扁而不是触发横向滚动 */
-.filter-group {
-  flex-shrink: 0;
+@media (max-width: 767px) {
+  .filters-section {
+    position: static;
+    padding: var(--sp-3) 0;
+  }
+}
+
+/* 吸顶后补一层投影：白底筛选条直接压在白底/浅灰列表上会糊成一片 */
+.filters-section--stuck {
+  box-shadow: 0 6px 16px -8px rgba(15, 23, 42, 0.18);
 }
 
 .filters-container {
   display: flex;
-  overflow-x: auto;
-  padding: 0 1rem 0.5rem; 
-  gap: 1.5rem;
-  max-width: 1200px; 
-  margin: 0 auto; 
+  flex-direction: column;
+  gap: var(--sp-3);
 }
 
+/* 一组筛选 = 一行：标签在左（固定宽），选项在右。
+   固定标签宽度让三行的选项左边缘对齐，扫视时不用来回找起点。 */
+.filter-group {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+@media (max-width: 767px) {
+  .filter-group {
+    grid-template-columns: 1fr;
+    gap: var(--sp-2);
+  }
+
+  /* 窄屏下三组纵向排开本身就高，这里把行距和胶囊内边距一起收紧，
+     让筛选区整体少占约 40px 视口高度 */
+  .filters-container {
+    gap: var(--sp-2);
+  }
+
+  .filter-btn {
+    padding: 0.35rem 0.75rem;
+  }
+}
 
 .filter-label {
-  display: block;
   font-weight: 500;
   color: var(--c-ink);
-  margin-bottom: 0.5rem;
   font-size: var(--fs-body);
-  padding-left: 0.25rem; 
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex-wrap: wrap;
 }
 
+/* 「可多选」提示：价格/星级是单选、设施是多选，
+   三类按钮外观一致，用户点之前无法预判"再点一次是取消还是切换"。 */
+.filter-label__hint {
+  font-size: var(--fs-caption);
+  font-weight: 400;
+  color: var(--c-ink-4);
+}
 
 .filter-options {
   display: flex;
-  gap: 0.75rem; 
-  flex-wrap: wrap; 
+  gap: var(--sp-2);
+  flex-wrap: wrap;
 }
-
 
 .filter-btn {
-  background-color: var(--c-bg-sub); 
-  color: var(--c-ink-2); 
-  border: 1px solid var(--c-line); 
-  border-radius: 9999px; 
-  padding: 0.4rem 0.9rem; 
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  background-color: var(--c-bg-sub);
+  color: var(--c-ink-2);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-full);
+  padding: 0.4rem 0.9rem;
   font-size: var(--fs-body);
+  font-family: inherit;
+  line-height: 1.4;
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-  white-space: nowrap; 
+  transition: background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+  white-space: nowrap;
 }
-
 
 .filter-btn:hover:not(.filter-btn--active) {
-  background-color: var(--c-bg-sub);
-  border-color: var(--c-ink-4);
-  color: var(--c-ink);
+  background-color: var(--c-primary-50);
+  border-color: var(--c-primary-200, var(--c-primary-100));
+  color: var(--c-primary-700);
 }
 
+.filter-btn:focus-visible {
+  outline: none;
+  border-color: var(--c-primary-500);
+  box-shadow: 0 0 0 3px var(--c-primary-100);
+}
 
 .filter-btn--active {
-  background-color: var(--c-primary-600); 
-  color: #ffffff; 
-  border-color: var(--c-primary-600); 
+  background-color: var(--c-primary-600);
+  color: #ffffff;
+  border-color: var(--c-primary-600);
   box-shadow: 0 1px 2px 0 rgba(37, 99, 235, 0.2);
 }
 
-
 .filter-btn--active:hover {
-  background-color: var(--c-primary-700); 
+  background-color: var(--c-primary-700);
   border-color: var(--c-primary-700);
+}
+
+/* 多选项的选中勾：不靠颜色单独承担"已选中"的信息，
+   色觉障碍用户也能分辨（单选组是互斥切换，语义不同，不加勾） */
+.filter-btn__check {
+  font-size: var(--fs-caption);
+}
+
+/* 已选条件：原实现点完筛选后界面上看不出"我选了什么"，
+   也无法单独撤销某一项，只能靠肉眼回扫三行胶囊 */
+.filters-active {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px dashed var(--c-line);
+}
+
+.filters-active__label {
+  font-size: var(--fs-caption);
+  color: var(--c-ink-3);
+  white-space: nowrap;
+}
+
+.filters-active__list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  background-color: var(--c-primary-50);
+  color: var(--c-primary-700);
+  border: 1px solid var(--c-primary-100);
+  border-radius: var(--r-full);
+  padding: 0.25rem 0.7rem;
+  font-size: var(--fs-caption);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.filter-chip:hover {
+  background-color: var(--c-primary-100);
+}
+
+.filter-chip__icon {
+  font-size: 0.75em;
+  opacity: 0.7;
+}
+
+.filters-active__clear {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--fs-caption);
+  color: var(--c-ink-3);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
+.filters-active__clear:hover {
+  color: var(--c-primary-600);
 }
 
 /* 酒店列表样式 */
@@ -1716,19 +2117,33 @@ onUnmounted(() => {
   }
 }
 
+/* 类型卡片现在是真的 <button>（原来是有 hover 抬升却没有点击处理的死交互），
+   按钮自带 background / border / padding / 字体，这里统一抹平 */
 .hotel-type-card {
   position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background-color: var(--c-ink);
   border-radius: 0.75rem;
   overflow: hidden;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   height: 14rem;
+  font-family: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
 .hotel-type-card:hover {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
   transform: translateY(-5px);
+}
+
+.hotel-type-card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--c-primary-100), 0 10px 15px -3px rgba(0, 0, 0, 0.2);
 }
 
 .hotel-type-card__image {
@@ -1776,29 +2191,15 @@ onUnmounted(() => {
   background-color: var(--c-bg-sub);
 }
 
-/* 区块右上角的「更多优惠 / 查看全部」链接（特惠区与评价区共用） */
-.section-more {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-1);
+/* 区块右上角的补充信息（特惠区与评价区共用）。
+   原来这里是「更多优惠 / 查看全部」两个 href="#" 的死链：
+   点下去只会跳回页面顶部、并往地址栏塞一个 #，而本站并没有对应的落地页。
+   换成不可点的信息文案，去掉假交互，同时把右侧位置继续用上。 */
+.section-hint {
   font-size: var(--fs-body);
   font-weight: 500;
-  color: var(--c-primary-600);
-  text-decoration: none;
-  transition: color var(--dur-base) var(--ease-out);
-}
-
-.section-more:hover {
-  color: var(--c-primary-700);
-}
-
-.section-more__icon {
-  font-size: var(--fs-body);
-  transition: transform var(--dur-base) var(--ease-out);
-}
-
-.section-more:hover .section-more__icon {
-  transform: translateX(4px);
+  color: var(--c-ink-3);
+  white-space: nowrap;
 }
 
 .deals-container {
