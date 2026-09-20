@@ -139,29 +139,38 @@
       <section class="hotels-section">
         <div class="section-container">
           <div class="section-header">
-            <h2 class="section-title">热门酒店</h2>
+            <div class="section-heading">
+              <h2 class="section-title">热门酒店</h2>
+              <span v-if="!firstLoading" class="section-count">共 {{ filteredHotels.length }} 家</span>
+            </div>
             <div class="sort-options">
-              <span class="sort-label">排序方式:</span>
-              <select class="sort-select" v-model="sortOption">
-                <option value="recommended">推荐</option>
-                <option value="price-asc">价格从低到高</option>
-                <option value="price-desc">价格从高到低</option>
-                <option value="rating">评分最高</option>
-                <option value="distance">距离最近</option>
-              </select>
+              <span class="sort-label">排序方式</span>
+              <div class="sort-select-wrap">
+                <select class="sort-select" v-model="sortOption" aria-label="酒店排序方式">
+                  <option value="recommended">推荐</option>
+                  <option value="price-asc">价格从低到高</option>
+                  <option value="price-desc">价格从高到低</option>
+                  <option value="rating">评分最高</option>
+                  <option value="distance">距离最近</option>
+                </select>
+              </div>
             </div>
           </div>
           
-          <!-- 注意：这里是内部滚动容器（max-height + overflow-y），
-               其子元素被裁剪后 IntersectionObserver 不会判定为"进入视口"，
-               因此本容器内的卡片一律不加 v-reveal。 -->
-          <div class="hotels-list" ref="hotelsListRef" @scroll="handleScroll">
+          <!-- 列表改为随页面自然流动。
+               原实现是 max-height:900px + overflow-y:auto 的内滚动容器，
+               实测有两个硬伤：
+               1) 滚轮移到列表上后页面被"劫持"——页面 scrollY 纹丝不动，
+                  内层却滚了 4000+px，用户以为页面卡住；
+               2) 900px 只装得下 1 行卡片（卡片高 613px），第二行被拦腰截断。
+               现在改用文档流 + 列表底部哨兵触发加载更多。 -->
+          <div class="hotels-list">
             <!-- 首屏骨架屏（原实现首屏是空白，数据回来才"啪"地出现） -->
             <template v-if="firstLoading">
-              <div class="hotel-card" v-for="n in 4" :key="'sk' + n">
+              <div class="hotel-card hotel-card--skeleton" v-for="n in 6" :key="'sk' + n">
                 <el-skeleton animated>
                   <template #template>
-                    <el-skeleton-item variant="image" style="width: 100%; height: 200px" />
+                    <el-skeleton-item variant="image" class="skeleton-image" />
                     <div style="padding: 16px">
                       <el-skeleton-item variant="h3" style="width: 55%" />
                       <el-skeleton-item variant="text" style="margin-top: 12px; width: 70%" />
@@ -181,10 +190,16 @@
             </div>
 
             <template v-else>
-            <div 
+            <article
               class="hotel-card"
-              v-for="(hotel, index) in filteredHotels" 
+              v-for="hotel in filteredHotels"
               :key="hotel.id"
+              role="link"
+              tabindex="0"
+              :aria-label="`查看 ${hotel.name} 详情`"
+              @click="goHotelDetail(hotel.id)"
+              @keydown.enter.prevent="goHotelDetail(hotel.id)"
+              @keydown.space.prevent="goHotelDetail(hotel.id)"
             >
               <div class="hotel-card__image-container">
                 <img 
@@ -195,6 +210,12 @@
                   class="hotel-card__image"
                 >
                 <div v-if="hotel.promotion" class="hotel-card__promotion">{{ hotel.promotion }}</div>
+                <!-- 评分从原来独占一条灰底信息条改为压在图片上的徽标：
+                     省掉 46px 高度，同时更接近主流预订平台的卡片形态 -->
+                <div class="hotel-card__rating-badge">
+                  <span class="hotel-card__rating-score">{{ hotel.overallRating }}</span>
+                  <span class="hotel-card__rating-tag">{{ hotel.ratingTag }}</span>
+                </div>
               </div>
               
               <div class="hotel-card__content">
@@ -205,38 +226,51 @@
                 
                 <div class="hotel-card__location">
                   <el-icon class="hotel-card__location-icon"><Location /></el-icon>
-                  <span>{{ hotel.location }}</span>
+                  <span class="hotel-card__address">{{ hotel.location }}</span>
                   <span class="hotel-card__distance">{{ hotel.distance }}公里</span>
                 </div>
                 
                 <div class="hotel-card__facilities">
                   <span class="hotel-card__facility" v-for="(facility, i) in hotel.facilities.slice(0, 3)" :key="i">{{ facility }}</span>
-                  <span v-if="hotel.facilities.length > 3" class="hotel-card__more-facilities">+{{ hotel.facilities.length - 3 }}个设施</span>
-                </div>
-                
-                <div class="hotel-card__rating">
-                  <div class="rating-score">{{ hotel.overallRating }}</div>
-                  <div class="rating-reviews">{{ hotel.reviewCount }}条评价</div>
-                  <div class="rating-tag">{{ hotel.ratingTag }}</div>
+                  <span v-if="hotel.facilities.length > 3" class="hotel-card__more-facilities">+{{ hotel.facilities.length - 3 }}</span>
                 </div>
                 
                 <div class="hotel-card__price-area">
-                  <div>
-                    <span class="hotel-card__price">¥{{ hotel.price }}</span>
-                    <span class="hotel-card__price-unit">/晚起</span>
-                    <span v-if="hotel.originalPrice" class="hotel-card__original-price">¥{{ hotel.originalPrice }}</span>
+                  <div class="hotel-card__price-box">
+                    <div class="hotel-card__price-line">
+                      <span class="hotel-card__price">¥{{ hotel.price }}</span>
+                      <span class="hotel-card__price-unit">/晚起</span>
+                      <span v-if="hotel.originalPrice" class="hotel-card__original-price">¥{{ hotel.originalPrice }}</span>
+                    </div>
+                    <div class="hotel-card__reviews">{{ hotel.reviewCount }}条评价</div>
                   </div>
-                  <button class="hotel-card__btn" @click="router.push(`/hotel/detail/${hotel.id}`)">查看详情</button>
+                  <button class="hotel-card__btn" type="button" @click.stop="goHotelDetail(hotel.id)">查看详情</button>
                 </div>
               </div>
-            </div>
+            </article>
             </template>
           </div>
-          <!-- 2.加载状态提示 -->
-          <div class="loading-status" v-if="loadingStatus !== 'none'">
+
+          <!-- 加载更多哨兵：进入视口即拉下一页 -->
+          <div ref="loadMoreRef" class="load-more-sentinel" aria-hidden="true"></div>
+
+          <!-- 2.加载状态提示
+               首屏由骨架屏承担，空结果由空态承担，这两种情况都不该再显示
+               "加载中 / 已加载全部酒店"，否则空态下面会挂一句自相矛盾的话 -->
+          <div
+            class="loading-status"
+            v-if="loadingStatus !== 'none' && !firstLoading && filteredHotels.length > 0"
+          >
             <span v-if="loadingStatus === 'loading'">加载中...</span>
             <span v-if="loadingStatus === 'no-more'">已加载全部酒店</span>
-            <span v-if="loadingStatus === 'error'" @click="loadMore">加载失败，点击重试</span>
+            <!-- 原实现靠 CSS 选择器 span[onclick] 上色，但 Vue 的 @click
+                 并不会渲染出 onclick 属性，这条规则从未命中过 -->
+            <button
+              v-if="loadingStatus === 'error'"
+              type="button"
+              class="loading-status__retry"
+              @click="loadMore"
+            >加载失败，点击重试</button>
           </div>
         </div>
       </section>
@@ -415,7 +449,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted,watch} from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { getHotelListService } from '@/api/hotel';
 import { useGeoStore } from '@/stores/geo';
 import router from '@/router';
@@ -441,13 +475,21 @@ const handleSearch = () => {
 };
 
 // 1. 新增：滚动加载核心变量
-const hotelsListRef = ref(null); // 滚动容器的ref（绑定.hotels-list）
+// 列表已改为随页面自然流动，内滚动容器的 ref 不再需要，
+// 改为监听列表底部的哨兵元素是否进入视口。
+const loadMoreRef = ref(null); // 列表底部哨兵
+let sentinelObserver = null; // IntersectionObserver 实例（卸载时要断开）
 const page = ref(1); // 当前页码（初始第1页）
 const pageSize = ref(8); // 每页加载8条（首屏友好）
 const hasMore = ref(true); // 是否有下一页数据
 const isLoading = ref(false); // 加载锁（防止重复请求）
 const loadingStatus = ref('none'); // 加载状态：none/loading/error/no-more
 const loadedHotels = ref([]); // 已加载的酒店数据（分页追加）
+
+// 整卡可点：卡片本身承担跳转，右下角按钮是它的视觉化身
+const goHotelDetail = (id) => {
+  router.push(`/hotel/detail/${id}`);
+};
 
 
 // 导航栏滚动效果
@@ -650,23 +692,32 @@ watch(facilityFilters, resetPagination, { deep: true });
 // 4. 排序方式变化监听
 watch(sortOption, resetPagination);
 
-// 新增：滚动容器的滚动事件（判断是否触发加载）
-const handleScroll = () => {
-  if (!hotelsListRef.value) return; // 防止DOM未渲染
+// 新增：哨兵进入视口即加载下一页
+// 原实现监听的是内层滚动容器的 scroll 事件，容器一旦被拆掉就完全失效；
+// 换成 IntersectionObserver 后，无论页面怎么布局都能正确触发。
+const setupSentinel = () => {
+  if (!loadMoreRef.value || sentinelObserver) return;
+  sentinelObserver = new IntersectionObserver(
+    (entries) => {
+      // 必须同时判断 hasMore：哨兵只要还在视口内就会持续相交，
+      // 少了这个条件会在数据取完后无限重复请求下一页
+      if (entries.some((entry) => entry.isIntersecting)) loadMore();
+    },
+    // 提前 300px 触发，滚动到底之前数据就已经在路上
+    { rootMargin: '300px 0px' }
+  );
+  sentinelObserver.observe(loadMoreRef.value);
+};
 
-  // 1. 获取滚动容器的3个核心高度（关键公式）
-  const container = hotelsListRef.value;
-  const clientHeight = container.clientHeight; // 容器可视高度
-  const scrollTop = container.scrollTop; // 已滚动距离
-  const scrollHeight = container.scrollHeight; // 容器内容总高度
-
-  // 2. 触发条件：滚动到距离底部100px时加载（提前加载，提升体验）
-  const shouldLoad = clientHeight + scrollTop >= scrollHeight - 100;
-
-  // 3. 满足条件 + 有下一页 + 未加载中 → 触发加载
-  if (shouldLoad && hasMore.value && !isLoading.value) {
-    loadMore();
-  }
+// 重新观测一次哨兵。
+// IntersectionObserver 只在"相交状态发生变化"时回调：如果一次加载完成后
+// 哨兵仍然停在视口里（数据还没把页面撑够长），状态没变就不会再回调，
+// 加载会就此卡住。unobserve + observe 会立刻以当前状态重放一次回调。
+const refreshSentinel = async () => {
+  if (!sentinelObserver || !loadMoreRef.value) return;
+  await nextTick();
+  sentinelObserver.unobserve(loadMoreRef.value);
+  sentinelObserver.observe(loadMoreRef.value);
 };
 
 const initLoad = async () => {
@@ -674,7 +725,7 @@ const initLoad = async () => {
 };
 // 新增：加载下一页数据（核心滚动加载逻辑）
 const loadMore = async () => {
-  if (isLoading.value) return; // 加载锁：防止重复请求
+  if (isLoading.value || !hasMore.value) return; // 加载锁 + 已到底就不再请求
   isLoading.value = true;
   loadingStatus.value = 'loading';
 
@@ -683,19 +734,18 @@ const loadMore = async () => {
     const result = await fetchHotels(page.value, pageSize.value);
     // 追加新数据到已加载列表
     loadedHotels.value = [...loadedHotels.value, ...result.data];
-    // 更新“是否有下一页”状态
+    // 更新"是否有下一页"状态
     hasMore.value = result.hasMore;
-    console.log('当前已加载酒店数量：', loadedHotels.value.length);
-    console.log('最新加载的酒店数据：', result.data);
     // 页码+1，为下次加载做准备
     page.value += 1;
-    // 更新加载状态（有下一页则隐藏提示，否则显示“已加载全部”）
+    // 更新加载状态（有下一页则隐藏提示，否则显示"已加载全部"）
     loadingStatus.value = result.hasMore ? 'none' : 'no-more';
   } catch (error) {
     console.error('酒店数据加载失败：', error);
     loadingStatus.value = 'error'; // 加载失败，提示重试
   } finally {
     isLoading.value = false; // 释放加载锁
+    await refreshSentinel(); // 让哨兵按新布局重新判定一次
   }
 };
 
@@ -806,11 +856,14 @@ onMounted(() => {
   window.addEventListener('scroll', handleNavScroll);
   startSlideInterval();
   initLoad();
+  setupSentinel();
 });
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleNavScroll);
   clearInterval(slideInterval);
+  sentinelObserver?.disconnect();
+  sentinelObserver = null;
 });
 </script>
 
@@ -1178,6 +1231,26 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+/* 标题 + 结果计数 */
+.section-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.section-count {
+  color: var(--c-ink-3);
+  font-size: var(--fs-body);
+  background-color: var(--c-bg);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-full);
+  padding: 0.15rem 0.65rem;
+  white-space: nowrap;
 }
 
 .section-title {
@@ -1203,53 +1276,92 @@ onUnmounted(() => {
 .sort-options {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  background: white;
-  padding: 0.5rem 1rem;
-  border-radius: 2rem;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  gap: var(--sp-2);
+  background: var(--c-bg);
+  padding: 0.35rem 0.35rem 0.35rem 1rem;
+  border-radius: var(--r-full);
+  border: 1px solid var(--c-line);
+  box-shadow: var(--sh-1);
+  transition: border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+
+.sort-options:hover,
+.sort-options:focus-within {
+  border-color: var(--c-primary-300);
+  box-shadow: var(--sh-2);
 }
 
 .sort-label {
-  color: var(--c-ink-2);
+  color: var(--c-ink-3);
   font-size: var(--fs-body);
-  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* 原生 select 外观不可控，用 appearance:none + 自绘箭头统一到设计系统 */
+.sort-select-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.sort-select-wrap::after {
+  content: '';
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-right: 2px solid var(--c-ink-3);
+  border-bottom: 2px solid var(--c-ink-3);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+  transition: border-color var(--dur-base) var(--ease-out);
+}
+
+.sort-options:hover .sort-select-wrap::after,
+.sort-options:focus-within .sort-select-wrap::after {
+  border-color: var(--c-primary-600);
 }
 
 .sort-select {
-  padding: 0.25rem 0.5rem;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0.4rem 1.75rem 0.4rem 0.75rem;
   border: none;
+  border-radius: var(--r-full);
   background-color: transparent;
   color: var(--c-ink);
+  font-size: var(--fs-body);
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
   outline: none;
+  transition: background-color var(--dur-base) var(--ease-out);
 }
 
+.sort-select:hover {
+  background-color: var(--c-primary-50);
+}
+
+.sort-select:focus-visible {
+  box-shadow: 0 0 0 3px var(--c-primary-100);
+}
+
+/* 列表随页面流动：不再设 max-height / overflow，
+   否则滚轮会被内层容器"吃掉"，且卡片会被拦腰截断 */
 .hotels-list {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 2rem;
-  /* 固定高度和滚动 */
-  max-height: 900px; 
-  overflow-y: auto; 
-  overflow-x: hidden;
-  padding: 0.5rem; /* 防止阴影被切 */
-  /* 滚动条美化 */
-  scrollbar-width: thin;
-  scrollbar-color: var(--c-ink-4) var(--c-bg-sub);
+  gap: 1.5rem;
+  align-items: stretch;
 }
 
-.hotels-list::-webkit-scrollbar {
-  width: 8px;
-}
-.hotels-list::-webkit-scrollbar-track {
-  background: var(--c-bg-sub);
-  border-radius: 4px;
-}
-.hotels-list::-webkit-scrollbar-thumb {
-  background-color: var(--c-ink-4);
-  border-radius: 4px;
+/* 加载更多哨兵：本身不可见，只用于 IntersectionObserver 判定 */
+.load-more-sentinel {
+  height: 1px;
+  width: 100%;
+  margin-top: -1px;
 }
 
 /* 加载状态提示样式 */
@@ -1264,10 +1376,19 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.5rem;
 }
-.loading-status span[onclick] {
+.loading-status__retry {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
   cursor: pointer;
   color: var(--c-primary-600);
   text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.loading-status__retry:hover {
+  color: var(--c-primary-700);
 }
 
 @media (min-width: 768px) {
@@ -1295,6 +1416,9 @@ onUnmounted(() => {
   border: 1px solid var(--c-line);
   will-change: transform;
   backface-visibility: hidden;
+  /* 整卡可点：卡片有 hover 抬升却只有角落按钮能点，是典型的"死交互" */
+  cursor: pointer;
+  outline: none;
 }
 
 .hotel-card:hover {
@@ -1303,16 +1427,43 @@ onUnmounted(() => {
   border-color: transparent;
 }
 
-/* 列表无结果时的占位 */
+.hotel-card:focus-visible {
+  border-color: var(--c-primary-500);
+  box-shadow: 0 0 0 3px var(--c-primary-100), var(--sh-2);
+}
+
+.hotel-card--skeleton {
+  cursor: default;
+}
+
+.hotel-card--skeleton:hover {
+  transform: none;
+  box-shadow: var(--sh-2);
+  border-color: var(--c-line);
+}
+
+/* 骨架屏的图片占位要和真实卡片同比例，否则数据回来会明显跳动 */
+.skeleton-image.el-skeleton__item--image {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+}
+
+/* 列表无结果时的占位。
+   必须横跨所有列，否则在 2/3 列网格里会被压进第一列 */
 .hotels-empty {
+  grid-column: 1 / -1;
   padding: var(--sp-12) 0;
   text-align: center;
 }
 
 .hotel-card__image-container {
   position: relative;
-  height: 15rem;
+  /* 用比例而不是固定高度：单列/两列/三列下图片都能跟着卡片宽度自适应，
+     原固定 15rem 在窄列里会显得又扁又高、比例失真 */
+  aspect-ratio: 16 / 10;
   overflow: hidden;
+  background-color: var(--c-bg-mute);
 }
 
 .hotel-card__image {
@@ -1335,9 +1486,43 @@ onUnmounted(() => {
   font-size: var(--fs-caption);
   font-weight: 700;
   padding: 0.35rem 0.75rem;
-  border-radius: 2rem;
+  border-radius: var(--r-full);
   box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
   z-index: 1;
+}
+
+/* 评分徽标：压在图片右下角。
+   原实现用一条独立的灰底信息条承载「评分 / 评价数 / 标签」，
+   与标题行的星级语义重复，还白占 46px 高度。 */
+.hotel-card__rating-badge {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--r-full);
+  /* 图片内容不可控，必须自带半透明深底才能保证文字可读 */
+  background-color: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #ffffff;
+  z-index: 1;
+}
+
+.hotel-card__rating-score {
+  font-size: var(--fs-body-lg);
+  font-weight: 800;
+  line-height: 1;
+  font-family: var(--font-num);
+}
+
+.hotel-card__rating-tag {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: #ffffff;
+  opacity: 0.9;
 }
 
 .hotel-card__content {
@@ -1384,27 +1569,40 @@ onUnmounted(() => {
   color: var(--c-ink-3);
   font-size: var(--fs-body);
   margin-bottom: 1rem;
+  gap: 0.35rem;
+  min-width: 0;
 }
 
 .hotel-card__location-icon {
-  margin-right: 0.35rem;
   color: var(--c-ink-4);
+  flex-shrink: 0;
+}
+
+/* 地址可能很长（"亚龙湾国家旅游度假区"这类），必须能截断，
+   否则会把右侧的距离标签挤出卡片 */
+.hotel-card__address {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hotel-card__distance {
-  margin-left: auto;
+  flex-shrink: 0;
   color: var(--c-primary-600);
   font-size: var(--fs-caption);
   background-color: var(--c-primary-50);
   padding: 0.15rem 0.5rem;
-  border-radius: 0.25rem;
+  border-radius: var(--r-xs);
+  white-space: nowrap;
 }
 
 .hotel-card__facilities {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
 }
 
 .hotel-card__facility {
@@ -1424,45 +1622,26 @@ onUnmounted(() => {
   border-radius: 0.375rem;
 }
 
-.hotel-card__rating {
-  display: flex;
-  align-items: center;
-  margin-bottom: 1.25rem;
-  background-color: var(--c-bg-sub);
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-}
-
-.rating-score {
-  background-color: var(--c-primary-600);
-  color: #ffffff;
-  font-weight: 800;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.375rem;
-  margin-right: 0.75rem;
-  font-size: var(--fs-body);
-  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
-}
-
-.rating-reviews {
-  color: var(--c-ink-2);
-  font-size: var(--fs-caption);
-  margin-right: auto;
-}
-
-.rating-tag {
-  color: var(--c-success);
-  font-size: var(--fs-caption);
-  font-weight: 600;
-}
-
+/* 价格区：现价 / 原价同一行，评价数落在第二行，右侧固定 CTA */
 .hotel-card__price-area {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
+  gap: var(--sp-3);
   margin-top: auto;
-  padding-top: 1.25rem;
+  padding-top: 1rem;
   border-top: 1px dashed var(--c-line);
+}
+
+.hotel-card__price-box {
+  min-width: 0;
+}
+
+.hotel-card__price-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.15rem;
+  flex-wrap: wrap;
 }
 
 .hotel-card__price {
@@ -1470,39 +1649,53 @@ onUnmounted(() => {
   font-weight: 800;
   font-size: var(--fs-h2);
   line-height: 1;
+  font-family: var(--font-num);
 }
 
 .hotel-card__price-unit {
   color: var(--c-ink-4);
   font-size: var(--fs-caption);
-  margin-left: 0.15rem;
 }
 
+/* 原价原来带 display:block，会被挤到下一行单独占位，
+   视觉上像是价格区错位了；改为同行基线对齐 */
 .hotel-card__original-price {
   color: var(--c-ink-4);
   font-size: var(--fs-caption);
   text-decoration: line-through;
-  margin-left: 0.5rem;
-  display: block;
-  margin-bottom: 0.25rem;
+  margin-left: 0.35rem;
+}
+
+.hotel-card__reviews {
+  color: var(--c-ink-3);
+  font-size: var(--fs-caption);
+  margin-top: 0.35rem;
 }
 
 .hotel-card__btn {
+  flex-shrink: 0;
   background: linear-gradient(to right, var(--c-primary-600), var(--c-primary-500));
   color: #ffffff;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: var(--r-sm);
   padding: 0.6rem 1.25rem;
   font-weight: 600;
+  font-size: var(--fs-body);
+  font-family: inherit;
   cursor: pointer;
-  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
+  transition: background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+  box-shadow: var(--sh-primary);
 }
 
 .hotel-card__btn:hover {
   background: linear-gradient(to right, var(--c-primary-700), var(--c-primary-600));
-  box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.4);
   transform: translateY(-1px);
+}
+
+.hotel-card__btn:active {
+  transform: translateY(0);
 }
 
 /* 酒店类型样式 */
