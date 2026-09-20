@@ -1462,16 +1462,6 @@ onUnmounted(() => {
     grid-template-columns: 1fr;
     gap: var(--sp-2);
   }
-
-  /* 窄屏下三组纵向排开本身就高，这里把行距和胶囊内边距一起收紧，
-     让筛选区整体少占约 40px 视口高度 */
-  .filters-container {
-    gap: var(--sp-2);
-  }
-
-  .filter-btn {
-    padding: 0.35rem 0.75rem;
-  }
 }
 
 .filter-label {
@@ -1545,6 +1535,24 @@ onUnmounted(() => {
    色觉障碍用户也能分辨（单选组是互斥切换，语义不同，不加勾） */
 .filter-btn__check {
   font-size: var(--fs-caption);
+}
+
+/* 窄屏收紧。
+   必须放在上面所有 .filter-btn / .filter-label 基础规则之后 ——
+   同优先级下后出现的规则胜出，写在前面会被基础规则盖掉（踩过一次）。 */
+@media (max-width: 767px) {
+  .filters-container {
+    gap: var(--sp-2);
+  }
+
+  .filter-label {
+    font-size: var(--fs-caption);
+  }
+
+  .filter-btn {
+    padding: 0.3rem 0.65rem;
+    font-size: var(--fs-caption);
+  }
 }
 
 /* 已选条件：原实现点完筛选后界面上看不出"我选了什么"，
