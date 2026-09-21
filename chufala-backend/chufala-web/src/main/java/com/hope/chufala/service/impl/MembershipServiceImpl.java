@@ -3,7 +3,7 @@ package com.hope.chufala.service.impl;
 import cn.hutool.core.lang.Snowflake;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.hope.chufala.common.util.ThreadLocalUtils;
-import com.hope.chufala.domain.entity.VipPaymentRecord;
+import com.hope.chufala.model.entity.VipPaymentRecord;
 import com.hope.chufala.mapper.VipPaymentRecordMapper;
 import com.hope.chufala.service.IMembershipService;
 import io.jsonwebtoken.Claims;

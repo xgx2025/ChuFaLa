@@ -1,7 +1,7 @@
 package com.hope.chufala.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
-import com.hope.chufala.domain.entity.UploadedFile;
+import com.hope.chufala.model.entity.UploadedFile;
 import com.hope.chufala.mapper.UploadedFileMapper;
 import com.hope.chufala.service.IUploadedFileService;
 import lombok.extern.slf4j.Slf4j;

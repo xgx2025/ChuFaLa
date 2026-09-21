@@ -1,7 +1,7 @@
 package com.hope.chufala.service;
 
-import com.hope.chufala.domain.entity.AiConversation;
-import com.hope.chufala.domain.entity.AiMessage;
+import com.hope.chufala.model.entity.AiConversation;
+import com.hope.chufala.model.entity.AiMessage;
 
 import java.util.List;
 import java.util.Map;

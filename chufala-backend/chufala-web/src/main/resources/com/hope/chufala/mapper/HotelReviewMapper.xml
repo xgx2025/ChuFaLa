@@ -3,7 +3,7 @@
 <mapper namespace="com.hope.chufala.mapper.HotelReviewMapper">
 
     <!-- 插入评论 -->
-    <insert id="insertComment" parameterType="com.hope.chufala.domain.entity.HotelReview">
+    <insert id="insertComment" parameterType="com.hope.chufala.model.entity.HotelReview">
         INSERT INTO hotel_comment (
             hotel_id,
             score,

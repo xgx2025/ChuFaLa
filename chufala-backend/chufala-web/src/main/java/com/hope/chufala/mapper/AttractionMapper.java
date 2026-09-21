@@ -1,9 +1,9 @@
 package com.hope.chufala.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.hope.chufala.domain.entity.Attraction;
-import com.hope.chufala.domain.entity.Point;
-import com.hope.chufala.domain.vo.AttractionInfo;
+import com.hope.chufala.model.entity.Attraction;
+import com.hope.chufala.model.entity.Point;
+import com.hope.chufala.model.vo.AttractionInfo;
 import org.apache.ibatis.annotations.Mapper;
 
 import javax.annotation.Nullable;

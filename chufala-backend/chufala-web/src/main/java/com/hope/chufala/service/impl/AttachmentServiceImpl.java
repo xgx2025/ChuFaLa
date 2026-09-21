@@ -1,8 +1,8 @@
 package com.hope.chufala.service.impl;
 
 import cn.hutool.core.lang.Snowflake;
-import com.hope.chufala.domain.entity.Attachment;
-import com.hope.chufala.domain.entity.UploadedFile;
+import com.hope.chufala.model.entity.Attachment;
+import com.hope.chufala.model.entity.UploadedFile;
 import com.hope.chufala.mapper.AttachmentMapper;
 import com.hope.chufala.service.IAttachmentService;
 import org.springframework.beans.factory.annotation.Autowired;

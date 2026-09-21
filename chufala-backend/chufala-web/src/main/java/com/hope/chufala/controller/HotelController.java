@@ -2,10 +2,10 @@ package com.hope.chufala.controller;
 
 
 import com.hope.chufala.common.constant.ResultCode;
-import com.hope.chufala.domain.dto.HotelPageQueryDTO;
-import com.hope.chufala.domain.entity.Hotel;
-import com.hope.chufala.domain.vo.PageResult;
-import com.hope.chufala.common.domain.vo.Result;
+import com.hope.chufala.model.dto.HotelPageQueryDTO;
+import com.hope.chufala.model.entity.Hotel;
+import com.hope.chufala.common.model.vo.PageResult;
+import com.hope.chufala.common.model.vo.Result;
 import com.hope.chufala.service.IHotelService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;

@@ -5,10 +5,10 @@ package com.hope.chufala.controller;
 import com.hope.chufala.common.constant.ResultCode;
 import com.hope.chufala.common.exception.InvalidSignatureException;
 import com.hope.chufala.common.util.ThreadLocalUtils;
-import com.hope.chufala.domain.dto.HotelOrderDTO;
-import com.hope.chufala.domain.entity.HotelOrder;
-import com.hope.chufala.domain.vo.PageResult;
-import com.hope.chufala.common.domain.vo.Result;
+import com.hope.chufala.model.dto.HotelOrderDTO;
+import com.hope.chufala.model.entity.HotelOrder;
+import com.hope.chufala.common.model.vo.PageResult;
+import com.hope.chufala.common.model.vo.Result;
 
 import com.hope.chufala.service.IHotelOrderService;
 

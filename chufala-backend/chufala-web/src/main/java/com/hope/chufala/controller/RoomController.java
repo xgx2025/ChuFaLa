@@ -2,8 +2,8 @@ package com.hope.chufala.controller;
 
 
 import com.hope.chufala.common.constant.ResultCode;
-import com.hope.chufala.domain.entity.Room;
-import com.hope.chufala.common.domain.vo.Result;
+import com.hope.chufala.model.entity.Room;
+import com.hope.chufala.common.model.vo.Result;
 import com.hope.chufala.service.IHotelService;
 import com.hope.chufala.service.IRoomService;
 import org.springframework.beans.factory.annotation.Autowired;

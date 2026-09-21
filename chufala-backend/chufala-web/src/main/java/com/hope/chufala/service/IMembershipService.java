@@ -1,7 +1,7 @@
 package com.hope.chufala.service;
 
 
-import com.hope.chufala.domain.entity.VipPaymentRecord;
+import com.hope.chufala.model.entity.VipPaymentRecord;
 
 public interface IMembershipService {
     String createMembershipOrder(Long userId);

@@ -5,7 +5,7 @@
     <!-- 普通分页：查询全部酒店（按ID排序）
          ⚠️ 冗余评论数字段是 review_count，不是 comment_count。
          原来写 comment_count 会直接 Unknown column，GET /hotels 恒 500。 -->
-    <select id="selectAllByPage" resultType="com.hope.chufala.domain.entity.Hotel">
+    <select id="selectAllByPage" resultType="com.hope.chufala.model.entity.Hotel">
         SELECT id,name,address,overall_rating,review_count
         FROM hotel
         ORDER BY id ASC
@@ -13,7 +13,7 @@
     </select>
 
     <!-- 普通分页：按条件、评分排序查询酒店 -->
-    <select id="selectByScoreRankPage" resultType="com.hope.chufala.domain.entity.Hotel">
+    <select id="selectByScoreRankPage" resultType="com.hope.chufala.model.entity.Hotel">
         SELECT id,name,city,address,price,original_price,facilities,stars,overall_rating,review_count,longitude,latitude,hi.image AS mainImage
         FROM hotel LEFT JOIN hotel_image AS hi ON hotel.id = hi.hotel_id AND hi.sort_order = 1
         <where>
@@ -100,14 +100,14 @@
     <select id="findHotelNameAndAddress" resultType="java.util.Map">
         SELECT name,address FROM hotel WHERE id =#{hotelId}
     </select>
-    <select id="findHotelByCity" resultType="com.hope.chufala.domain.vo.HotelInfo">
+    <select id="findHotelByCity" resultType="com.hope.chufala.model.vo.HotelInfo">
         SELECT id,name,price,image,overall_rating AS rating FROM hotel LEFT JOIN hotel_image AS hi ON hotel.id = hi.hotel_id AND hi.sort_order = 1
     </select>
 
-    <select id="findHotelSimpleByCity" resultType="com.hope.chufala.domain.vo.HotelInfo">
+    <select id="findHotelSimpleByCity" resultType="com.hope.chufala.model.vo.HotelInfo">
         SELECT id,name,price,overall_rating AS rating FROM hotel
     </select>
-    <select id="findHotelSimpleById" resultType="com.hope.chufala.domain.vo.HotelInfo">
+    <select id="findHotelSimpleById" resultType="com.hope.chufala.model.vo.HotelInfo">
         SELECT id,name,price,image,overall_rating AS rating
         FROM hotel LEFT JOIN hotel_image AS hi ON hotel.id = hi.hotel_id AND hi.sort_order = 1
         WHERE id = #{id}

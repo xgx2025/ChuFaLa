@@ -1,8 +1,8 @@
 package com.hope.chufala.service;
 
-import com.hope.chufala.domain.dto.HotelOrderDTO;
-import com.hope.chufala.domain.entity.HotelOrder;
-import com.hope.chufala.domain.vo.PageResult;
+import com.hope.chufala.model.dto.HotelOrderDTO;
+import com.hope.chufala.model.entity.HotelOrder;
+import com.hope.chufala.common.model.vo.PageResult;
 
 import javax.annotation.Nullable;
 import java.time.LocalDate;

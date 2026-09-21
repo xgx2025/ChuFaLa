@@ -1,7 +1,7 @@
 package com.hope.chufala.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.hope.chufala.domain.entity.Attachment;
+import com.hope.chufala.model.entity.Attachment;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper

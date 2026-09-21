@@ -3,7 +3,7 @@ package com.hope.chufala.service.impl;
 import cn.hutool.core.lang.Snowflake;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.hope.chufala.common.util.AliOSSUtils;
-import com.hope.chufala.domain.entity.UploadedFile;
+import com.hope.chufala.model.entity.UploadedFile;
 import com.hope.chufala.mapper.UploadedFileMapper;
 import com.hope.chufala.service.IAiService;
 import com.hope.chufala.service.IUploadedFileService;

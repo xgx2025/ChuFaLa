@@ -1,6 +1,6 @@
 package com.hope.chufala.service;
 
-import com.hope.chufala.domain.entity.UploadedFile;
+import com.hope.chufala.model.entity.UploadedFile;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Nullable;

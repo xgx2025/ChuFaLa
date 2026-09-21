@@ -1,11 +1,11 @@
 package com.hope.chufala.service;
 
-import com.hope.chufala.domain.dto.HotelPageQueryDTO;
-import com.hope.chufala.domain.entity.Hotel;
-import com.hope.chufala.domain.entity.HotelReview;
-import com.hope.chufala.domain.entity.Room;
-import com.hope.chufala.domain.vo.HotelInfo;
-import com.hope.chufala.domain.vo.PageResult;
+import com.hope.chufala.model.dto.HotelPageQueryDTO;
+import com.hope.chufala.model.entity.Hotel;
+import com.hope.chufala.model.entity.HotelReview;
+import com.hope.chufala.model.entity.Room;
+import com.hope.chufala.model.vo.HotelInfo;
+import com.hope.chufala.common.model.vo.PageResult;
 
 import java.util.List;
 

@@ -1,6 +1,6 @@
 package com.hope.chufala.controller;
 
-import com.hope.chufala.common.domain.vo.Result;
+import com.hope.chufala.common.model.vo.Result;
 import com.hope.chufala.common.util.ThreadLocalUtils;
 import com.hope.chufala.service.IAlipayService;
 import com.hope.chufala.service.IMembershipService;

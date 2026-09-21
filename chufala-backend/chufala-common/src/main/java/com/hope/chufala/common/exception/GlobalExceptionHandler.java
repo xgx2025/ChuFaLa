@@ -2,7 +2,7 @@ package com.hope.chufala.common.exception;
 
 
 import com.hope.chufala.common.constant.ResultCode;
-import com.hope.chufala.common.domain.vo.Result;
+import com.hope.chufala.common.model.vo.Result;
 import com.hope.chufala.common.exception.biz.BizException;
 import com.hope.chufala.common.exception.user.*;
 import jakarta.servlet.http.HttpServletRequest;

@@ -2,11 +2,11 @@ package com.hope.chufala.service.impl;
 
 import com.hope.chufala.common.exception.LocationUnavailableException;
 import com.hope.chufala.common.util.Gcj02DistanceCalculator;
-import com.hope.chufala.domain.dto.AttractionPageQueryDTO;
-import com.hope.chufala.domain.entity.Attraction;
-import com.hope.chufala.domain.entity.Point;
-import com.hope.chufala.domain.vo.AttractionInfo;
-import com.hope.chufala.domain.vo.PageResult;
+import com.hope.chufala.model.dto.AttractionPageQueryDTO;
+import com.hope.chufala.model.entity.Attraction;
+import com.hope.chufala.model.entity.Point;
+import com.hope.chufala.model.vo.AttractionInfo;
+import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.mapper.AttractionMapper;
 import com.hope.chufala.service.IAttractionService;
 import lombok.extern.slf4j.Slf4j;

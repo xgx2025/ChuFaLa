@@ -1,8 +1,8 @@
 package com.hope.chufala.service;
 
-import com.hope.chufala.domain.dto.RegisterFormDTO;
-import com.hope.chufala.domain.dto.UserUpdateFromDTO;
-import com.hope.chufala.domain.entity.User;
+import com.hope.chufala.model.dto.RegisterFormDTO;
+import com.hope.chufala.model.dto.UserUpdateFromDTO;
+import com.hope.chufala.model.entity.User;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface IUserService {

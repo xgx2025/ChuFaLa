@@ -1,6 +1,6 @@
 package com.hope.chufala.service.impl;
 
-import com.hope.chufala.domain.entity.PayRecord;
+import com.hope.chufala.model.entity.PayRecord;
 import com.hope.chufala.mapper.PayRecordMapper;
 import com.hope.chufala.service.IPayRecordService;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -3,10 +3,10 @@ package com.hope.chufala.controller;
 
 
 import com.hope.chufala.common.constant.ResultCode;
-import com.hope.chufala.domain.dto.AttractionPageQueryDTO;
-import com.hope.chufala.domain.entity.Attraction;
-import com.hope.chufala.domain.vo.PageResult;
-import com.hope.chufala.common.domain.vo.Result;
+import com.hope.chufala.model.dto.AttractionPageQueryDTO;
+import com.hope.chufala.model.entity.Attraction;
+import com.hope.chufala.common.model.vo.PageResult;
+import com.hope.chufala.common.model.vo.Result;
 import com.hope.chufala.service.IAttractionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;

@@ -1,8 +1,8 @@
 package com.hope.chufala.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.hope.chufala.domain.entity.Hotel;
-import com.hope.chufala.domain.vo.HotelInfo;
+import com.hope.chufala.model.entity.Hotel;
+import com.hope.chufala.model.vo.HotelInfo;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

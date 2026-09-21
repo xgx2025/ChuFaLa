@@ -1,0 +1,33 @@
+package com.hope.chufala.common.model.vo;
+
+import com.hope.chufala.common.constant.ResultCode;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Result {
+    private Integer code;
+    private String message;
+    private Object data;
+
+    public static Result ok(Object data) {
+        return new Result(0, null, data);
+    }
+
+    public static Result ok(Object data,String message){
+        return new Result(0,message,data);
+    }
+    public static  Result fail(ResultCode resultCode){
+        Integer code = resultCode.getCode();
+        String message = resultCode.getMessage();
+        return new Result(code,message,null);
+    }
+
+    public static Result fail(ResultCode resultCode,String message){
+        Integer code = resultCode.getCode();
+        return new Result(code,message,null);
+    }
+}

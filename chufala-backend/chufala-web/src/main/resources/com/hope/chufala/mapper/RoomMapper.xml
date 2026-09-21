@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.hope.chufala.mapper.RoomMapper">
 
-    <select id="selectRoomTypeList" resultType="com.hope.chufala.domain.entity.Room">
+    <select id="selectRoomTypeList" resultType="com.hope.chufala.model.entity.Room">
         SELECT id,name,price,area,facilities,bed,people,floor,breakfast,status,stock
         FROM room
         WHERE hotel_id = #{hotelId}

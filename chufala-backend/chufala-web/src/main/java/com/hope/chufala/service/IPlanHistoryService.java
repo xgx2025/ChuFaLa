@@ -1,8 +1,8 @@
 package com.hope.chufala.service;
 
-import com.hope.chufala.domain.dto.UserPlanDTO;
-import com.hope.chufala.domain.entity.PlanHistory;
-import com.hope.chufala.domain.vo.TravelItinerary;
+import com.hope.chufala.model.dto.UserPlanDTO;
+import com.hope.chufala.model.entity.PlanHistory;
+import com.hope.chufala.model.vo.TravelItinerary;
 
 import java.time.LocalDateTime;
 import java.util.List;

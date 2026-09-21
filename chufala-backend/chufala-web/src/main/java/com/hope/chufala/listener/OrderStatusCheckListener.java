@@ -1,8 +1,8 @@
 package com.hope.chufala.listener;
 
 import com.hope.chufala.common.util.DelayMessageProcessor;
-import com.hope.chufala.domain.MultiDelayMessage;
-import com.hope.chufala.domain.entity.HotelOrder;
+import com.hope.chufala.mq.MultiDelayMessage;
+import com.hope.chufala.model.entity.HotelOrder;
 import com.hope.chufala.service.IHotelOrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;

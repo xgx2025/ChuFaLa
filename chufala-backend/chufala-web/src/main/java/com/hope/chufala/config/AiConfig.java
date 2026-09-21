@@ -1,7 +1,7 @@
 package com.hope.chufala.config;
 
-import com.hope.chufala.tool.AttractionTools;
-import com.hope.chufala.tool.MapTools;
+import com.hope.chufala.agent.tool.AttractionTools;
+import com.hope.chufala.agent.tool.MapTools;
 import jakarta.annotation.Resource;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
