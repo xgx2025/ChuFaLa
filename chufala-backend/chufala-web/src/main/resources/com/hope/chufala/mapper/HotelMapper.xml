@@ -100,14 +100,14 @@
     <select id="findHotelNameAndAddress" resultType="java.util.Map">
         SELECT name,address FROM hotel WHERE id =#{hotelId}
     </select>
-    <select id="findHotelByCity" resultType="com.hope.chufala.model.vo.HotelInfo">
+    <select id="findHotelByCity" resultType="com.hope.chufala.model.vo.HotelInfoVO">
         SELECT id,name,price,image,overall_rating AS rating FROM hotel LEFT JOIN hotel_image AS hi ON hotel.id = hi.hotel_id AND hi.sort_order = 1
     </select>
 
-    <select id="findHotelSimpleByCity" resultType="com.hope.chufala.model.vo.HotelInfo">
+    <select id="findHotelSimpleByCity" resultType="com.hope.chufala.model.vo.HotelInfoVO">
         SELECT id,name,price,overall_rating AS rating FROM hotel
     </select>
-    <select id="findHotelSimpleById" resultType="com.hope.chufala.model.vo.HotelInfo">
+    <select id="findHotelSimpleById" resultType="com.hope.chufala.model.vo.HotelInfoVO">
         SELECT id,name,price,image,overall_rating AS rating
         FROM hotel LEFT JOIN hotel_image AS hi ON hotel.id = hi.hotel_id AND hi.sort_order = 1
         WHERE id = #{id}

@@ -49,52 +49,52 @@ public class CalculateBudgetNode implements NodeAction<TravelPlanState> {
         //计算门票、酒店费用
         double attractionCost = 0.0;
         double hotelCost = 0.0;
-        TravelItinerary itinerary = state.itinerarySkeleton();
-        List<DailySchedule> dailySchedules = itinerary.getDailySchedules();
+        TravelItineraryVO itinerary = state.itinerarySkeleton();
+        List<DailyScheduleVO> dailySchedules = itinerary.getDailySchedules();
         for (int i = 0; i < dailySchedules.size(); i++) {
-            DailySchedule dailySchedule = dailySchedules.get(i);
-            List<AttractionInfo> activities = dailySchedule.getActivities();
+            DailyScheduleVO dailySchedule = dailySchedules.get(i);
+            List<AttractionInfoVO> activities = dailySchedule.getActivities();
             for (int j = 0; j < activities.size(); j++) {
-                AttractionInfo attraction = activities.get(j);
+                AttractionInfoVO attraction = activities.get(j);
                 attractionCost += attraction.getPrice()*people;
             }
             Double hotelPrice = 0.0;
-            List<HotelInfo> recommendHotels = dailySchedule.getRecommendHotels();
+            List<HotelInfoVO> recommendHotels = dailySchedule.getRecommendHotels();
             for (int j = 0; j < recommendHotels.size(); j++) {
-                HotelInfo hotel = recommendHotels.get(j);
+                HotelInfoVO hotel = recommendHotels.get(j);
                 hotelPrice += hotel.getPrice();
             }
             hotelPrice /= recommendHotels.size();
             hotelCost += hotelPrice * people;
         }
 
-        List<BudgetItem> budgetList = new ArrayList<>();
+        List<BudgetItemVO> budgetList = new ArrayList<>();
         double totalCost = attractionCost + hotelCost;
         if (response != null){
             double trafficCost = response.budgetList.get(0).amount;
             double foodCost = response.budgetList.get(1).amount;
             totalCost += (trafficCost + foodCost);
 
-            budgetList.add(new BudgetItem("门票费用", attractionCost, attractionCost/totalCost));
-            budgetList.add(new BudgetItem("住宿费用", Math.round(hotelCost*100.0)/100.0, hotelCost/totalCost));
+            budgetList.add(new BudgetItemVO("门票费用", attractionCost, attractionCost/totalCost));
+            budgetList.add(new BudgetItemVO("住宿费用", Math.round(hotelCost*100.0)/100.0, hotelCost/totalCost));
 
             if (response.budgetList.get(0).category.equals("交通费用")){
-                budgetList.add(new BudgetItem("交通费用", response.budgetList.get(0).amount, trafficCost/totalCost));
+                budgetList.add(new BudgetItemVO("交通费用", response.budgetList.get(0).amount, trafficCost/totalCost));
             }else{
-                budgetList.add(new BudgetItem("交通费用", response.budgetList.get(1).amount, trafficCost/totalCost));
+                budgetList.add(new BudgetItemVO("交通费用", response.budgetList.get(1).amount, trafficCost/totalCost));
             }
             //计算比率
 
             if (response.budgetList.get(0).category.equals("餐饮费用")){
-                budgetList.add(new BudgetItem("餐饮费用", response.budgetList.get(0).amount, foodCost/totalCost));
+                budgetList.add(new BudgetItemVO("餐饮费用", response.budgetList.get(0).amount, foodCost/totalCost));
             }else{
-                budgetList.add(new BudgetItem("餐饮费用", response.budgetList.get(1).amount, foodCost/totalCost));
+                budgetList.add(new BudgetItemVO("餐饮费用", response.budgetList.get(1).amount, foodCost/totalCost));
             }
             //计算比率
         }
         log.info("BudgetList{}", budgetList);
         log.info("预算计算结果: {}", budgetList);
-        itinerary.setBudgetSummary(new BudgetSummary(totalCost, budgetList));
+        itinerary.setBudgetSummary(new BudgetSummaryVO(totalCost, budgetList));
         sseManager.sendProgress(state.taskId(), "CalculateBudgetNode", "预算计算完成");
         return Map.of(TravelPlanState.ITINERARY_SKELETON, itinerary);
     }

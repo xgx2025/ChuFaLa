@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-public class AiConversationImpl implements IAiConversationService {
+public class AiConversationServiceImpl implements IAiConversationService {
 
     @Autowired
     private AiConversationMapper aiConversationMapper;

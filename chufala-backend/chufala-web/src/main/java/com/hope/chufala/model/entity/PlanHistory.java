@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
-import com.hope.chufala.model.vo.TravelItinerary;
+import com.hope.chufala.model.vo.TravelItineraryVO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,6 +13,9 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.hope.chufala.model.vo.PointVO;
+import com.hope.chufala.model.dto.PayParamDTO;
+import com.hope.chufala.infra.RedisData;
 
 @Data
 @NoArgsConstructor
@@ -31,6 +34,6 @@ public class PlanHistory {
     private Double budget;
     private String planContent;
     @TableField(value = "plan_result",typeHandler = JacksonTypeHandler.class)
-    private TravelItinerary planResult;
+    private TravelItineraryVO planResult;
     private LocalDateTime createTime;
 }

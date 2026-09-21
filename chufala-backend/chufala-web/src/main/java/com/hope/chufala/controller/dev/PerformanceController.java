@@ -1,8 +1,8 @@
 package com.hope.chufala.controller.dev;
 
 import com.hope.chufala.common.util.SmartList;
-import com.hope.chufala.model.vo.TouristAttraction;
-import com.hope.chufala.perf.ListPerformanceTest;
+import com.hope.chufala.model.vo.TouristAttractionVO;
+import com.hope.chufala.perf.ListBenchmark;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,14 +20,14 @@ public class PerformanceController {
     public String showPerformance(Model model, @RequestParam(defaultValue = "100000") int dataSize) {
 
         // 执行性能测试
-        List<TouristAttraction> arrayList = new ArrayList<>();
-        List<TouristAttraction> linkedList = new LinkedList<>();
-        List<TouristAttraction> smartList = new SmartList<>();
+        List<TouristAttractionVO> arrayList = new ArrayList<>();
+        List<TouristAttractionVO> linkedList = new LinkedList<>();
+        List<TouristAttractionVO> smartList = new SmartList<>();
 
         // 传入动态数据大小
-        long arrayListTime = ListPerformanceTest.testPerformance(arrayList, dataSize);
-        long linkedListTime = ListPerformanceTest.testPerformance(linkedList, dataSize);
-        long smartListTime = ListPerformanceTest.testPerformance(smartList, dataSize);
+        long arrayListTime = ListBenchmark.testPerformance(arrayList, dataSize);
+        long linkedListTime = ListBenchmark.testPerformance(linkedList, dataSize);
+        long smartListTime = ListBenchmark.testPerformance(smartList, dataSize);
 
         // 确保时间值至少为1（避免总和为0）
         arrayListTime = Math.max(arrayListTime, 1);

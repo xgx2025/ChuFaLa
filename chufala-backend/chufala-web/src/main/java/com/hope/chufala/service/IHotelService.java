@@ -4,7 +4,7 @@ import com.hope.chufala.model.dto.HotelPageQueryDTO;
 import com.hope.chufala.model.entity.Hotel;
 import com.hope.chufala.model.entity.HotelReview;
 import com.hope.chufala.model.entity.Room;
-import com.hope.chufala.model.vo.HotelInfo;
+import com.hope.chufala.model.vo.HotelInfoVO;
 import com.hope.chufala.common.model.vo.PageResult;
 
 import java.util.List;
@@ -27,14 +27,14 @@ public interface IHotelService {
 
     Room getRoomInfo(Long id);
 
-    List<HotelInfo> findHotelByCity(String city);
+    List<HotelInfoVO> findHotelByCity(String city);
 
-//    List<HotelInfo> findHotelByCity(String city);
+//    List<HotelInfoVO> findHotelByCity(String city);
 
     // 提交评论（自动更新酒店评分）
     void submitReview(HotelReview review);
 
-    List<HotelInfo> findHotelSimpleByCity(String city);
+    List<HotelInfoVO> findHotelSimpleByCity(String city);
 
-    HotelInfo findHotelSimpleById(Long id);
+    HotelInfoVO findHotelSimpleById(Long id);
 }

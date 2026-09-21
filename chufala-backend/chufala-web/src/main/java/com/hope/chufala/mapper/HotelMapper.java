@@ -2,7 +2,7 @@ package com.hope.chufala.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hope.chufala.model.entity.Hotel;
-import com.hope.chufala.model.vo.HotelInfo;
+import com.hope.chufala.model.vo.HotelInfoVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -56,9 +56,9 @@ public interface HotelMapper extends BaseMapper<Hotel> {
 
     Map<String,String>  findHotelNameAndAddress(Long hotelId);
 
-    List<HotelInfo> findHotelByCity(String city);
+    List<HotelInfoVO> findHotelByCity(String city);
 
-    List<HotelInfo> findHotelSimpleByCity(String city);
+    List<HotelInfoVO> findHotelSimpleByCity(String city);
 
-    HotelInfo findHotelSimpleById(Long id);
+    HotelInfoVO findHotelSimpleById(Long id);
 }

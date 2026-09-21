@@ -1,7 +1,7 @@
 package com.hope.chufala.adapter;
 
 import com.hope.chufala.model.entity.HotelOrder;
-import com.hope.chufala.model.entity.PayParam;
+import com.hope.chufala.model.dto.PayParamDTO;
 import com.hope.chufala.model.entity.PayRecord;
 import com.hope.chufala.service.IHotelOrderService;
 import com.hope.chufala.service.IPayRecordService;
@@ -20,7 +20,7 @@ public class HotelAdapter implements BizAdapter {
     private IPayRecordService payRecordService;
 
     @Override
-    public PayParam buildPayParam(Long orderId) {
+    public PayParamDTO buildPayParam(Long orderId) {
         // 1. 查询酒店订单（业务逻辑）
         HotelOrder order = hotelOrderService.getByOrderId(orderId);
         if (order == null) {
@@ -28,7 +28,7 @@ public class HotelAdapter implements BizAdapter {
         }
 
         // 2. 转换为统一支付参数（与业务无关）
-        PayParam param = new PayParam();
+        PayParamDTO param = new PayParamDTO();
         param.setOrderId(order.getOrderId()); // 商户订单号（带业务前缀）
         param.setMoney(BigDecimal.valueOf(order.getTotalPrice())); // 支付金额
         param.setSubject("酒店预订：" + order.getTitle()); // 订单标题

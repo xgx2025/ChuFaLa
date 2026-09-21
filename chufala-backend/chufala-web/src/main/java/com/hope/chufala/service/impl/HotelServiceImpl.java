@@ -9,7 +9,7 @@ import com.hope.chufala.model.dto.HotelPageQueryDTO;
 import com.hope.chufala.model.entity.Hotel;
 import com.hope.chufala.model.entity.HotelReview;
 import com.hope.chufala.model.entity.Room;
-import com.hope.chufala.model.vo.HotelInfo;
+import com.hope.chufala.model.vo.HotelInfoVO;
 import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.mapper.HotelMapper;
 
@@ -243,23 +243,23 @@ public class HotelServiceImpl implements IHotelService {
     }
 
     @Override
-    public List<HotelInfo> findHotelByCity(String city) {
+    public List<HotelInfoVO> findHotelByCity(String city) {
         return hotelMapper.findHotelByCity(city);
     }
 
     @Override
-    public List<HotelInfo> findHotelSimpleByCity(String city){
+    public List<HotelInfoVO> findHotelSimpleByCity(String city){
         return hotelMapper.findHotelSimpleByCity(city);
     }
 
     @Override
-    public HotelInfo findHotelSimpleById(Long id) {
+    public HotelInfoVO findHotelSimpleById(Long id) {
         return hotelMapper.findHotelSimpleById(id);
     }
 
 //    @Override
-//    public List<HotelInfo> findHotelByCity(String city) {
-//        QueryWrapper<HotelInfo> queryWrapper = new QueryWrapper<>();
+//    public List<HotelInfoVO> findHotelByCity(String city) {
+//        QueryWrapper<HotelInfoVO> queryWrapper = new QueryWrapper<>();
 //        queryWrapper.like("address", city);
 //        return hotelMapper.selectList(queryWrapper);
 //    }

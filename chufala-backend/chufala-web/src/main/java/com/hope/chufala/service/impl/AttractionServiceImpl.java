@@ -4,8 +4,8 @@ import com.hope.chufala.common.exception.LocationUnavailableException;
 import com.hope.chufala.common.util.Gcj02DistanceCalculator;
 import com.hope.chufala.model.dto.AttractionPageQueryDTO;
 import com.hope.chufala.model.entity.Attraction;
-import com.hope.chufala.model.entity.Point;
-import com.hope.chufala.model.vo.AttractionInfo;
+import com.hope.chufala.model.vo.PointVO;
+import com.hope.chufala.model.vo.AttractionInfoVO;
 import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.mapper.AttractionMapper;
 import com.hope.chufala.service.IAttractionService;
@@ -63,18 +63,18 @@ public class AttractionServiceImpl implements IAttractionService {
     }
 
     @Override
-    public List<AttractionInfo> queryAttractionByCity(String city) {
+    public List<AttractionInfoVO> queryAttractionByCity(String city) {
         return attractionMapper.selectAttractionByCity(city);
 
     }
 
     @Override
-    public List<AttractionInfo> queryAttractionSimpleByCity(String name) {
+    public List<AttractionInfoVO> queryAttractionSimpleByCity(String name) {
         return attractionMapper.selectAttractionSimpleByCity(name);
     }
 
     @Override
-    public AttractionInfo queryAttractionInfoById(Long id) {
+    public AttractionInfoVO queryAttractionInfoById(Long id) {
         return attractionMapper.queryAttractionInfoById(id);
     }
 
@@ -96,7 +96,7 @@ public class AttractionServiceImpl implements IAttractionService {
 
     @Override
     public Double[] queryAttractionPositionById(Long id) {
-        Point point = attractionMapper.queryAttractionPositionById(id);
+        PointVO point = attractionMapper.queryAttractionPositionById(id);
         Double[] position = new Double[2];
         position[0] = point.getLongitude();
         position[1] = point.getLatitude();

@@ -6,7 +6,7 @@ import com.alipay.api.DefaultAlipayClient;
 import com.alipay.api.request.AlipayTradePagePayRequest;
 import com.alipay.easysdk.factory.Factory;
 import com.alipay.easysdk.kernel.Config;
-import com.hope.chufala.model.entity.PayParam;
+import com.hope.chufala.model.dto.PayParamDTO;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
@@ -74,7 +74,7 @@ public class AlipayTemplate {
     }
 
 
-    public String pay(PayParam payParam) throws AlipayApiException {
+    public String pay(PayParamDTO payParam) throws AlipayApiException {
 //        System.out.println(appId);
 //        System.out.println(merchantPrivateKey);
 //        System.out.println(alipayPublicKey);

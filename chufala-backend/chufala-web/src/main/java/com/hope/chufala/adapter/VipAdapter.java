@@ -9,6 +9,9 @@ import com.hope.chufala.service.IMembershipService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.hope.chufala.model.vo.PointVO;
+import com.hope.chufala.model.dto.PayParamDTO;
+import com.hope.chufala.infra.RedisData;
 
 @Service
 public class VipAdapter implements BizAdapter{
@@ -21,7 +24,7 @@ public class VipAdapter implements BizAdapter{
     private UserMapper userMapper;
 
     @Override
-    public PayParam buildPayParam(Long orderId) {
+    public PayParamDTO buildPayParam(Long orderId) {
         // 1. 查询酒店订单（业务逻辑）
         VipPaymentRecord order = membershipService.getRecordById(orderId);
         if (order == null) {
@@ -29,7 +32,7 @@ public class VipAdapter implements BizAdapter{
         }
 
         // 2. 转换为统一支付参数（与业务无关）
-        PayParam param = new PayParam();
+        PayParamDTO param = new PayParamDTO();
         param.setOrderId(order.getOutTradeNo()); // 商户订单号（带业务前缀）
         param.setMoney(order.getTotalAmount()); // 支付金额
         param.setSubject("会员订阅"); // 订单标题

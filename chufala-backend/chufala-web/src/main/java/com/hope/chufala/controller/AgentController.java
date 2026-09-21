@@ -11,7 +11,7 @@ import com.hope.chufala.model.entity.AiMessage;
 import com.hope.chufala.model.entity.PlanHistory;
 import com.hope.chufala.common.model.vo.Result;
 import com.hope.chufala.model.entity.UploadedFile;
-import com.hope.chufala.model.vo.TravelItinerary;
+import com.hope.chufala.model.vo.TravelItineraryVO;
 import com.hope.chufala.service.*;
 import com.hope.chufala.agent.AgentService;
 import com.hope.chufala.agent.tool.*;
@@ -74,7 +74,7 @@ public class AgentController {
     @Autowired
     private HotelInfoTools hotelInfoTools;
     @Autowired
-    private OtherTools otherTools;
+    private TimeTools otherTools;
 
     private static final String SYSTEM_PROMPT =
             """
@@ -165,7 +165,7 @@ public class AgentController {
      */
     @GetMapping("/plan/{id}")
     public Result queryPlanResult(@PathVariable Long id) {
-        TravelItinerary planResult = planHistoryService.queryPlanResult(id);
+        TravelItineraryVO planResult = planHistoryService.queryPlanResult(id);
         log.info("规划结果：{}", planResult);
         return Result.ok(planResult);
     }

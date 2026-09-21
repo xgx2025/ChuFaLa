@@ -3,9 +3,9 @@ package com.hope.chufala;
 import cn.hutool.core.util.IdUtil;
 import com.hope.chufala.common.util.EmailVerificationCodeUtils;
 import com.hope.chufala.common.util.Gcj02DistanceCalculator;
-import com.hope.chufala.model.vo.AttractionInfo;
-import com.hope.chufala.model.vo.HotelInfo;
-import com.hope.chufala.model.vo.TravelItinerary;
+import com.hope.chufala.model.vo.AttractionInfoVO;
+import com.hope.chufala.model.vo.HotelInfoVO;
+import com.hope.chufala.model.vo.TravelItineraryVO;
 import com.hope.chufala.service.IAttractionService;
 import com.hope.chufala.mq.MessageProducer;
 import com.hope.chufala.agent.AgentService;
@@ -69,7 +69,7 @@ public class ChufalaApplicationTest {
 
     @Test
     void testQueryAttraction(){
-        List<AttractionInfo> list=attractionService.queryAttractionByCity("张家界");
+        List<AttractionInfoVO> list=attractionService.queryAttractionByCity("张家界");
         System.out.println(list);
     }
 
@@ -83,7 +83,7 @@ public class ChufalaApplicationTest {
 //        userPlanDTO.setStartDate(now.toString());
 //        userPlanDTO.setDayNum("3");
 //        try {
-//            TravelItinerary travelItinerary = agentService.planTravel(userPlanDTO,new SseEmitter(60L));
+//            TravelItineraryVO travelItinerary = agentService.planTravel(userPlanDTO,new SseEmitter(60L));
 //            log.info("测试结果：{}",travelItinerary);
 //        } catch (GraphStateException e) {
 //            throw new RuntimeException(e);
@@ -92,7 +92,7 @@ public class ChufalaApplicationTest {
 
     @Test
     void testStructuredOutput(){
-        BeanOutputConverter<TravelItinerary> converter = new BeanOutputConverter<>(TravelItinerary.class);
+        BeanOutputConverter<TravelItineraryVO> converter = new BeanOutputConverter<>(TravelItineraryVO.class);
         String format = converter.getFormat();
         System.out.println(format);
 
@@ -128,7 +128,7 @@ public class ChufalaApplicationTest {
 
     @Test
     void testCandidateHotel(){
-        List<HotelInfo> hotelInfoList = hotelService.findHotelSimpleByCity("张家界");
+        List<HotelInfoVO> hotelInfoList = hotelService.findHotelSimpleByCity("张家界");
         System.out.println(hotelInfoList);
     }
 

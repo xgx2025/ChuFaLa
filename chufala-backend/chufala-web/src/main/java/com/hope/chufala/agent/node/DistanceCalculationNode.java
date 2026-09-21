@@ -2,9 +2,9 @@ package com.hope.chufala.agent.node;
 
 
 import com.hope.chufala.common.util.Gcj02DistanceCalculator;
-import com.hope.chufala.model.vo.AttractionInfo;
-import com.hope.chufala.model.vo.DailySchedule;
-import com.hope.chufala.model.vo.TravelItinerary;
+import com.hope.chufala.model.vo.AttractionInfoVO;
+import com.hope.chufala.model.vo.DailyScheduleVO;
+import com.hope.chufala.model.vo.TravelItineraryVO;
 import com.hope.chufala.service.IAttractionService;
 import com.hope.chufala.agent.TravelPlanState;
 import lombok.AllArgsConstructor;
@@ -29,19 +29,19 @@ public class DistanceCalculationNode implements NodeAction<TravelPlanState> {
         log.info("===DistanceCalculateNode节点===");
         log.info("开始计算景点之间的距离和耗时");
         //获取景点列表
-        TravelItinerary travelItinerary = state.itinerarySkeleton();
-        List<DailySchedule> dailyScheduleList = travelItinerary.getDailySchedules();
+        TravelItineraryVO travelItinerary = state.itinerarySkeleton();
+        List<DailyScheduleVO> dailyScheduleList = travelItinerary.getDailySchedules();
         //填充地理信息
         for (int i = 0; i < dailyScheduleList.size(); i++) {
-            List<AttractionInfo> activities = dailyScheduleList.get(i).getActivities();
+            List<AttractionInfoVO> activities = dailyScheduleList.get(i).getActivities();
             for (int j = 0; j < activities.size(); j++) {
-                AttractionInfo attractionInfo = activities.get(j);
+                AttractionInfoVO attractionInfo = activities.get(j);
                 Double[] position = attractionService.queryAttractionPositionById(Long.valueOf(attractionInfo.getId()));
                 attractionInfo.setPosition(position);
                 DecimalFormat df = new DecimalFormat("#.00");
                 DecimalFormat df2 = new DecimalFormat("#");
                 if (j!=0){
-                    AttractionInfo preAttractionInfo = activities.get(j - 1);
+                    AttractionInfoVO preAttractionInfo = activities.get(j - 1);
                     Double[] position2 = attractionService.queryAttractionPositionById(Long.valueOf(preAttractionInfo.getId()));
                     Double distance = Gcj02DistanceCalculator.calculateDistance(position, position2);
                     preAttractionInfo.setDistance(df.format(distance)+"km");

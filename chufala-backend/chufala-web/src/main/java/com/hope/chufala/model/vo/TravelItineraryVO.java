@@ -10,9 +10,9 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class TravelItinerary implements Serializable {
+public class TravelItineraryVO implements Serializable {
     private static final long serialVersionUID = 1L;
-    private List<DailySchedule> dailySchedules;
-    private BudgetSummary budgetSummary;
+    private List<DailyScheduleVO> dailySchedules;
+    private BudgetSummaryVO budgetSummary;
 
 }

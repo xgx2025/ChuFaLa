@@ -1,7 +1,7 @@
 package com.hope.chufala.agent;
 
 import com.hope.chufala.model.dto.UserPlanDTO;
-import com.hope.chufala.model.vo.TravelItinerary;
+import com.hope.chufala.model.vo.TravelItineraryVO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -26,7 +26,7 @@ public class AgentTask {
     /**
      * 行程规划结果
      */
-    private TravelItinerary result;
+    private TravelItineraryVO result;
 
     public AgentTask(String taskId, UserPlanDTO userPlan, TaskStatus status) {
         this.taskId = taskId;

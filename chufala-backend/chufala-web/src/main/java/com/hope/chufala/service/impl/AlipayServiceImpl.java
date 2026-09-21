@@ -4,7 +4,7 @@ import com.alipay.api.AlipayApiException;
 import com.alipay.easysdk.factory.Factory;
 import com.hope.chufala.common.util.EmailUtils;
 import com.hope.chufala.common.util.ThreadLocalUtils;
-import com.hope.chufala.model.entity.PayParam;
+import com.hope.chufala.model.dto.PayParamDTO;
 import com.hope.chufala.model.entity.PayRecord;
 import com.hope.chufala.adapter.BizAdapterFactory;
 import com.hope.chufala.mapper.PayRecordMapper;
@@ -49,7 +49,7 @@ public class AlipayServiceImpl implements IAlipayService {
     public String createPay(String bizType, Long orderId) {
         // 1. 通过业务适配器获取统一支付参数（隔离业务差异）
         BizAdapter adapter = bizAdapterFactory.getAdapter(bizType);
-        PayParam payParam = adapter.buildPayParam(orderId); // 由业务适配器转换参数
+        PayParamDTO payParam = adapter.buildPayParam(orderId); // 由业务适配器转换参数
 
         // 2. 生成支付记录（通用逻辑：记录支付状态）
         PayRecord record = new PayRecord();

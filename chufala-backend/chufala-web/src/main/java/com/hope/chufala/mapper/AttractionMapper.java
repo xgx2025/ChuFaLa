@@ -2,8 +2,8 @@ package com.hope.chufala.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hope.chufala.model.entity.Attraction;
-import com.hope.chufala.model.entity.Point;
-import com.hope.chufala.model.vo.AttractionInfo;
+import com.hope.chufala.model.vo.PointVO;
+import com.hope.chufala.model.vo.AttractionInfoVO;
 import org.apache.ibatis.annotations.Mapper;
 
 import javax.annotation.Nullable;
@@ -34,15 +34,15 @@ public interface AttractionMapper extends BaseMapper<Attraction> {
      */
     Long selectAttractionCount(@Nullable String keyword, @Nullable Integer stars, @Nullable String city, @Nullable List<String> tags);
 
-    List<AttractionInfo> selectAttractionByCity(String city);
+    List<AttractionInfoVO> selectAttractionByCity(String city);
 
     List<String> findAttractionImage(Long attractionId);
 
-    List<AttractionInfo> selectAttractionSimpleByCity(String name);
+    List<AttractionInfoVO> selectAttractionSimpleByCity(String name);
 
     String queryAttractionNameById(Long id);
 
-    Point queryAttractionPositionById(Long id);
+    PointVO queryAttractionPositionById(Long id);
 
-    AttractionInfo queryAttractionInfoById(Long id);
+    AttractionInfoVO queryAttractionInfoById(Long id);
 }

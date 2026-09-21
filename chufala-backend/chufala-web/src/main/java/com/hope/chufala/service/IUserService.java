@@ -1,7 +1,7 @@
 package com.hope.chufala.service;
 
 import com.hope.chufala.model.dto.RegisterFormDTO;
-import com.hope.chufala.model.dto.UserUpdateFromDTO;
+import com.hope.chufala.model.dto.UserUpdateFormDTO;
 import com.hope.chufala.model.entity.User;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -26,7 +26,7 @@ public interface IUserService {
 
     boolean isVipUser(Long userId);
 
-    boolean updateById(UserUpdateFromDTO user);
+    boolean updateById(UserUpdateFormDTO user);
 
     String uploadAvatar(MultipartFile avatar);
 }

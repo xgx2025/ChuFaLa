@@ -5,7 +5,7 @@ import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.hope.chufala.model.dto.UserPlanDTO;
 import com.hope.chufala.model.entity.PlanHistory;
-import com.hope.chufala.model.vo.TravelItinerary;
+import com.hope.chufala.model.vo.TravelItineraryVO;
 import com.hope.chufala.mapper.PlanHistoryMapper;
 import com.hope.chufala.service.IPlanHistoryService;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +20,7 @@ public class PlanHistoryServiceImpl implements IPlanHistoryService {
     @Autowired
     private PlanHistoryMapper planHistoryMapper;
     @Override
-    public void addHistory(Long userId, LocalDateTime createTime, UserPlanDTO userPlan,String planContent, TravelItinerary plan) {
+    public void addHistory(Long userId, LocalDateTime createTime, UserPlanDTO userPlan,String planContent, TravelItineraryVO plan) {
         //1. 获取雪花算法实例（<默认>机房ID=0，机器ID=0）
         Snowflake snowFlake = IdUtil.getSnowflake(1,1);
         PlanHistory history = new PlanHistory();
@@ -49,7 +49,7 @@ public class PlanHistoryServiceImpl implements IPlanHistoryService {
     }
 
     @Override
-    public TravelItinerary queryPlanResult(Long id) {
+    public TravelItineraryVO queryPlanResult(Long id) {
         PlanHistory planHistory = planHistoryMapper.selectById(id);
         log.info("规划结果：{}", planHistory);
         return planHistory.getPlanResult();

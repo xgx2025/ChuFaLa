@@ -1,15 +1,15 @@
 package com.hope.chufala.model.vo;
 
-public class TouristAttraction {
+public class TouristAttractionVO {
         private Long id;
         private String name;
         private String location;
         private Double rating;
         private String description;
 
-        public TouristAttraction() {}
+        public TouristAttractionVO() {}
 
-        public TouristAttraction(Long id, String name, String location, Double rating, String description) {
+        public TouristAttractionVO(Long id, String name, String location, Double rating, String description) {
             this.id = id;
             this.name = name;
             this.location = location;

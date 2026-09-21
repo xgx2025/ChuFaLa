@@ -1,6 +1,6 @@
 package com.hope.chufala.infra;
 
-import com.hope.chufala.model.vo.TravelItinerary;
+import com.hope.chufala.model.vo.TravelItineraryVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -61,7 +61,7 @@ public class SseManager implements Serializable {
      * @param taskId
      * @param result
      */
-    public void completeTask(String taskId, TravelItinerary result){
+    public void completeTask(String taskId, TravelItineraryVO result){
         SseEmitter emitter = emitters.get(taskId);
         if (emitter != null){
             try{

@@ -5,6 +5,9 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import com.hope.chufala.model.vo.PointVO;
+import com.hope.chufala.model.dto.PayParamDTO;
+import com.hope.chufala.infra.RedisData;
 
 @Data
 @NoArgsConstructor

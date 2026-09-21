@@ -11,7 +11,7 @@ import java.time.LocalDate;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserUpdateFromDTO {
+public class UserUpdateFormDTO {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
     private String username;

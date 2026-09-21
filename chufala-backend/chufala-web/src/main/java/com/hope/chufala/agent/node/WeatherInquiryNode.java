@@ -2,8 +2,8 @@ package com.hope.chufala.agent.node;
 
 import com.hope.chufala.infra.SseManager;
 import com.hope.chufala.model.dto.UserPlanDTO;
-import com.hope.chufala.model.vo.DailySchedule;
-import com.hope.chufala.model.vo.TravelItinerary;
+import com.hope.chufala.model.vo.DailyScheduleVO;
+import com.hope.chufala.model.vo.TravelItineraryVO;
 import com.hope.chufala.agent.TravelPlanState;
 import jakarta.annotation.Resource;
 import lombok.AllArgsConstructor;
@@ -43,13 +43,13 @@ public class WeatherInquiryNode implements NodeAction<TravelPlanState> {
                 .entity(DailyWeather.class);
         log.info("天气查询结果：{}",response);
         if (response != null) {
-            TravelItinerary itinerary = state.itinerarySkeleton();
+            TravelItineraryVO itinerary = state.itinerarySkeleton();
             //获取未来的天气
             List<DailyWeather.WeatherInfo> weatherInfos = response.getWeatherInfos();
-            List<DailySchedule> dailyScheduleList = itinerary.getDailySchedules();
+            List<DailyScheduleVO> dailyScheduleList = itinerary.getDailySchedules();
 
             for (int i = 0; i < dailyScheduleList.size(); i++) {
-                DailySchedule schedule = dailyScheduleList.get(i);
+                DailyScheduleVO schedule = dailyScheduleList.get(i);
                 DailyWeather.WeatherInfo weather = weatherInfos.get(i);
                 schedule.setWeather(weather.getWeather());
                 schedule.setTemperature(weather.getTemperature());

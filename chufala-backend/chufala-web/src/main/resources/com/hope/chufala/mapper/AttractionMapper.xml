@@ -72,7 +72,7 @@
         </where>
     </select>
 
-    <select id="selectAttractionByCity" resultType="com.hope.chufala.model.vo.AttractionInfo">
+    <select id="selectAttractionByCity" resultType="com.hope.chufala.model.vo.AttractionInfoVO">
         SELECT id,name,city,address,open_time,adult_ticket_price AS price,stars,rating,tags,ai.image AS image
         FROM attraction LEFT JOIN attraction_image AS ai ON  ai.attraction_id = id AND ai.sort_order = 1
         <where>
@@ -83,7 +83,7 @@
     <select id="findAttractionImage" resultType="java.lang.String">
         SELECT image FROM attraction_image WHERE attraction_id = #{attractionId} ORDER BY sort_order ASC
     </select>
-    <select id="selectAttractionSimpleByCity" resultType="com.hope.chufala.model.vo.AttractionInfo">
+    <select id="selectAttractionSimpleByCity" resultType="com.hope.chufala.model.vo.AttractionInfoVO">
         SELECT id,name,address,open_time,stars,rating,tags
         FROM attraction
     </select>
@@ -91,10 +91,10 @@
         SELECT name FROM attraction WHERE id = #{id}
     </select>
 
-    <select id="queryAttractionPositionById" resultType="com.hope.chufala.model.entity.Point">
+    <select id="queryAttractionPositionById" resultType="com.hope.chufala.model.vo.PointVO">
         SELECT longitude,latitude FROM attraction WHERE id = #{id}
     </select>
-    <select id="queryAttractionInfoById" resultType="com.hope.chufala.model.vo.AttractionInfo">
+    <select id="queryAttractionInfoById" resultType="com.hope.chufala.model.vo.AttractionInfoVO">
         SELECT id,name,city,address,description,open_time,adult_ticket_price AS price,rating,tags,ai.image AS image
         FROM attraction LEFT JOIN attraction_image AS ai ON  ai.attraction_id = id AND ai.sort_order = 1
         WHERE id = #{id}

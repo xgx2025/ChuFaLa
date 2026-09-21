@@ -9,7 +9,7 @@ import com.hope.chufala.common.util.AliOSSUtils;
 import com.hope.chufala.common.util.EmailVerificationCodeUtils;
 import com.hope.chufala.common.util.SnowFlakeUtils;
 import com.hope.chufala.model.dto.RegisterFormDTO;
-import com.hope.chufala.model.dto.UserUpdateFromDTO;
+import com.hope.chufala.model.dto.UserUpdateFormDTO;
 import com.hope.chufala.model.entity.User;
 import com.hope.chufala.mapper.UserMapper;
 import com.hope.chufala.service.IUserService;
@@ -168,7 +168,7 @@ public class UserServiceImpl implements IUserService {
     }
 
     @Override
-    public boolean updateById(UserUpdateFromDTO userUpdateFrom) {
+    public boolean updateById(UserUpdateFormDTO userUpdateFrom) {
         UpdateWrapper<User> updateWrapper = new UpdateWrapper<>();
         updateWrapper.eq("id", userUpdateFrom.getId()); 
 

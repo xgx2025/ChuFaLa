@@ -3,7 +3,7 @@ package com.hope.chufala.controller;
 
 import com.hope.chufala.common.constant.ResultCode;
 import com.hope.chufala.common.util.ThreadLocalUtils;
-import com.hope.chufala.model.dto.UserUpdateFromDTO;
+import com.hope.chufala.model.dto.UserUpdateFormDTO;
 import com.hope.chufala.model.entity.User;
 import com.hope.chufala.common.model.vo.Result;
 import com.hope.chufala.service.IUserService;
@@ -35,7 +35,7 @@ public class UserController {
     }
 
     @PutMapping("/update")
-    public Result update(@RequestBody UserUpdateFromDTO user) {
+    public Result update(@RequestBody UserUpdateFormDTO user) {
         Claims claims =  ThreadLocalUtils.get();
         Long userId = claims.get("userId", Long.class);
         user.setId(userId);

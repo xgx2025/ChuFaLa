@@ -10,6 +10,9 @@ import lombok.NoArgsConstructor;
 
 import java.time.Year;
 import java.util.List;
+import com.hope.chufala.model.vo.PointVO;
+import com.hope.chufala.model.dto.PayParamDTO;
+import com.hope.chufala.infra.RedisData;
 
 @Data
 @NoArgsConstructor

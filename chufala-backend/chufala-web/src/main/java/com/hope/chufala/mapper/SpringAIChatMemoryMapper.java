@@ -1,9 +1,9 @@
 package com.hope.chufala.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.hope.chufala.model.entity.SpringAIChatMemory;
+import com.hope.chufala.model.entity.SpringAiChatMemory;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface SpringAIChatMemoryMapper extends BaseMapper<SpringAIChatMemory> {
+public interface SpringAiChatMemoryMapper extends BaseMapper<SpringAiChatMemory> {
 }

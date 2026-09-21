@@ -1,12 +1,13 @@
-package com.hope.chufala.model.entity;
+package com.hope.chufala.model.dto;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
+import com.hope.chufala.model.vo.PointVO;
 
 @Data
 @NoArgsConstructor
-public class PayParam {
+public class PayParamDTO {
     /**
      * 主键Id
      */

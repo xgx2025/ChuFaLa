@@ -2,8 +2,8 @@ package com.hope.chufala.agent.node;
 //获取候选景点和酒店
 
 import com.hope.chufala.infra.SseManager;
-import com.hope.chufala.model.vo.AttractionInfo;
-import com.hope.chufala.model.vo.HotelInfo;
+import com.hope.chufala.model.vo.AttractionInfoVO;
+import com.hope.chufala.model.vo.HotelInfoVO;
 import com.hope.chufala.service.IAttractionService;
 import com.hope.chufala.service.IHotelService;
 import com.hope.chufala.agent.TravelPlanState;
@@ -31,8 +31,8 @@ public class FetchCandidatesNode implements NodeAction<TravelPlanState> {
         log.info("获取候选景点和酒店");
         sseManager.sendProgress(state.taskId(),"fetchCandidate", "正在查询景点和酒店...");
         String destination = state.userPlan().getDestination();
-        List<AttractionInfo> attractions = attractionService.queryAttractionByCity(destination);
-        List<HotelInfo> hotels = hotelService.findHotelSimpleByCity(destination);
+        List<AttractionInfoVO> attractions = attractionService.queryAttractionByCity(destination);
+        List<HotelInfoVO> hotels = hotelService.findHotelSimpleByCity(destination);
         sseManager.sendProgress(state.taskId(), "fetchCandidate", "查询完成");
         return Map.of(TravelPlanState.CANDIDATE_ATTRACTIONS, attractions, TravelPlanState.CANDIDATE_HOTELS, hotels);
     }

@@ -12,7 +12,7 @@ import java.io.Serializable;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class HotelInfo implements Serializable {
+public class HotelInfoVO implements Serializable {
     private static final long serialVersionUID = 1L;
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;

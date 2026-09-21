@@ -2,9 +2,9 @@ package com.hope.chufala.agent.node;
 
 import com.hope.chufala.infra.SseManager;
 import com.hope.chufala.model.dto.UserPlanDTO;
-import com.hope.chufala.model.vo.DailySchedule;
-import com.hope.chufala.model.vo.HotelInfo;
-import com.hope.chufala.model.vo.TravelItinerary;
+import com.hope.chufala.model.vo.DailyScheduleVO;
+import com.hope.chufala.model.vo.HotelInfoVO;
+import com.hope.chufala.model.vo.TravelItineraryVO;
 import com.hope.chufala.service.IHotelService;
 import com.hope.chufala.agent.TravelPlanState;
 import jakarta.annotation.Resource;
@@ -53,16 +53,16 @@ public class RecommendHotelNode implements NodeAction<TravelPlanState>{
                 .entity(HotelList.class);
         log.info("大模型推荐结果: {}", response);
 
-        TravelItinerary itinerary = state.itinerarySkeleton();
-        List<DailySchedule> dailyScheduleList = itinerary.getDailySchedules();
+        TravelItineraryVO itinerary = state.itinerarySkeleton();
+        List<DailyScheduleVO> dailyScheduleList = itinerary.getDailySchedules();
         if (response != null) {
             for (int i = 0; i < dailyScheduleList.size(); i++) {
-                DailySchedule dailySchedule = dailyScheduleList.get(i);
+                DailyScheduleVO dailySchedule = dailyScheduleList.get(i);
                 DailyHotel  dailyHotel = response.getDailyHotels().get(i);
                 int num = response.dailyHotels.get(i).ids.size();
-                List<HotelInfo> recommendHotels = new ArrayList<>();
+                List<HotelInfoVO> recommendHotels = new ArrayList<>();
                 for (int j = 0; j < num; j++) {
-                    HotelInfo hotelInfo = hotelService.findHotelSimpleById(Long.parseLong(dailyHotel.ids.get(j)));
+                    HotelInfoVO hotelInfo = hotelService.findHotelSimpleById(Long.parseLong(dailyHotel.ids.get(j)));
                     recommendHotels.add(hotelInfo);
                 }
                 dailySchedule.setRecommendHotels(recommendHotels);

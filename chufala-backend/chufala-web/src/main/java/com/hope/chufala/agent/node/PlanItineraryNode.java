@@ -1,9 +1,9 @@
 package com.hope.chufala.agent.node;
 
 import com.hope.chufala.model.dto.UserPlanDTO;
-import com.hope.chufala.model.vo.AttractionInfo;
-import com.hope.chufala.model.vo.DailySchedule;
-import com.hope.chufala.model.vo.TravelItinerary;
+import com.hope.chufala.model.vo.AttractionInfoVO;
+import com.hope.chufala.model.vo.DailyScheduleVO;
+import com.hope.chufala.model.vo.TravelItineraryVO;
 import com.hope.chufala.infra.SseManager;
 import com.hope.chufala.service.IAttractionService;
 import com.hope.chufala.agent.TravelPlanState;
@@ -73,20 +73,20 @@ public class PlanItineraryNode implements NodeAction<TravelPlanState> {
         if (response != null) {
             List<PlanVo.Schedule> scheduleList = response.getSchedules();
             //创建行程
-            TravelItinerary travelItinerary = new TravelItinerary();
-            List<DailySchedule> dailyScheduleList = new ArrayList<>();
+            TravelItineraryVO travelItinerary = new TravelItineraryVO();
+            List<DailyScheduleVO> dailyScheduleList = new ArrayList<>();
             int currentDay = 1;
             for (PlanVo.Schedule value : scheduleList) {
                 //创建每天行程
-                DailySchedule dailySchedule = new DailySchedule();
+                DailyScheduleVO dailySchedule = new DailyScheduleVO();
                 //创建每天活动(景点)
-                ArrayList<AttractionInfo> activities = new ArrayList<>();
+                ArrayList<AttractionInfoVO> activities = new ArrayList<>();
                 for (int j = 0; j < value.getAttractionIds().size(); j++) {
-                    AttractionInfo attraction = new AttractionInfo();
+                    AttractionInfoVO attraction = new AttractionInfoVO();
                     attraction.setId(value.getAttractionIds().get(j));
                     attraction.setTip(value.getTips().get(j));
                     //填充其他信息
-                    AttractionInfo attractionInfo = attractionService.queryAttractionInfoById(Long.parseLong(attraction.getId()));
+                    AttractionInfoVO attractionInfo = attractionService.queryAttractionInfoById(Long.parseLong(attraction.getId()));
                     attraction.setOtherInfo(attractionInfo);
                     activities.add(attraction);
                 }

@@ -11,7 +11,7 @@ import java.io.Serializable;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class AttractionInfo implements Serializable{
+public class AttractionInfoVO implements Serializable{
 
     @Serial
     private static final long serialVersionUID = 1L;
@@ -31,7 +31,7 @@ public class AttractionInfo implements Serializable{
     private String drivingTime;
 
 
-    public void setOtherInfo(AttractionInfo attractionInfo){
+    public void setOtherInfo(AttractionInfoVO attractionInfo){
         this.name = attractionInfo.getName();
         this.address = attractionInfo.getAddress();
         this.position = attractionInfo.getPosition();

@@ -1,8 +1,8 @@
 package com.hope.chufala.agent;
 
 import com.hope.chufala.model.dto.UserPlanDTO;
-import com.hope.chufala.model.vo.AttractionInfo;
-import com.hope.chufala.model.vo.TravelItinerary;
+import com.hope.chufala.model.vo.AttractionInfoVO;
+import com.hope.chufala.model.vo.TravelItineraryVO;
 import org.bsc.langgraph4j.state.AgentState;
 import org.bsc.langgraph4j.state.Channel;
 import org.bsc.langgraph4j.state.Channels;
@@ -39,7 +39,7 @@ public class TravelPlanState extends AgentState {
             MASTER_PLAN, Channels.base(() -> ""),
             CANDIDATE_ATTRACTIONS, Channels.base(ArrayList::new),
             CANDIDATE_HOTELS, Channels.base(ArrayList::new),
-            ITINERARY_SKELETON, Channels.base(()->new TravelItinerary())
+            ITINERARY_SKELETON, Channels.base(()->new TravelItineraryVO())
     );
 
 
@@ -77,29 +77,29 @@ public class TravelPlanState extends AgentState {
         return this.<UserPlanDTO>value(USER_PLAN).orElse(new UserPlanDTO());
     }
     public String masterPlan(){return this.<String>value(MASTER_PLAN).orElse("");}
-    public List<AttractionInfo> candidateAttractions() {
+    public List<AttractionInfoVO> candidateAttractions() {
         // 用 new ArrayList<>() 包装，避免返回不可修改的 List.of()
-        return this.<List<AttractionInfo>>value(CANDIDATE_ATTRACTIONS)
+        return this.<List<AttractionInfoVO>>value(CANDIDATE_ATTRACTIONS)
                 .map(ArrayList::new) // 转为可修改的 ArrayList（可选，根据业务需求）
                 .orElse(new ArrayList<>());
     }
-    public List<AttractionInfo> candidateHotels(){
-        return this.<List<AttractionInfo>>value(CANDIDATE_HOTELS).orElse(List.of());
+    public List<AttractionInfoVO> candidateHotels(){
+        return this.<List<AttractionInfoVO>>value(CANDIDATE_HOTELS).orElse(List.of());
     }
 
-    public TravelItinerary itinerarySkeleton(){
-        return this.<TravelItinerary>value(ITINERARY_SKELETON).orElse(null);
+    public TravelItineraryVO itinerarySkeleton(){
+        return this.<TravelItineraryVO>value(ITINERARY_SKELETON).orElse(null);
     }
-//    public TravelItinerary finalItinerary(){
-//        return this.<TravelItinerary>value(FINAL_ITINERARY).orElse(null);
+//    public TravelItineraryVO finalItinerary(){
+//        return this.<TravelItineraryVO>value(FINAL_ITINERARY).orElse(null);
 //    }
 
 
-    //    public void setCandidateAttractions(List<AttractionInfo> candidateAttractions){
+    //    public void setCandidateAttractions(List<AttractionInfoVO> candidateAttractions){
 //        this.data().put(CANDIDATE_ATTRACTIONS, candidateAttractions);
 //    }
 // 关键修改：set 方法不再直接修改 data()，而是创建新的 TravelPlanState 实例
-    public TravelPlanState setCandidateAttractions(List<AttractionInfo> candidateAttractions) {
+    public TravelPlanState setCandidateAttractions(List<AttractionInfoVO> candidateAttractions) {
         // 1. 复制原有状态数据（创建可修改的 Map）
         Map<String, Object> newData = new HashMap<>(this.data());
         // 2. 放入新的候选景点数据（确保是可修改的 List，这里用 ArrayList 包装）

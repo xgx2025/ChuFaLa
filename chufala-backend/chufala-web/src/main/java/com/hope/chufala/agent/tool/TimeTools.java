@@ -4,7 +4,7 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Component;
 
 @Component
-public class OtherTools {
+public class TimeTools {
 
     @Tool(description = "获取当前真实时间")
     public String getCurrentTime() {
