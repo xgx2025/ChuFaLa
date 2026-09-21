@@ -1,6 +1,5 @@
 package com.hope.chufala.agent.tool;
 
-import cn.hutool.system.UserInfo;
 import com.hope.chufala.model.dto.HotelOrderDTO;
 import com.hope.chufala.model.entity.HotelOrder;
 import com.hope.chufala.model.entity.User;

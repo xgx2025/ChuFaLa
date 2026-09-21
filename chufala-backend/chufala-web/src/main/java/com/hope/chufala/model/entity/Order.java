@@ -4,9 +4,6 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.util.Date;
-import com.hope.chufala.model.vo.PointVO;
-import com.hope.chufala.model.dto.PayParamDTO;
-import com.hope.chufala.infra.RedisData;
 
 /**
  * 接口次数订单表

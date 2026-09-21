@@ -5,16 +5,11 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.io.Serial;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import com.hope.chufala.model.vo.PointVO;
-import com.hope.chufala.model.dto.PayParamDTO;
-import com.hope.chufala.infra.RedisData;
 
 /**
  * VIP会员支付记录

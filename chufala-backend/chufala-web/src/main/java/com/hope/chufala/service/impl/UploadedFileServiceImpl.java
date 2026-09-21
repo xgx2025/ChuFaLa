@@ -1,6 +1,5 @@
 package com.hope.chufala.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.hope.chufala.model.entity.UploadedFile;
 import com.hope.chufala.mapper.UploadedFileMapper;
 import com.hope.chufala.service.IUploadedFileService;
@@ -8,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 

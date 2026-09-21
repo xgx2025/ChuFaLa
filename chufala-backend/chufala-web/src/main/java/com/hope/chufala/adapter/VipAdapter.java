@@ -4,14 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.hope.chufala.model.entity.*;
 import com.hope.chufala.mapper.UserMapper;
 import com.hope.chufala.mapper.VipPaymentRecordMapper;
-import com.hope.chufala.service.IHotelOrderService;
 import com.hope.chufala.service.IMembershipService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.hope.chufala.model.vo.PointVO;
 import com.hope.chufala.model.dto.PayParamDTO;
-import com.hope.chufala.infra.RedisData;
 
 @Service
 public class VipAdapter implements BizAdapter{

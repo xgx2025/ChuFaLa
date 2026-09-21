@@ -3,8 +3,6 @@ package com.hope.chufala.agent.tool;
 import com.hope.chufala.model.entity.Hotel;
 import com.hope.chufala.model.entity.Room;
 import com.hope.chufala.service.IHotelService;
-import com.hope.chufala.service.IRoomService;
-import org.checkerframework.checker.signature.qual.IdentifierOrArray;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.factory.annotation.Autowired;

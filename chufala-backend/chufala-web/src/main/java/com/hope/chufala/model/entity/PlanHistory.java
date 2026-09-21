@@ -13,9 +13,6 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import com.hope.chufala.model.vo.PointVO;
-import com.hope.chufala.model.dto.PayParamDTO;
-import com.hope.chufala.infra.RedisData;
 
 @Data
 @NoArgsConstructor

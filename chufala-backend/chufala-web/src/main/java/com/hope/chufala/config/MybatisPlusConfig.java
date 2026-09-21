@@ -9,9 +9,9 @@ import org.springframework.context.annotation.Configuration;
 public class MybatisPlusConfig {
 
     @Bean
-    public MybatisPlusInterceptor pmInterceptor() {
-        MybatisPlusInterceptor mpInterceptor = new MybatisPlusInterceptor();
-        mpInterceptor.addInnerInterceptor(new PaginationInnerInterceptor());
-        return mpInterceptor;
+    public MybatisPlusInterceptor mybatisPlusInterceptor() {
+        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+        interceptor.addInnerInterceptor(new PaginationInnerInterceptor());
+        return interceptor;
     }
 }

@@ -23,20 +23,6 @@
 
 
 
-    <url/>
-    <licenses>
-        <license/>
-    </licenses>
-    <developers>
-        <developer/>
-    </developers>
-    <scm>
-        <connection/>
-        <developerConnection/>
-        <tag/>
-        <url/>
-    </scm>
-
     <!-- 统一管理所有依赖版本（子模块直接用，无需写版本号） -->
     <properties>
         <java.version>17</java.version>
@@ -337,11 +323,17 @@
 
 
     <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
+        <!-- 必须放在 pluginManagement 而不是 plugins 里：
+             声明在 plugins 中会被所有子模块继承，而库模块 chufala-common 没有 main 类，
+             spring-boot-maven-plugin 的 repackage 会报 "Unable to find main class"
+             并让整个项目的 mvn package 失败。可执行模块 chufala-web 自行声明该插件。 -->
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                </plugin>
+            </plugins>
+        </pluginManagement>
     </build>
 </project>

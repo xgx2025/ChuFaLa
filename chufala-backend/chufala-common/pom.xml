@@ -17,33 +17,12 @@
 		<relativePath>../pom.xml</relativePath>
 	</parent>
 
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
 	<properties>
 		<java.version>17</java.version>
 	</properties>
-	<dependencies>
 
-	</dependencies>
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-			</plugin>
-		</plugins>
-	</build>
+	<!-- 说明：本模块是库（jar），没有 main 类，因此不引入
+	     spring-boot-maven-plugin —— 它的 repackage 目标会因找不到主类而失败，
+	     导致整个项目的 mvn package 挂掉。可执行的重打包只由 chufala-web 负责。 -->
 
 </project>
