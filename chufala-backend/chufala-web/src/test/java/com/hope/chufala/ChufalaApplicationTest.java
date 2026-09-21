@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @SpringBootTest
-public class ChuFaLaApplicationTest {
+public class ChufalaApplicationTest {
     @Autowired
     private MessageProducer messageProducer;
 

@@ -13,9 +13,9 @@ import org.springframework.scheduling.annotation.EnableAsync;
 })
 @EnableRabbit
 @EnableAsync
-public class ChuFaLaApplication {
+public class ChufalaApplication {
     public static void main(String[] args) {
-        SpringApplication.run(ChuFaLaApplication.class, args);
+        SpringApplication.run(ChufalaApplication.class, args);
     }
 
 }

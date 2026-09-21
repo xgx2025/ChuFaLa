@@ -4,10 +4,10 @@
     <modelVersion>4.0.0</modelVersion>
 
 
-    <artifactId>chufala-temp</artifactId>
+    <artifactId>chufala-web</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>chufala-temp</name>
-    <description>chufala-temp</description>
+    <name>chufala-web</name>
+    <description>chufala-web</description>
     <packaging>jar</packaging>
 
     <parent>

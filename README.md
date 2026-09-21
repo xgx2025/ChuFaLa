@@ -8,7 +8,7 @@
 .
 ├── chufala-backend/     # 后端：Spring Boot 多模块（Maven）
 │   ├── chufala-common/  #   公共模块：工具类、常量、异常、通用配置
-│   └── chufala-temp/    #   业务模块：控制层、服务层、AI 编排、Mapper
+│   └── chufala-web/     #   业务模块：控制层、服务层、AI 编排、Mapper
 └── chufala-frontend/    # 前端：Vue 3 + Vite + TypeScript
 ```
 
@@ -22,9 +22,9 @@
 
 ```bash
 cd chufala-backend
-cp chufala-temp/src/main/resources/application.yml.example  chufala-temp/src/main/resources/application.yml
+cp chufala-web/src/main/resources/application.yml.example  chufala-web/src/main/resources/application.yml
 cp chufala-common/src/main/resources/application.yml.example chufala-common/src/main/resources/application.yml
-cp chufala-temp/src/main/resources/mcp-servers-config.json.example chufala-temp/src/main/resources/mcp-servers-config.json
+cp chufala-web/src/main/resources/mcp-servers-config.json.example chufala-web/src/main/resources/mcp-servers-config.json
 ```
 
 这三个真实配置文件已被 `.gitignore` 排除，**请勿提交**。
@@ -64,7 +64,7 @@ $env:JWT_ACCESS_TOKEN_SECRET = "用 openssl rand -base64 32 生成"
 
 ```bash
 cd chufala-backend
-./mvnw -pl chufala-temp -am spring-boot:run
+./mvnw -pl chufala-web -am spring-boot:run
 ```
 
 ---
