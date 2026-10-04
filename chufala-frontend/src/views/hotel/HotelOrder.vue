@@ -191,7 +191,7 @@ import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
 import { useRoute } from 'vue-router';
 import { Locate } from '@/components/Icon.vue';
 import { Back } from '@element-plus/icons-vue';
-import { getRoomInfoService, getRoomTotalPriceService, bookRoomService, payOrderService } from '@/api/hotel';
+import { getRoomAvailabilityService, getRoomTotalPriceService, bookRoomService, payOrderService } from '@/api/hotel';
 // 引入dayjs核心库（若需要处理时区，可额外引入dayjs/plugin/timezone等插件）
 import dayjs from 'dayjs';
 
@@ -242,16 +242,20 @@ const payFormContainer = ref(null);
 onMounted(() => {
   payFormContainer.value = document.getElementById('alipay-form-container');
 });
-// 从后端获取房间库存
-const fetchRoomInfo = async () => {
+// 房间数以所选入住日期范围内每晚的最小可用量为准。
+let stockRequestId = 0;
+const fetchAvailableStock = async (checkIn, checkOut) => {
+  const requestId = ++stockRequestId;
   try {
-    const result = await getRoomInfoService(roomId);
-    roomStock.value = result.data.stock;
-    if(roomStock.value == 0){
-      ElMessage.error('当前房间已售罄，请选择其他房间');
+    const result = await getRoomAvailabilityService(roomId, checkIn, checkOut);
+    if (requestId !== stockRequestId) return;
+    roomStock.value = result.data;
+    if (roomStock.value === 0) {
+      ElMessage.warning('所选日期房间已售罄，请更换日期');
     }
   } catch (error) {
-    console.error('获取房间库存失败：', error);
+    if (requestId !== stockRequestId) return;
+    console.error('获取所选日期库存失败：', error);
     roomStock.value = 0;
   }
 };
@@ -263,17 +267,16 @@ watch(
     if (newStock > 0) {
       roomOptions.value = Array.from({ length: newStock }, (_, i) => i + 1);
       // 若当前选中值超过库存，重置为最大可用值
-      if (Number(bookingForm.roomCount) > newStock) {
-        bookingForm.roomCount = newStock.toString();
+      if (!Number(bookingForm.value.roomCount) || Number(bookingForm.value.roomCount) > newStock) {
+        bookingForm.value.roomCount = '1';
       }
     } else {
       roomOptions.value = [];
+      bookingForm.value.roomCount = '';
     }
   },
   { immediate: true }
 );
-
-fetchRoomInfo();
 
 // 日期范围
 const dateRange = ref([]);
@@ -309,7 +312,10 @@ const updateDateDisplay = (startDayjs, endDayjs) => {
 
 // 监听日期选择变化，同步更新显示
 watch(dateRange, (newRange) => {
-  if (newRange.length!== 2 || !newRange[0] || !newRange[1]) return;
+  if (!Array.isArray(newRange) || newRange.length !== 2 || !newRange[0] || !newRange[1]) {
+    roomStock.value = 0;
+    return;
+  }
   
   const startDayjs = dayjs(newRange[0]);
   const endDayjs = dayjs(newRange[1]);
@@ -327,6 +333,11 @@ watch(dateRange, (newRange) => {
   
   // 更新日期显示
   updateDateDisplay(startDayjs, endDayjs);
+  nightNum.value = endDayjs.diff(startDayjs, 'day');
+  rawData.value = '';
+  priceSignature.value = '';
+  roomStock.value = 0;
+  fetchAvailableStock(startDayjs.format('YYYY-MM-DD'), endDayjs.format('YYYY-MM-DD'));
 });
 
 // 初始化默认日期
@@ -361,6 +372,10 @@ const parseRawData = (rawData) => {
   return params;
 };
 const confirmDate = async () => { 
+   if (roomStock.value <= 0 || Number(bookingForm.value.roomCount) > roomStock.value) {
+    ElMessage.warning('所选日期房间库存不足，请更换日期或房间数');
+    return;
+  }
    if (!bookingForm.value.guestName) {
     ElMessage.warning('请填写住客姓名');
     return;

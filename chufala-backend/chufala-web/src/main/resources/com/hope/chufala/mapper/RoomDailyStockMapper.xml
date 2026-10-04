@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hope.chufala.mapper.RoomDailyStockMapper">
+    <insert id="initializeStock">
+        INSERT IGNORE INTO room_daily_stock (room_type_id, stay_date, available_stock)
+        SELECT r.id, #{stayDate}, r.stock - COALESCE((
+            SELECT SUM(o.room_count) FROM hotel_order o
+            WHERE o.room_type_id = r.id
+              AND o.order_status IN ('待支付', '未支付', '已支付')
+              AND o.check_in &lt;= #{stayDate} AND o.check_out &gt; #{stayDate}
+        ), 0)
+        FROM room r WHERE r.id = #{roomTypeId}
+    </insert>
+
+    <update id="decreaseStock">
+        UPDATE room_daily_stock
+        SET available_stock = available_stock - #{roomCount}
+        WHERE room_type_id = #{roomTypeId} AND stay_date = #{stayDate}
+          AND available_stock &gt;= #{roomCount} AND #{roomCount} &gt; 0
+    </update>
+
+    <update id="increaseStock">
+        UPDATE room_daily_stock
+        SET available_stock = available_stock + #{roomCount}
+        WHERE room_type_id = #{roomTypeId} AND stay_date = #{stayDate}
+          AND #{roomCount} &gt; 0
+    </update>
+
+    <select id="selectAvailableStock" resultType="java.lang.Integer">
+        SELECT COALESCE(s.available_stock, r.stock - COALESCE((
+            SELECT SUM(o.room_count) FROM hotel_order o
+            WHERE o.room_type_id = r.id
+              AND o.order_status IN ('待支付', '未支付', '已支付')
+              AND o.check_in &lt;= #{stayDate} AND o.check_out &gt; #{stayDate}
+        ), 0))
+        FROM room r LEFT JOIN room_daily_stock s
+          ON s.room_type_id = r.id AND s.stay_date = #{stayDate}
+        WHERE r.id = #{roomTypeId}
+    </select>
+</mapper>

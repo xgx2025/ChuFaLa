@@ -6,11 +6,14 @@ import com.hope.chufala.constant.HotelOrderStatus;
 import com.hope.chufala.exception.OrderAlreadyCancelledException;
 import com.hope.chufala.mapper.HotelOrderMapper;
 import com.hope.chufala.mapper.RoomMapper;
+import com.hope.chufala.mapper.RoomDailyStockMapper;
 import com.hope.chufala.model.entity.HotelOrder;
 import com.hope.chufala.service.impl.HotelOrderServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,12 +28,14 @@ import static org.mockito.Mockito.when;
 class HotelOrderStateRegressionTest {
     private final HotelOrderMapper orderMapper = mock(HotelOrderMapper.class);
     private final RoomMapper roomMapper = mock(RoomMapper.class);
+    private final RoomDailyStockMapper dailyStockMapper = mock(RoomDailyStockMapper.class);
     private final HotelOrderServiceImpl service = new HotelOrderServiceImpl();
 
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(service, "hotelOrderMapper", orderMapper);
         ReflectionTestUtils.setField(service, "roomMapper", roomMapper);
+        ReflectionTestUtils.setField(service, "roomDailyStockMapper", dailyStockMapper);
     }
 
     @Test
@@ -55,7 +60,7 @@ class HotelOrderStateRegressionTest {
         assertDoesNotThrow(() -> service.cancelOrder(101L, 202L));
 
         verify(orderMapper, never()).update(isNull(), any(UpdateWrapper.class));
-        verify(roomMapper, never()).increaseStock(any(), any(Integer.class));
+        verify(dailyStockMapper, never()).increaseStock(any(), any(LocalDate.class), any(Integer.class));
     }
 
     @Test
@@ -63,14 +68,14 @@ class HotelOrderStateRegressionTest {
         when(orderMapper.selectOne(any(QueryWrapper.class))).thenReturn(order(HotelOrderStatus.PAID));
 
         assertThrows(IllegalArgumentException.class, () -> service.cancelOrder(101L, 202L));
-        verify(roomMapper, never()).increaseStock(any(), any(Integer.class));
+        verify(dailyStockMapper, never()).increaseStock(any(), any(LocalDate.class), any(Integer.class));
     }
 
     @Test
     void cancellationRestoresStockOnlyAfterPendingToCancelledTransition() {
         when(orderMapper.selectOne(any(QueryWrapper.class))).thenReturn(order(HotelOrderStatus.UNPAID));
         when(orderMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
-        when(roomMapper.increaseStock(303L, 2)).thenReturn(1);
+        when(dailyStockMapper.increaseStock(any(), any(LocalDate.class), any(Integer.class))).thenReturn(1);
 
         service.cancelOrder(101L, 202L);
 
@@ -79,7 +84,8 @@ class HotelOrderStateRegressionTest {
                         && update.getSqlSegment().contains("user_id")
                         && update.getParamNameValuePairs().containsValue(HotelOrderStatus.UNPAID)
                         && update.getParamNameValuePairs().containsValue(HotelOrderStatus.CANCELLED)));
-        verify(roomMapper).increaseStock(303L, 2);
+        verify(dailyStockMapper).increaseStock(303L, LocalDate.of(2026, 10, 4), 2);
+        verify(dailyStockMapper).increaseStock(303L, LocalDate.of(2026, 10, 5), 2);
     }
 
     @Test
@@ -88,21 +94,22 @@ class HotelOrderStateRegressionTest {
         when(orderMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(0);
 
         assertThrows(IllegalArgumentException.class, () -> service.cancelOrder(101L, 202L));
-        verify(roomMapper, never()).increaseStock(any(), any(Integer.class));
+        verify(dailyStockMapper, never()).increaseStock(any(), any(LocalDate.class), any(Integer.class));
     }
 
     @Test
     void delayedCancellationUsesDatabaseQuantityAndChecksExpiry() {
         when(orderMapper.selectOne(any(QueryWrapper.class))).thenReturn(order(HotelOrderStatus.UNPAID));
         when(orderMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
-        when(roomMapper.increaseStock(303L, 2)).thenReturn(1);
+        when(dailyStockMapper.increaseStock(any(), any(LocalDate.class), any(Integer.class))).thenReturn(1);
 
         service.cancelDelayOrder(101L);
 
         verify(orderMapper).update(isNull(), org.mockito.ArgumentMatchers.<UpdateWrapper<HotelOrder>>argThat(update ->
                 update.getSqlSegment().contains("book_time")
                         && update.getParamNameValuePairs().containsValue(HotelOrderStatus.UNPAID)));
-        verify(roomMapper).increaseStock(303L, 2);
+        verify(dailyStockMapper).increaseStock(303L, LocalDate.of(2026, 10, 4), 2);
+        verify(dailyStockMapper).increaseStock(303L, LocalDate.of(2026, 10, 5), 2);
     }
 
     @Test
@@ -117,11 +124,12 @@ class HotelOrderStateRegressionTest {
     void deletingPendingOrderCancelsAndRestoresStockInSameTransaction() {
         when(orderMapper.selectOne(any(QueryWrapper.class))).thenReturn(order(HotelOrderStatus.UNPAID));
         when(orderMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
-        when(roomMapper.increaseStock(303L, 2)).thenReturn(1);
+        when(dailyStockMapper.increaseStock(any(), any(LocalDate.class), any(Integer.class))).thenReturn(1);
 
         service.deleteOrder(101L, 202L);
 
-        verify(roomMapper).increaseStock(303L, 2);
+        verify(dailyStockMapper).increaseStock(303L, LocalDate.of(2026, 10, 4), 2);
+        verify(dailyStockMapper).increaseStock(303L, LocalDate.of(2026, 10, 5), 2);
         verify(orderMapper).update(isNull(), org.mockito.ArgumentMatchers.<UpdateWrapper<HotelOrder>>argThat(update ->
                 update.getSqlSegment().contains("is_deleted")
                         && update.getSqlSegment().contains("user_id")));
@@ -144,6 +152,8 @@ class HotelOrderStateRegressionTest {
         order.setUserId(202L);
         order.setRoomTypeId(303L);
         order.setRoomCount(2);
+        order.setCheckIn(LocalDate.of(2026, 10, 4));
+        order.setCheckOut(LocalDate.of(2026, 10, 6));
         order.setOrderStatus(status);
         return order;
     }

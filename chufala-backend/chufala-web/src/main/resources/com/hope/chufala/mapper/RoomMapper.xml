@@ -18,14 +18,6 @@
         SELECT hotel_id FROM room WHERE id = #{roomTypeId}
     </select>
 
-    <update id="updateStock">
-        UPDATE room SET stock = stock - #{roomCount} WHERE id = #{roomTypeId} AND stock >= #{roomCount} AND #{roomCount} > 0
-    </update>
-
-    <update id="increaseStock">
-        UPDATE room SET stock = stock + #{roomCount} WHERE id = #{roomTypeId} AND #{roomCount} > 0
-    </update>
-
     <select id="selectNameById" resultType="java.lang.String">
         SELECT name FROm room WHERE id = #{roomTypeId}
     </select>

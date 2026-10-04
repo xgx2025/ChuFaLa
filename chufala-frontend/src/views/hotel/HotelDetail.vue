@@ -158,7 +158,7 @@
               <el-icon><User /></el-icon>
             </div>
             <div class="room-price">
-              <span class="stock">仅剩{{ room.stock }}间</span>
+              <span class="stock">该房型共{{ room.stock }}间</span>
               <div>
               <span class="price">¥{{ room.price }}</span>
               <el-button type="primary" @click="router.push(`/hotel/order/${room.id}`)" style="height: 38px;width: 168px;background-color: #006ff6;">预订</el-button>

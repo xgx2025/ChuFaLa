@@ -9,7 +9,6 @@ import com.hope.chufala.common.exception.ResourceNotFoundException;
 import com.hope.chufala.common.util.DelayMessageProcessor;
 import com.hope.chufala.common.util.RedisWorker;
 import com.hope.chufala.common.util.SignaturePriceUtils;
-import com.hope.chufala.common.util.SimpleRedisLock;
 import com.hope.chufala.mq.MultiDelayMessage;
 import com.hope.chufala.constant.HotelOrderStatus;
 import com.hope.chufala.exception.OrderAlreadyCancelledException;
@@ -19,12 +18,12 @@ import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.mapper.HotelMapper;
 import com.hope.chufala.mapper.HotelOrderMapper;
 import com.hope.chufala.mapper.RoomMapper;
+import com.hope.chufala.mapper.RoomDailyStockMapper;
 import com.hope.chufala.service.IHotelOrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -32,6 +31,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 @Slf4j
@@ -42,11 +42,11 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
     @Autowired
     private RoomMapper roomMapper;
     @Autowired
+    private RoomDailyStockMapper roomDailyStockMapper;
+    @Autowired
     private HotelMapper hotelMapper;
     @Autowired
     private RedisWorker redisWorker;
-    @Autowired
-    private StringRedisTemplate stringRedisTemplate;
     @Autowired
     private SignaturePriceUtils signaturePriceUtils;
     @Autowired
@@ -83,22 +83,18 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
         Double totalPrice = Double.valueOf(params.get("totalPrice"));
         LocalDate checkIn = LocalDate.parse(params.get("checkIn"));
         LocalDate checkOut = LocalDate.parse(params.get("checkOut"));
-        if (roomCount <= 0 || nightNum <= 0 || totalPrice <= 0 || !checkOut.isAfter(checkIn)) {
+        long stayNights = ChronoUnit.DAYS.between(checkIn, checkOut);
+        if (roomCount <= 0 || stayNights <= 0 || stayNights > 365
+                || stayNights != nightNum || totalPrice <= 0) {
             throw new IllegalArgumentException("订单数量、日期或金额无效");
         }
 
-        //扣减库存（与建单同处一个事务，任一失败一起回滚）
-        SimpleRedisLock redisLock = new SimpleRedisLock("roomType:"+roomTypeId,stringRedisTemplate);
-        // 100 是锁的过期时间（秒），不是等待时长：拿不到锁立即失败，避免请求线程被长时间阻塞
-        if (!redisLock.tryLock(100)){
-            throw new RuntimeException("获取锁失败");
-        }
-        //锁必须在事务提交/回滚之后再释放。
-        //若在事务内提前释放，其他线程可立即拿到锁并读到尚未提交的旧库存。
-        registerUnlockAfterCompletion(redisLock);
-        boolean success = roomMapper.updateStock(roomTypeId,roomCount);
-        if (!success){
-           throw new RuntimeException("库存不足");
+        // 对 [入住日, 退房日) 每晚分别扣减；事务回滚会恢复已扣减的日期。
+        for (LocalDate stayDate = checkIn; stayDate.isBefore(checkOut); stayDate = stayDate.plusDays(1)) {
+            roomDailyStockMapper.initializeStock(roomTypeId, stayDate);
+            if (roomDailyStockMapper.decreaseStock(roomTypeId, stayDate, roomCount) != 1) {
+                throw new IllegalArgumentException("库存不足，日期：" + stayDate);
+            }
         }
         //创建订单
         //在此处计算优惠金额或这在签名中计算
@@ -142,19 +138,6 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
             }
         });
         return String.valueOf(orderId);
-    }
-
-    /**
-     * 在当前事务完成后（提交或回滚）释放 Redis 锁。
-     * afterCompletion 回调与事务在同一线程执行，锁的线程归属校验仍然成立。
-     */
-    private void registerUnlockAfterCompletion(SimpleRedisLock lock) {
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCompletion(int status) {
-                lock.unlock();
-            }
-        });
     }
 
     @Override
@@ -276,6 +259,10 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
     }
 
     private boolean cancelPendingOrder(HotelOrder order, Long userId, LocalDateTime expiredBefore) {
+        // 老订单可能尚无逐日库存行；在状态变化前初始化，才能正确计入该订单的占用。
+        for (LocalDate stayDate = order.getCheckIn(); stayDate.isBefore(order.getCheckOut()); stayDate = stayDate.plusDays(1)) {
+            roomDailyStockMapper.initializeStock(order.getRoomTypeId(), stayDate);
+        }
         UpdateWrapper<HotelOrder> update = new UpdateWrapper<>();
         update.eq("order_id", order.getOrderId()).eq("order_status", HotelOrderStatus.UNPAID)
                 .eq(userId != null, "user_id", userId)
@@ -284,8 +271,11 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
         if (hotelOrderMapper.update(null, update) != 1) {
             return false;
         }
-        if (roomMapper.increaseStock(order.getRoomTypeId(), order.getRoomCount()) != 1) {
-            throw new IllegalStateException("恢复房间库存失败，orderId=" + order.getOrderId());
+        for (LocalDate stayDate = order.getCheckIn(); stayDate.isBefore(order.getCheckOut()); stayDate = stayDate.plusDays(1)) {
+            if (roomDailyStockMapper.increaseStock(order.getRoomTypeId(), stayDate, order.getRoomCount()) != 1) {
+                throw new IllegalStateException("恢复房间库存失败，orderId=" + order.getOrderId()
+                        + ", stayDate=" + stayDate);
+            }
         }
         return true;
     }

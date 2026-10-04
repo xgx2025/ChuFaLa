@@ -41,4 +41,11 @@ public class RoomController {
         return Result.ok(result);
     }
 
+    @GetMapping("/{id}/availability")
+    public Result getAvailableStock(@PathVariable Long id,
+                                    @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate checkIn,
+                                    @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate checkOut) {
+        return Result.ok(roomService.getAvailableStock(id, checkIn, checkOut));
+    }
+
 }

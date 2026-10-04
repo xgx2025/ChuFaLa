@@ -18,6 +18,10 @@ export const getRoomInfoService =(id:string)=> {
     return request.get(`/rooms/${id}`)
 }
 
+export const getRoomAvailabilityService = (id:string, checkIn:string, checkOut:string) => {
+    return request.get(`/rooms/${id}/availability`, { params: { checkIn, checkOut } })
+}
+
 export const submitOrderService =(order:any)=> { 
     return request.post('/order/submit',order)
 }
