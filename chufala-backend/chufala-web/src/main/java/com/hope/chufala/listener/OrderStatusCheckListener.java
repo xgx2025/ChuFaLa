@@ -1,6 +1,7 @@
 package com.hope.chufala.listener;
 
 import com.hope.chufala.common.util.DelayMessageProcessor;
+import com.hope.chufala.constant.HotelOrderStatus;
 import com.hope.chufala.mq.MultiDelayMessage;
 import com.hope.chufala.model.entity.HotelOrder;
 import com.hope.chufala.service.IHotelOrderService;
@@ -30,7 +31,7 @@ public class OrderStatusCheckListener {
     public void listenerOrderDelayMessage(MultiDelayMessage<Long> msg){
         log.info("收到延迟消息：{}",msg);
         HotelOrder order = hotelOrderService.getByOrderId(msg.getData());
-        if (order == null || "已支付".equals(order.getOrderStatus()) ){
+        if (order == null || !HotelOrderStatus.UNPAID.equals(order.getOrderStatus())) {
             return;
         }
         //判断是否存在下一个延迟时间
@@ -41,7 +42,7 @@ public class OrderStatusCheckListener {
             return;
         }
         //不存在下一个延迟时间(说明已过30分钟),取消订单并恢复库存
-        hotelOrderService.cancelDelayOrder(order.getOrderId(),order.getRoomTypeId(),order.getRoomCount());
+        hotelOrderService.cancelDelayOrder(order.getOrderId());
     }
 
 

@@ -30,8 +30,8 @@ public class OrderTools {
 
 
 
-    @Tool(description = "查询当前用户的酒店订单。可按状态筛选：'未支付'、'已支付'、'已取消'，如果用户未提状态，就查所有订单。可按时间筛选，如果用户没有指明时间，就将时间设置null，不用询问用户时间")
-    public String queryHotelOrderByUserIdPage(@ToolParam(description = "订单状态,状态有‘未支付’、‘已支付’、‘已取消’") String orderStatus, @ToolParam(description = "下单时间") LocalDate bookTime, ToolContext toolContext) {
+    @Tool(description = "查询当前用户的酒店订单。可按状态筛选：'待支付'、'已支付'、'已取消'，如果用户未提状态，就查所有订单。可按时间筛选，如果用户没有指明时间，就将时间设置null，不用询问用户时间")
+    public String queryHotelOrderByUserIdPage(@ToolParam(description = "订单状态,状态有‘待支付’、‘已支付’、‘已取消’") String orderStatus, @ToolParam(description = "下单时间") LocalDate bookTime, ToolContext toolContext) {
         Long currentUserId = ToolUserContext.getUserId(toolContext);
         List<HotelOrder> orderPageResult = hotelOrderService.findHotelOrdersByUserIdWithConditions(currentUserId,orderStatus,bookTime);
        return orderPageResult.toString();

@@ -15,7 +15,7 @@ public interface IHotelOrderService {
 
     String createHotelOrder(HotelOrderDTO hotelOrderDTO,Long userId);
 
-    void updateStatus(Long orderId, String paymentStatus);
+    void markOrderPaid(Long orderId);
 
     /**
      * 分页查询用户的酒店订单
@@ -41,5 +41,7 @@ public interface IHotelOrderService {
 
     void cancelOrder(Long orderId, Long userId);
 
-    void cancelDelayOrder(Long orderId,Long roomId,int roomCount);
+    void cancelDelayOrder(Long orderId);
+
+    List<Long> getExpiredUnpaidOrderIds(int limit);
 }

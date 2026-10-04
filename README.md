@@ -123,3 +123,16 @@ node index.js
 - 新增配置项请同步更新对应的 `*.example` 模板（后端 `application.yml.example`、前端 `.env.example`）
 - 前端禁止硬编码地图 Key，统一走 `import.meta.env.VITE_*`
 - 若怀疑密钥已泄露，请立即在对应平台轮换，改代码无法挽回已泄露的凭据
+
+## 酒店订单状态与库存
+
+- 酒店订单创建时原子扣减 `room.stock`，状态为“待支付”。付款只允许“待支付 → 已支付”，取消只允许“待支付 → 已取消”；取消成功才回补库存。删除待支付订单会先取消，再软删除。
+- 订单创建提交后发送延迟消息。延迟消息在实际满 30 分钟时取消待支付订单；定时任务每分钟扫描一次，兜底处理消息丢失或发送失败。
+- 支付宝成功通知需通过签名、应用 ID 和金额校验。若订单已取消，支付记录标为 `REFUND_REQUIRED`，不会重新标记订单为已支付，也不会再次扣减库存。
+- **退款待办需要人工处理**：使用 `SELECT id, order_id, money, trade_no, pay_time FROM pay_record WHERE status = 'REFUND_REQUIRED';` 查出记录，在支付宝后台确认并退款后核对交易记录，再将对应记录更新为 `REFUNDED`。当前项目尚未实现自动退款；上线前应补充自动退款、失败重试与对账。
+
+数据库中酒店订单的待付款状态以 `待支付` 为准。若曾运行过写入 `未支付` 的代码，部署本次改动前需执行一次数据修复：
+
+```sql
+UPDATE hotel_order SET order_status = '待支付' WHERE order_status = '未支付';
+```

@@ -11,9 +11,10 @@ import com.hope.chufala.common.util.RedisWorker;
 import com.hope.chufala.common.util.SignaturePriceUtils;
 import com.hope.chufala.common.util.SimpleRedisLock;
 import com.hope.chufala.mq.MultiDelayMessage;
+import com.hope.chufala.constant.HotelOrderStatus;
+import com.hope.chufala.exception.OrderAlreadyCancelledException;
 import com.hope.chufala.model.dto.HotelOrderDTO;
 import com.hope.chufala.model.entity.HotelOrder;
-import com.hope.chufala.model.entity.Room;
 import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.mapper.HotelMapper;
 import com.hope.chufala.mapper.HotelOrderMapper;
@@ -82,6 +83,9 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
         Double totalPrice = Double.valueOf(params.get("totalPrice"));
         LocalDate checkIn = LocalDate.parse(params.get("checkIn"));
         LocalDate checkOut = LocalDate.parse(params.get("checkOut"));
+        if (roomCount <= 0 || nightNum <= 0 || totalPrice <= 0 || !checkOut.isAfter(checkIn)) {
+            throw new IllegalArgumentException("订单数量、日期或金额无效");
+        }
 
         //扣减库存（与建单同处一个事务，任一失败一起回滚）
         SimpleRedisLock redisLock = new SimpleRedisLock("roomType:"+roomTypeId,stringRedisTemplate);
@@ -103,6 +107,8 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
         HotelOrder hotelOrder = new HotelOrder();
         hotelOrder.setOrderId(orderId);
         hotelOrder.setUserId(userId);
+        hotelOrder.setOrderStatus(HotelOrderStatus.UNPAID);
+        hotelOrder.setBookTime(LocalDateTime.now());
         hotelOrder.setHotelId(hotelId);
         hotelOrder.setRoomTypeId(roomTypeId);
         hotelOrder.setRoomCount(roomCount);
@@ -124,14 +130,17 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
         if (row != 1){
             throw new RuntimeException("创建订单失败");
         }
-        try {
-            //延迟检测订单状态
-            MultiDelayMessage<Long> msg = MultiDelayMessage.of(orderId, 10000L, 10000L, 10000L, 15000L, 15000L, 30000L, 30000L, 60000L, 2 * 60000L, 5 * 60000L, 10 * 60000L, 10 * 60000L); //延迟时间30分钟
-            rabbitTemplate.convertAndSend("order.delay.direct", "order.hotel.delay.key", msg, new DelayMessageProcessor(msg.removeNextDelay()));
-            log.info("延迟消息发送成功！");
-        }catch (AmqpException e){
-            log.error("延迟消息发送异常！",e);
-        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    MultiDelayMessage<Long> msg = MultiDelayMessage.of(orderId, 10000L, 10000L, 10000L, 15000L, 15000L, 30000L, 30000L, 60000L, 2 * 60000L, 5 * 60000L, 10 * 60000L, 10 * 60000L);
+                    rabbitTemplate.convertAndSend("order.delay.direct", "order.hotel.delay.key", msg, new DelayMessageProcessor(msg.removeNextDelay()));
+                } catch (AmqpException e) {
+                    log.error("订单延迟消息发送失败，将由定时任务兜底，orderId={}", orderId, e);
+                }
+            }
+        });
         return String.valueOf(orderId);
     }
 
@@ -149,22 +158,29 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
     }
 
     @Override
-    public void updateStatus(Long orderId, String orderStatus) {
-       HotelOrder order = new HotelOrder();
-       order.setId(orderId);
-       order.setOrderStatus(orderStatus);
-       order.setPaidTime(LocalDateTime.now());
-       QueryWrapper<HotelOrder> queryWrapper = new QueryWrapper<>();
-       queryWrapper.eq("order_id", orderId);
-       hotelOrderMapper.update(order, queryWrapper);
+    public void markOrderPaid(Long orderId) {
+        UpdateWrapper<HotelOrder> update = new UpdateWrapper<>();
+        update.eq("order_id", orderId).eq("order_status", HotelOrderStatus.UNPAID)
+                .set("order_status", HotelOrderStatus.PAID).set("paid_time", LocalDateTime.now());
+        if (hotelOrderMapper.update(null, update) == 1) {
+            return;
+        }
+        HotelOrder order = getByOrderId(orderId);
+        if (order != null && HotelOrderStatus.PAID.equals(order.getOrderStatus())) {
+            return;
+        }
+        if (order != null && HotelOrderStatus.CANCELLED.equals(order.getOrderStatus())) {
+            throw new OrderAlreadyCancelledException("订单已取消，支付需要退款处理");
+        }
+        throw new IllegalStateException("订单状态无法更新为已支付，orderId=" + orderId);
     }
 
     @Override
     public PageResult<HotelOrder> getHotelOrderByUserIdPage(Long userId,String orderStatus,Integer currentPage, Integer pageSize){
         QueryWrapper<HotelOrder> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_id", userId).eq("is_deleted",0);
-        if (!"all".equals(orderStatus)){
-            queryWrapper.eq("order_status", orderStatus);
+        if (orderStatus != null && !"all".equals(orderStatus)){
+            queryWrapper.eq("order_status", HotelOrderStatus.normalizeFilter(orderStatus));
         }
         queryWrapper.orderByDesc("book_time");
         IPage<HotelOrder> page = new Page<>(currentPage, pageSize);
@@ -185,7 +201,10 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
     @Override
     public List<HotelOrder> findHotelOrdersByUserIdWithConditions(Long userId, String orderStatus, LocalDate bookTime) {
         QueryWrapper<HotelOrder> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("user_id", userId).eq("is_deleted",0).eq("order_status", orderStatus);
+        queryWrapper.eq("user_id", userId).eq("is_deleted",0);
+        if (orderStatus != null && !"all".equals(orderStatus)) {
+            queryWrapper.eq("order_status", HotelOrderStatus.normalizeFilter(orderStatus));
+        }
         if (bookTime != null){
             LocalDateTime start = bookTime.atStartOfDay(); // 00:00:00
             LocalDateTime end = bookTime.plusDays(1).atStartOfDay(); // 次日 00:00:00
@@ -195,9 +214,18 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deleteOrder(Long orderId, Long userId) {
+        HotelOrder order = getByOrderIdAndUserId(orderId, userId);
+        if (order == null) {
+            throw new ResourceNotFoundException("订单不存在");
+        }
+        if (HotelOrderStatus.UNPAID.equals(order.getOrderStatus())) {
+            cancelPendingOrder(order, userId, null);
+        }
         UpdateWrapper<HotelOrder> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("order_id", orderId).eq("user_id", userId).set("is_deleted", 1);
+        updateWrapper.eq("order_id", orderId).eq("user_id", userId)
+                .eq("is_deleted", 0).set("is_deleted", 1);
         if (hotelOrderMapper.update(null, updateWrapper) != 1) {
             throw new ResourceNotFoundException("订单不存在");
         }
@@ -212,30 +240,54 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
         if (hotelOrder == null){
             throw new ResourceNotFoundException("订单不存在");
         }
-        //修改订单状态
-        UpdateWrapper<HotelOrder> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("order_id", orderId).eq("user_id", userId).set("order_status","已取消");
-        hotelOrderMapper.update(null, updateWrapper);
-        //恢复库存
-        UpdateWrapper<Room> roomUpdateWrapper = new UpdateWrapper<>();
-        roomUpdateWrapper.eq("id", hotelOrder.getRoomTypeId()).setSql("stock = stock + " + hotelOrder.getRoomCount());
-//        roomUpdateWrapper.eq("id", hotelOrder.getRoomTypeId()).set("stock", "stock + " + hotelOrder.getRoomCount());
-        roomMapper.update(null, roomUpdateWrapper);
+        if (HotelOrderStatus.CANCELLED.equals(hotelOrder.getOrderStatus())) {
+            return;
+        }
+        if (HotelOrderStatus.PAID.equals(hotelOrder.getOrderStatus())) {
+            throw new IllegalArgumentException("已支付订单不能取消");
+        }
+        if (!cancelPendingOrder(hotelOrder, userId, null)) {
+            HotelOrder current = getByOrderIdAndUserId(orderId, userId);
+            if (current != null && HotelOrderStatus.PAID.equals(current.getOrderStatus())) {
+                throw new IllegalArgumentException("已支付订单不能取消");
+            }
+            if (current == null || !HotelOrderStatus.CANCELLED.equals(current.getOrderStatus())) {
+                throw new IllegalStateException("订单状态发生变化，请重试");
+            }
+        }
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void cancelDelayOrder(Long orderId,Long roomId,int roomCount) {
-        //修改订单状态
-        UpdateWrapper<HotelOrder> queryWrapper = new UpdateWrapper<>();
-        queryWrapper.eq("order_id", orderId).set("order_status","已取消");
-        hotelOrderMapper.update(null, queryWrapper);
-        //恢复库存
-        UpdateWrapper<Room> roomUpdateWrapper = new UpdateWrapper<>();
-        roomUpdateWrapper.eq("id", roomId).setSql("stock = stock + " + roomCount);
-//        roomUpdateWrapper.eq("id", roomId).set("stock","stock + "+roomCount);
-        roomMapper.update(null, roomUpdateWrapper);
+    public void cancelDelayOrder(Long orderId) {
+        HotelOrder order = getByOrderId(orderId);
+        if (order != null && HotelOrderStatus.UNPAID.equals(order.getOrderStatus())) {
+            cancelPendingOrder(order, null, LocalDateTime.now().minusMinutes(30));
+        }
     }
 
+    @Override
+    public List<Long> getExpiredUnpaidOrderIds(int limit) {
+        QueryWrapper<HotelOrder> query = new QueryWrapper<>();
+        query.eq("order_status", HotelOrderStatus.UNPAID)
+                .le("book_time", LocalDateTime.now().minusMinutes(30))
+                .orderByAsc("book_time").last("LIMIT " + Math.min(Math.max(limit, 1), 100));
+        return hotelOrderMapper.selectList(query).stream().map(HotelOrder::getOrderId).toList();
+    }
+
+    private boolean cancelPendingOrder(HotelOrder order, Long userId, LocalDateTime expiredBefore) {
+        UpdateWrapper<HotelOrder> update = new UpdateWrapper<>();
+        update.eq("order_id", order.getOrderId()).eq("order_status", HotelOrderStatus.UNPAID)
+                .eq(userId != null, "user_id", userId)
+                .le(expiredBefore != null, "book_time", expiredBefore)
+                .set("order_status", HotelOrderStatus.CANCELLED);
+        if (hotelOrderMapper.update(null, update) != 1) {
+            return false;
+        }
+        if (roomMapper.increaseStock(order.getRoomTypeId(), order.getRoomCount()) != 1) {
+            throw new IllegalStateException("恢复房间库存失败，orderId=" + order.getOrderId());
+        }
+        return true;
+    }
 
 }

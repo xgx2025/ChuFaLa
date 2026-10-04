@@ -1,6 +1,7 @@
 package com.hope.chufala.adapter;
 
 import com.hope.chufala.model.entity.HotelOrder;
+import com.hope.chufala.constant.HotelOrderStatus;
 import com.hope.chufala.common.exception.ResourceNotFoundException;
 import com.hope.chufala.model.dto.PayParamDTO;
 import com.hope.chufala.model.entity.PayRecord;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Service
 public class HotelAdapter implements BizAdapter {
@@ -27,6 +29,11 @@ public class HotelAdapter implements BizAdapter {
         if (order == null) {
             throw new ResourceNotFoundException("酒店订单不存在");
         }
+        if (!HotelOrderStatus.UNPAID.equals(order.getOrderStatus())
+                || (order.getBookTime() != null
+                && !order.getBookTime().plusMinutes(30).isAfter(LocalDateTime.now()))) {
+            throw new IllegalArgumentException("订单已取消、已支付或已超时，不能发起支付");
+        }
 
         // 2. 转换为统一支付参数（与业务无关）
         PayParamDTO param = new PayParamDTO();
@@ -40,7 +47,7 @@ public class HotelAdapter implements BizAdapter {
     @Override
     public void handlePaySuccess(Long orderId, PayRecord payRecord) {
         // 支付成功后处理酒店业务（业务逻辑）
-        hotelOrderService.updateStatus(orderId, "已支付");
+        hotelOrderService.markOrderPaid(orderId);
         //hotelOrderService.sendConfirmSms(orderId); // 发送入住确认短信
         // hotelOrderService.lockRoom(orderId); // 锁定房间资源
     }

@@ -1,7 +1,6 @@
 package com.hope.chufala;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.hope.chufala.adapter.HotelAdapter;
 import com.hope.chufala.adapter.VipAdapter;
 import com.hope.chufala.agent.tool.OrderTools;
@@ -35,7 +34,6 @@ import org.springframework.ai.support.ToolCallbacks;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -76,9 +74,9 @@ class AuthorizationRegressionTest {
         ReflectionTestUtils.setField(service, "hotelOrderMapper", mapper);
 
         assertThrows(ResourceNotFoundException.class, () -> service.deleteOrder(101L, 202L));
-        verify(mapper).update(eq(null), org.mockito.ArgumentMatchers.<UpdateWrapper<HotelOrder>>argThat(
-                update -> update.getSqlSegment().contains("user_id")
-                        && update.getParamNameValuePairs().containsValue(202L)));
+        verify(mapper).selectOne(org.mockito.ArgumentMatchers.<QueryWrapper<HotelOrder>>argThat(
+                query -> query.getSqlSegment().contains("user_id")
+                        && query.getParamNameValuePairs().containsValue(202L)));
     }
 
     @Test
