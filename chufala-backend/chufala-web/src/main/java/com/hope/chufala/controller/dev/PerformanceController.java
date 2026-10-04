@@ -1,6 +1,10 @@
 package com.hope.chufala.controller.dev;
 
 import com.hope.chufala.common.util.SmartList;
+import com.hope.chufala.common.util.ThreadLocalUtils;
+import com.hope.chufala.security.AccessControl;
+import io.jsonwebtoken.Claims;
+import lombok.RequiredArgsConstructor;
 import com.hope.chufala.model.vo.TouristAttractionVO;
 import com.hope.chufala.perf.ListBenchmark;
 import org.springframework.stereotype.Controller;
@@ -13,11 +17,15 @@ import java.util.LinkedList;
 import java.util.List;
 
 @Controller
+@RequiredArgsConstructor
 public class PerformanceController {
+    private final AccessControl accessControl;
 
     // 默认测试数据量为100000
     @GetMapping("/performance")
     public String showPerformance(Model model, @RequestParam(defaultValue = "100000") int dataSize) {
+        Claims claims = ThreadLocalUtils.get();
+        accessControl.requireAdmin(claims.get("userId", Long.class));
 
         // 执行性能测试
         List<TouristAttractionVO> arrayList = new ArrayList<>();

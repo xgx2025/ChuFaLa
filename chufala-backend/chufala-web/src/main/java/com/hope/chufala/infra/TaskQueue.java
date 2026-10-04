@@ -41,11 +41,11 @@ public class TaskQueue {
      * @param userPlan 用户旅行的相关信息
      * @return 任务ID
      */
-    public String submitTask(UserPlanDTO userPlan){
+    public String submitTask(Long userId, UserPlanDTO userPlan){
         // 顺带清理已结束且超期的任务，避免任务只增不减导致内存持续增长
         evictFinishedTasks();
         String taskId = UUID.randomUUID().toString();
-        taskMap.put(taskId, new TaskEntry(new AgentTask(taskId, userPlan, TaskStatus.PENDING), System.currentTimeMillis()));
+        taskMap.put(taskId, new TaskEntry(new AgentTask(taskId, userId, userPlan, TaskStatus.PENDING), System.currentTimeMillis()));
         return taskId;
     }
 

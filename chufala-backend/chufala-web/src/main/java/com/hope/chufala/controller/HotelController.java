@@ -7,6 +7,9 @@ import com.hope.chufala.model.entity.Hotel;
 import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.common.model.vo.Result;
 import com.hope.chufala.service.IHotelService;
+import com.hope.chufala.security.AccessControl;
+import com.hope.chufala.common.util.ThreadLocalUtils;
+import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,9 +19,13 @@ public class HotelController {
 
     @Autowired
     private IHotelService hotelService;
+    @Autowired
+    private AccessControl accessControl;
 
     @PostMapping
     public Result add(@RequestBody Hotel hotel) {
+        Claims claims = ThreadLocalUtils.get();
+        accessControl.requireAdmin(claims.get("userId", Long.class));
         boolean flag = hotelService.addHotel(hotel);
         if (!flag){
             return Result.fail(ResultCode.UNKNOWN_ERROR);

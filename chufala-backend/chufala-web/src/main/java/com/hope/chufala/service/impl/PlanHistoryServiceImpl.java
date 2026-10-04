@@ -3,6 +3,7 @@ package com.hope.chufala.service.impl;
 import cn.hutool.core.lang.Snowflake;
 import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.hope.chufala.common.exception.ResourceNotFoundException;
 import com.hope.chufala.model.dto.UserPlanDTO;
 import com.hope.chufala.model.entity.PlanHistory;
 import com.hope.chufala.model.vo.TravelItineraryVO;
@@ -49,17 +50,23 @@ public class PlanHistoryServiceImpl implements IPlanHistoryService {
     }
 
     @Override
-    public TravelItineraryVO queryPlanResult(Long id) {
-        PlanHistory planHistory = planHistoryMapper.selectById(id);
-        log.info("规划结果：{}", planHistory);
+    public TravelItineraryVO queryPlanResult(Long id, Long userId) {
+        PlanHistory planHistory = planHistoryMapper.selectOne(new QueryWrapper<PlanHistory>()
+                .eq("id", id).eq("user_id", userId));
+        if (planHistory == null) {
+            throw new ResourceNotFoundException("行程不存在");
+        }
         return planHistory.getPlanResult();
     }
 
     @Override
-    public String getPlanContentById(Long id) {
+    public String getPlanContentById(Long id, Long userId) {
         QueryWrapper<PlanHistory> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("id", id).select("plan_content");
+        queryWrapper.eq("id", id).eq("user_id", userId).select("plan_content");
         PlanHistory planHistory = planHistoryMapper.selectOne(queryWrapper);
+        if (planHistory == null) {
+            throw new ResourceNotFoundException("行程不存在");
+        }
         return planHistory.getPlanContent();
     }
 

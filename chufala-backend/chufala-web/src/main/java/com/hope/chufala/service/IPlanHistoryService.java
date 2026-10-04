@@ -29,12 +29,12 @@ public interface IPlanHistoryService {
      * @param id
      * @return
      */
-    TravelItineraryVO queryPlanResult(Long id);
+    TravelItineraryVO queryPlanResult(Long id, Long userId);
 
     /**
      * 通过ID查询规划结果内容
      * @param id
      * @return
      */
-    String getPlanContentById(Long id);
+    String getPlanContentById(Long id, Long userId);
 }

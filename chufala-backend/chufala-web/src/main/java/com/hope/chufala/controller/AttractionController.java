@@ -8,6 +8,9 @@ import com.hope.chufala.model.entity.Attraction;
 import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.common.model.vo.Result;
 import com.hope.chufala.service.IAttractionService;
+import com.hope.chufala.security.AccessControl;
+import com.hope.chufala.common.util.ThreadLocalUtils;
+import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,8 +20,12 @@ public class AttractionController {
 
     @Autowired
     private IAttractionService attractionService;
+    @Autowired
+    private AccessControl accessControl;
     @PostMapping("/add")
     public Result add(@RequestBody Attraction attraction) {
+      Claims claims = ThreadLocalUtils.get();
+      accessControl.requireAdmin(claims.get("userId", Long.class));
       boolean flag = attractionService.addAttraction(attraction);
       if (!flag){
           return Result.fail(ResultCode.NO_DATA);

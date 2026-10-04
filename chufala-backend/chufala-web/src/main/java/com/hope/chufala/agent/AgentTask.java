@@ -15,6 +15,8 @@ public class AgentTask {
      * 任务ID
      */
     private String taskId;
+    /** 提交任务的用户 ID，仅用于服务端归属校验。 */
+    private Long userId;
     /**
      * 用户旅游的相关信息
      */
@@ -28,8 +30,9 @@ public class AgentTask {
      */
     private TravelItineraryVO result;
 
-    public AgentTask(String taskId, UserPlanDTO userPlan, TaskStatus status) {
+    public AgentTask(String taskId, Long userId, UserPlanDTO userPlan, TaskStatus status) {
         this.taskId = taskId;
+        this.userId = userId;
         this.userPlan = userPlan;
         this.status = status;
     }

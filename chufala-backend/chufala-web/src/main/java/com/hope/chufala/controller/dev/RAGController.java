@@ -1,5 +1,8 @@
 package com.hope.chufala.controller.dev;
 
+import com.hope.chufala.common.util.ThreadLocalUtils;
+import com.hope.chufala.security.AccessControl;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
@@ -15,9 +18,12 @@ import java.util.Map;
 @RequestMapping("/rag")
 public class RAGController {
     private final VectorStore vectorStore;
+    private final AccessControl accessControl;
 
     @RequestMapping("/test")
     public String test(){
+        Claims claims = ThreadLocalUtils.get();
+        accessControl.requireAdmin(claims.get("userId", Long.class));
         List<Document> documents = List.of(
                 new Document("青石镇坐落在连绵的青山褶皱里，镇口的老槐树盘根错节，枝桠伸展得像老人枯瘦却温暖的手掌，遮住了大半个街口。镇上的时光好像比别处走得慢，青石板路被岁月磨得发亮，雨后会透出淡淡的苔痕，家家户户的木门扉上，都刻着藏着故事的纹路。", Map.of("meta1", "meta1")),
                 new Document("林默就是在这样一个雨后的清晨来到青石镇的，他背着简单的行囊，手里攥着一张泛黄的旧照片，照片上是个穿蓝布长衫的老人，手里捧着一块银质怀表，背景正是镇口的老槐树。"),

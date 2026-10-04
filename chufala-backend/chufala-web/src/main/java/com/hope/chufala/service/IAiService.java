@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface IAiService {
 
-    List<String> uploadChatFile(MultipartFile[] files);
+    List<String> uploadChatFile(MultipartFile[] files, Long userId);
 
-    List<UploadedFile> getFilesByIds(List<String> fileIds);
+    List<UploadedFile> getFilesByIds(List<String> fileIds, Long userId);
 }

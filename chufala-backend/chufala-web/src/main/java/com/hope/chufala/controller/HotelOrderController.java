@@ -44,23 +44,17 @@ public class HotelOrderController {
 
     @DeleteMapping("/{orderId}")
     public Result deleteOrder(@PathVariable Long orderId) {
-        try {
-            hotelOrderService.deleteOrder(orderId);
-        }catch(RuntimeException e){
-            log.error("删除订单失败！",e);
-            return Result.fail(ResultCode.SYSTEM_BUSY);
-        }
+        Claims claims = ThreadLocalUtils.get();
+        Long userId = claims.get("userId", Long.class);
+        hotelOrderService.deleteOrder(orderId, userId);
         return Result.ok(null);
     }
 
     @PutMapping("/cancel/{orderId}")
     public Result cancelOrder(@PathVariable Long orderId) {
-        try {
-            hotelOrderService.cancelOrder(orderId);
-        }catch (RuntimeException e) {
-            log.error("取消订单失败！",e);
-            return Result.fail(ResultCode.SYSTEM_BUSY);
-        }
+        Claims claims = ThreadLocalUtils.get();
+        Long userId = claims.get("userId", Long.class);
+        hotelOrderService.cancelOrder(orderId, userId);
         return Result.ok(null);
     }
 }

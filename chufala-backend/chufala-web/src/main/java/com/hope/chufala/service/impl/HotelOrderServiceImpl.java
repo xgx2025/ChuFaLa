@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hope.chufala.common.exception.InvalidSignatureException;
+import com.hope.chufala.common.exception.ResourceNotFoundException;
 import com.hope.chufala.common.util.DelayMessageProcessor;
 import com.hope.chufala.common.util.RedisWorker;
 import com.hope.chufala.common.util.SignaturePriceUtils;
@@ -194,29 +195,26 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
     }
 
     @Override
-    public void deleteOrder(Long orderId) {
-        try {
-            UpdateWrapper<HotelOrder> updateWrapper = new UpdateWrapper<>();
-            updateWrapper.eq("order_id", orderId).set("is_deleted", 1);
-            hotelOrderMapper.update(null, updateWrapper);
-        }catch (Exception e){
-           throw new RuntimeException(e);
+    public void deleteOrder(Long orderId, Long userId) {
+        UpdateWrapper<HotelOrder> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("order_id", orderId).eq("user_id", userId).set("is_deleted", 1);
+        if (hotelOrderMapper.update(null, updateWrapper) != 1) {
+            throw new ResourceNotFoundException("订单不存在");
         }
-
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void cancelOrder(Long orderId) {
+    public void cancelOrder(Long orderId, Long userId) {
         QueryWrapper<HotelOrder> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("order_id", orderId);
+        queryWrapper.eq("order_id", orderId).eq("user_id", userId);
         HotelOrder hotelOrder = hotelOrderMapper.selectOne(queryWrapper);
         if (hotelOrder == null){
-            throw new RuntimeException("订单不存在!");
+            throw new ResourceNotFoundException("订单不存在");
         }
         //修改订单状态
         UpdateWrapper<HotelOrder> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("order_id", orderId).set("order_status","已取消");
+        updateWrapper.eq("order_id", orderId).eq("user_id", userId).set("order_status","已取消");
         hotelOrderMapper.update(null, updateWrapper);
         //恢复库存
         UpdateWrapper<Room> roomUpdateWrapper = new UpdateWrapper<>();

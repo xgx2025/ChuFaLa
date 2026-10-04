@@ -3,6 +3,7 @@ package com.hope.chufala.service.impl;
 import cn.hutool.core.lang.Snowflake;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.hope.chufala.common.exception.ResourceNotFoundException;
 import com.hope.chufala.model.entity.AiConversation;
 import com.hope.chufala.model.entity.AiMessage;
 import com.hope.chufala.mapper.AiConversationMapper;
@@ -108,14 +109,17 @@ public class AiConversationServiceImpl implements IAiConversationService {
     }
 
     @Override
-    public void deleteConversationById(Long id) {
+    public void deleteConversationById(Long id, Long userId) {
         UpdateWrapper<AiConversation> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("id", id).set("is_deleted", 1);
-        aiConversationMapper.update(null, updateWrapper);
+        updateWrapper.eq("id", id).eq("user_id", userId).eq("is_deleted", 0).set("is_deleted", 1);
+        if (aiConversationMapper.update(null, updateWrapper) != 1) {
+            throw new ResourceNotFoundException("会话不存在");
+        }
     }
 
     @Override
-    public List<AiMessage> getConversationById(Long id) {
+    public List<AiMessage> getConversationById(Long id, Long userId) {
+        requireConversationOwner(id, userId);
         QueryWrapper<AiMessage> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("conversation_id", id);
         queryWrapper.orderByAsc("create_time");
@@ -123,10 +127,12 @@ public class AiConversationServiceImpl implements IAiConversationService {
     }
 
     @Override
-    public Long getUserIdByConversationId(Long conversationId) {
+    public void requireConversationOwner(Long conversationId, Long userId) {
         QueryWrapper<AiConversation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("id", conversationId);
+        queryWrapper.eq("id", conversationId).eq("user_id", userId).eq("is_deleted", 0);
         AiConversation aiConversation = aiConversationMapper.selectOne(queryWrapper);
-        return aiConversation.getUserId();
+        if (aiConversation == null) {
+            throw new ResourceNotFoundException("会话不存在");
+        }
     }
 }

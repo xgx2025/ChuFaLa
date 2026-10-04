@@ -1,6 +1,7 @@
 package com.hope.chufala.adapter;
 
 import com.hope.chufala.model.entity.HotelOrder;
+import com.hope.chufala.common.exception.ResourceNotFoundException;
 import com.hope.chufala.model.dto.PayParamDTO;
 import com.hope.chufala.model.entity.PayRecord;
 import com.hope.chufala.service.IHotelOrderService;
@@ -20,11 +21,11 @@ public class HotelAdapter implements BizAdapter {
     private IPayRecordService payRecordService;
 
     @Override
-    public PayParamDTO buildPayParam(Long orderId) {
+    public PayParamDTO buildPayParam(Long orderId, Long userId) {
         // 1. 查询酒店订单（业务逻辑）
-        HotelOrder order = hotelOrderService.getByOrderId(orderId);
+        HotelOrder order = hotelOrderService.getByOrderIdAndUserId(orderId, userId);
         if (order == null) {
-            throw new RuntimeException("酒店订单不存在");
+            throw new ResourceNotFoundException("酒店订单不存在");
         }
 
         // 2. 转换为统一支付参数（与业务无关）

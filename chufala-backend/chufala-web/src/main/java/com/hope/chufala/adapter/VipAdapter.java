@@ -2,6 +2,7 @@ package com.hope.chufala.adapter;
 
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.hope.chufala.model.entity.*;
+import com.hope.chufala.common.exception.ResourceNotFoundException;
 import com.hope.chufala.mapper.UserMapper;
 import com.hope.chufala.mapper.VipPaymentRecordMapper;
 import com.hope.chufala.service.IMembershipService;
@@ -21,11 +22,11 @@ public class VipAdapter implements BizAdapter{
     private UserMapper userMapper;
 
     @Override
-    public PayParamDTO buildPayParam(Long orderId) {
+    public PayParamDTO buildPayParam(Long orderId, Long userId) {
         // 1. 查询酒店订单（业务逻辑）
         VipPaymentRecord order = membershipService.getRecordById(orderId);
-        if (order == null) {
-            throw new RuntimeException("vip订阅订单不存在");
+        if (order == null || !userId.equals(order.getUserId())) {
+            throw new ResourceNotFoundException("会员订单不存在");
         }
 
         // 2. 转换为统一支付参数（与业务无关）

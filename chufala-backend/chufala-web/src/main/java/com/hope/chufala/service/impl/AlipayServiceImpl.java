@@ -47,14 +47,14 @@ public class AlipayServiceImpl implements IAlipayService {
 
     @Override
     public String createPay(String bizType, Long orderId) {
+        Claims claims = ThreadLocalUtils.get();
+        Long userId = claims.get("userId", Long.class);
         // 1. 通过业务适配器获取统一支付参数（隔离业务差异）
         BizAdapter adapter = bizAdapterFactory.getAdapter(bizType);
-        PayParamDTO payParam = adapter.buildPayParam(orderId); // 由业务适配器转换参数
+        PayParamDTO payParam = adapter.buildPayParam(orderId, userId); // 由业务适配器转换参数
 
         // 2. 生成支付记录（通用逻辑：记录支付状态）
         PayRecord record = new PayRecord();
-        Claims claims = ThreadLocalUtils.get();
-        Long userId = claims.get("userId", Long.class);
         record.setUserId(userId);
         record.setBizType(bizType);
         record.setOrderId(orderId);

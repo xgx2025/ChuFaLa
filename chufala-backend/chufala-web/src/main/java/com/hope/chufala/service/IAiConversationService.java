@@ -49,14 +49,14 @@ public interface IAiConversationService {
      * 通过ID删除会话
      * @param id
      */
-    void deleteConversationById(Long id);
+    void deleteConversationById(Long id, Long userId);
 
     /**
      * 通过ID获取会话
      * @param id
      * @return
      */
-    List<AiMessage> getConversationById(Long id);
+    List<AiMessage> getConversationById(Long id, Long userId);
 
-    Long getUserIdByConversationId(Long conversationId);
+    void requireConversationOwner(Long conversationId, Long userId);
 }

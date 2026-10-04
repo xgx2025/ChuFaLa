@@ -4,32 +4,38 @@ import cn.hutool.core.lang.Snowflake;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.hope.chufala.common.util.AliOSSUtils;
 import com.hope.chufala.model.entity.UploadedFile;
+import com.hope.chufala.common.exception.ResourceNotFoundException;
 import com.hope.chufala.mapper.UploadedFileMapper;
 import com.hope.chufala.service.IAiService;
 import com.hope.chufala.service.IUploadedFileService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
 public class AiServiceImpl implements IAiService {
+    private static final String UPLOAD_OWNER_KEY_PREFIX = "chat:upload:owner:";
     @Autowired
     private IUploadedFileService uploadedFileService;
     @Autowired
     private AliOSSUtils aliOSSUtils;
     @Autowired
     private UploadedFileMapper uploadedFileMapper;
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
 
 
     @Override
-    public List<String> uploadChatFile(MultipartFile[] files) {
+    public List<String> uploadChatFile(MultipartFile[] files, Long userId) {
         if (files == null || files.length == 0) {
             throw new IllegalArgumentException("文件不能为空");
         }
@@ -56,6 +62,10 @@ public class AiServiceImpl implements IAiService {
             throw new RuntimeException("文件上传失败", e);
         }
         uploadedFileService.saveUploadedFileInfo(uploadedFiles);
+        for (UploadedFile uploadedFile : uploadedFiles) {
+            stringRedisTemplate.opsForValue().set(UPLOAD_OWNER_KEY_PREFIX + uploadedFile.getId(),
+                    userId.toString(), 1, TimeUnit.HOURS);
+        }
         log.info("结果{}",uploadedFiles);
         //取出文件列表中的文件ID并返回
         List<Long> fileIds = uploadedFiles.stream().map(UploadedFile::getId).toList();
@@ -63,16 +73,20 @@ public class AiServiceImpl implements IAiService {
     }
 
     @Override
-    public List<UploadedFile> getFilesByIds(List<String> fileIds) {
+    public List<UploadedFile> getFilesByIds(List<String> fileIds, Long userId) {
         List<UploadedFile> fileUrls = new ArrayList<>();
         for (String fileId : fileIds) {
+            if (!userId.toString().equals(stringRedisTemplate.opsForValue().get(UPLOAD_OWNER_KEY_PREFIX + fileId))) {
+                throw new ResourceNotFoundException("上传文件不存在");
+            }
             // 每次循环新建 QueryWrapper，避免条件在多次查询之间累积
             QueryWrapper<UploadedFile> queryWrapper = new QueryWrapper<>();
             queryWrapper.eq("id", Long.valueOf(fileId));
             UploadedFile uploadedFile = uploadedFileMapper.selectOne(queryWrapper);
-            if (uploadedFile != null) {
-                fileUrls.add(uploadedFile);
+            if (uploadedFile == null) {
+                throw new ResourceNotFoundException("上传文件不存在");
             }
+            fileUrls.add(uploadedFile);
         }
         return fileUrls;
     }

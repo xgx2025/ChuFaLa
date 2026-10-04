@@ -37,9 +37,9 @@ public interface IHotelOrderService {
      * 删除订单
      * @param orderId
      */
-    void deleteOrder(Long orderId);
+    void deleteOrder(Long orderId, Long userId);
 
-    void cancelOrder(Long orderId);
+    void cancelOrder(Long orderId, Long userId);
 
     void cancelDelayOrder(Long orderId,Long roomId,int roomCount);
 }

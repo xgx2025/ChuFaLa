@@ -438,6 +438,7 @@ import { getTripPlanService,getPlanHistoryService,getHistoricalItineraryService,
 import { useUserInfoStore } from '@/stores/userInfo';
 import { config } from '@/utils/config';
 import { useTokenStore } from '@/stores/token';
+import { authSse } from '@/utils/authSse';
 import MarkdownRender from 'markstream-vue';
 import 'markstream-vue/index.css';
 
@@ -1027,11 +1028,26 @@ const generateItinerary = async () => {
   const result = await getTripPlanService(userPlan);
   const taskId = result.data;
   console.log("任务ID"+taskId)
-  const eventSource = new EventSource(`/api/agent/progress/${taskId}`);
-
-  eventSource.addEventListener('complete', async(event) => {
-    const data = JSON.parse(event.data);
-    eventSource.close();
+  const eventSource = authSse(`/api/agent/progress/${taskId}`, {
+    onMessage: async (message, event) => {
+      if (event === 'progress') {
+        const data = JSON.parse(message);
+        ElNotification({
+          message: data.message,
+          duration: 5000,
+          type: 'primary'
+        });
+        return;
+      }
+      if (event === 'failed') {
+        eventSource.close();
+        isGenerating.value = false;
+        ElMessage.error('行程规划失败，请稍后重试！');
+        return;
+      }
+      if (event !== 'complete') return;
+      const data = JSON.parse(message);
+      eventSource.close();
     itinerary.value = data.dailySchedules;
     budgetSummary.value = data.budgetSummary; 
 
@@ -1054,21 +1070,12 @@ const generateItinerary = async () => {
     });
     await loadHistory(); // 保存历史记录，等待异步操作完成
     currentHistoryId.value = historyList.value[0]?.id;
-  })
-  eventSource.addEventListener('progress', (event) => {
-    const data = JSON.parse(event.data);
-    ElNotification({
-      message: data.message,
-      duration: 5000,
-      type: 'primary'
-    });
-  })
-
-  eventSource.onerror = (error) => { 
-    eventSource.close();
-    isGenerating.value = false;
-    ElMessage.error('服务器繁忙，请稍后重试！');
-  };
+    },
+    onError: () => {
+      isGenerating.value = false;
+      ElMessage.error('服务器繁忙，请稍后重试！');
+    }
+  });
 }
 
 const exportImage = async () => {

@@ -6,7 +6,7 @@ import com.hope.chufala.model.entity.PayRecord;
 // 业务适配器接口：定义商品业务与支付核心的交互规范
 public interface BizAdapter {
     // 构建支付参数（将业务订单转换为统一支付参数）
-    PayParamDTO buildPayParam(Long bizId);
+    PayParamDTO buildPayParam(Long bizId, Long userId);
     // 处理支付成功（支付成功后触发的业务逻辑）
     void handlePaySuccess(Long bizId, PayRecord payRecord);
 }
