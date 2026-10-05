@@ -192,6 +192,8 @@ import { useRoute } from 'vue-router';
 import { Locate } from '@/components/Icon.vue';
 import { Back } from '@element-plus/icons-vue';
 import { getRoomAvailabilityService, getRoomTotalPriceService, bookRoomService, payOrderService } from '@/api/hotel';
+// 跳转支付宝前暂存本次支付信息，供 /payment/return 回跳页渲染订单回执
+import { formatAmount, savePendingPayment } from '@/utils/paymentReturn';
 // 引入dayjs核心库（若需要处理时区，可额外引入dayjs/plugin/timezone等插件）
 import dayjs from 'dayjs';
 
@@ -440,6 +442,23 @@ const pay = async (id) => {
   ElMessage.success('正在前往支付页面...');
   console.log('发起支付请求，订单ID：', id);
   try {
+    // 暂存支付上下文：后端回跳只做 302、不带业务参数，返回页靠这份快照渲染回执
+    const hotelName = document.querySelector('.hotel-info-card h2')?.textContent?.trim() || '';
+    savePendingPayment({
+      bizType: 'hotel',
+      orderId: String(id),
+      amount: formatAmount(totalAmount.value),
+      subject: hotelName ? `酒店预订：${hotelName}` : '酒店预订',
+      details: [
+        ...(bookingForm.value.checkInDate
+          ? [{ label: '入住 / 离店', value: `${bookingForm.value.checkInDate} 至 ${bookingForm.value.checkOutDate}` }]
+          : []),
+        ...(nightNum.value
+          ? [{ label: '间夜', value: `${bookingForm.value.roomCount || 1} 间 · ${nightNum.value} 晚` }]
+          : []),
+        ...(bookingForm.value.guestName ? [{ label: '入住人', value: bookingForm.value.guestName }] : []),
+      ],
+    });
     // 1. 调用支付接口，获取HTML响应（注意：result.data才是HTML）
     const result = await payOrderService({
       orderId: id,

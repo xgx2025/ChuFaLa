@@ -87,6 +87,8 @@ import { ElMessage } from 'element-plus'
 import { Check, Close } from '@element-plus/icons-vue'
 import { updateUserInfoService } from '@/api/user'
 import { createMembershipOrderService, createPayService } from '@/api/membership'
+// 跳转支付宝前暂存本次支付信息，供 /payment/return 回跳页渲染订单回执
+import { formatAmount, savePendingPayment } from '@/utils/paymentReturn'
 
 const userInfoStore = useUserInfoStore()
 const loading = ref(false)
@@ -103,7 +105,19 @@ const handleSubscribe = async () => {
     const orderRes = await createMembershipOrderService()
     const orderId = orderRes.data
 
-    // 2. 获取支付页面
+    // 2. 暂存支付上下文：后端回跳只做 302、不带业务参数，返回页靠这份快照渲染回执
+    savePendingPayment({
+      bizType: 'VIP',
+      orderId: String(orderId),
+      amount: formatAmount(19.9),
+      subject: '会员订阅',
+      details: [
+        { label: '会员类型', value: '高级会员' },
+        { label: '有效期', value: '1 个月' },
+      ],
+    })
+
+    // 3. 获取支付页面
     const payHtml = await createPayService('VIP', orderId)
 
     // 3. 提交支付表单

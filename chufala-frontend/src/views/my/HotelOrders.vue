@@ -74,6 +74,7 @@
 <script setup>
 import { ref,onMounted } from 'vue'
 import { cancelHotelOrderService, getHotelOrderListService, payOrderService } from '@/api/hotel'
+import { formatAmount, savePendingPayment } from '@/utils/paymentReturn'
 import dayjs from 'dayjs'
 import { deleteHotelOrderService } from '@/api/hotel'
 import { ElMessage, ElNotification,ElMessageBox } from 'element-plus'
@@ -142,6 +143,24 @@ const goToHotelDetail = (id) => {
 const pay = async (id) => {
   console.log('发起支付请求，订单ID：', id);
   try {
+    // 暂存支付上下文：后端回跳只做 302、不带业务参数，返回页靠这份快照渲染回执
+    const order = orderList.value.find((item) => String(item.orderId) === String(id));
+    savePendingPayment({
+      bizType: 'hotel',
+      orderId: String(id),
+      amount: formatAmount(order?.actualPrice ?? order?.totalPrice),
+      subject: order?.hotelName ? `酒店预订：${order.hotelName}` : '酒店预订',
+      details: [
+        ...(order?.roomType ? [{ label: '房型', value: String(order.roomType) }] : []),
+        ...(order?.checkIn || order?.checkOut
+          ? [{ label: '入住 / 离店', value: `${order?.checkIn ?? '—'} 至 ${order?.checkOut ?? '—'}` }]
+          : []),
+        ...(order?.roomCount || order?.nightNum
+          ? [{ label: '间夜', value: `${order?.roomCount ?? 1} 间 · ${order?.nightNum ?? 1} 晚` }]
+          : []),
+        ...(order?.guestName ? [{ label: '入住人', value: String(order.guestName) }] : []),
+      ],
+    });
     // 1. 调用支付接口，获取HTML响应
     const result = await payOrderService({
       orderId: id,
