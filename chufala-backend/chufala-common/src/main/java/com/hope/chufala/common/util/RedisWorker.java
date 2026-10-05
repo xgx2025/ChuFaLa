@@ -10,7 +10,7 @@ import java.time.format.DateTimeFormatter;
 
 /**
  * Redis分布式自增ID生成器
- * @author xgx
+ * @author 谢光湘
  * @date 2023/9/23 16:07
  * 1. 生成的ID是64位整数，前32位是时间戳，后32位是自增序列
  * 2. 时间戳部分从2023-12-31开始，单位是秒
