@@ -16,4 +16,8 @@ public interface RoomDailyStockMapper {
                       @Param("roomCount") int roomCount);
 
     Integer selectAvailableStock(@Param("roomTypeId") Long roomTypeId, @Param("stayDate") LocalDate stayDate);
+
+    Integer selectMinAvailableStock(@Param("roomTypeId") Long roomTypeId,
+                                    @Param("checkIn") LocalDate checkIn,
+                                    @Param("checkOut") LocalDate checkOut);
 }

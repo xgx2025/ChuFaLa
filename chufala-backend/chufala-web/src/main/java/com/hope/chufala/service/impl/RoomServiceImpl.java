@@ -51,14 +51,10 @@ public class RoomServiceImpl implements IRoomService {
         if (ChronoUnit.DAYS.between(checkIn, checkOut) > 365) {
             throw new IllegalArgumentException("最多预订 365 晚");
         }
-        int minAvailable = Integer.MAX_VALUE;
-        for (LocalDate stayDate = checkIn; stayDate.isBefore(checkOut); stayDate = stayDate.plusDays(1)) {
-            Integer available = roomDailyStockMapper.selectAvailableStock(roomTypeId, stayDate);
-            if (available == null) {
-                throw new IllegalArgumentException("房型不存在");
-            }
-            minAvailable = Math.min(minAvailable, available);
+        Integer available = roomDailyStockMapper.selectMinAvailableStock(roomTypeId, checkIn, checkOut);
+        if (available == null) {
+            throw new IllegalArgumentException("房型不存在");
         }
-        return minAvailable;
+        return available;
     }
 }

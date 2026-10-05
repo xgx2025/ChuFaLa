@@ -30,6 +30,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class RoomDailyStockIntegrationTest {
     private static final Long ROOM_TYPE_ID = 1L;
@@ -83,6 +84,88 @@ class RoomDailyStockIntegrationTest {
             assertEquals(0, service.getAvailableStock(ROOM_TYPE_ID, FIRST_NIGHT, FIRST_NIGHT.plusDays(2)));
             assertEquals(1, service.getAvailableStock(ROOM_TYPE_ID, FIRST_NIGHT, FIRST_NIGHT.plusDays(1)));
         }
+    }
+
+    @Test
+    void overbookedFallbackAndInitializationNeverExposeNegativeStock() throws Exception {
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute("INSERT INTO hotel_order VALUES (1, '已支付', DATE '2026-10-05', DATE '2026-10-07', 3)");
+        }
+
+        assertEquals(0, available(FIRST_NIGHT));
+        assertEquals(0, stayAvailable(FIRST_NIGHT, FIRST_NIGHT.plusDays(2)));
+        try (SqlSession session = sessionFactory.openSession(false)) {
+            assertEquals(1, session.getMapper(RoomDailyStockMapper.class).initializeStock(ROOM_TYPE_ID, FIRST_NIGHT));
+            session.commit();
+        }
+        assertEquals(0, available(FIRST_NIGHT));
+    }
+
+    @Test
+    void intervalQueryUsesConservativeStockWhenDailyRowsAndOrdersDisagree() throws Exception {
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute("INSERT INTO room_daily_stock VALUES (1, DATE '2026-10-05', 2)");
+            statement.execute("INSERT INTO hotel_order VALUES (1, '已支付', DATE '2026-10-05', DATE '2026-10-06', 2)");
+            statement.execute("INSERT INTO room_daily_stock VALUES (1, DATE '2026-10-06', 1)");
+        }
+
+        assertEquals(0, stayAvailable(FIRST_NIGHT, FIRST_NIGHT.plusDays(2)));
+        assertEquals(0, available(FIRST_NIGHT));
+        assertEquals(1, stayAvailable(FIRST_NIGHT.plusDays(1), FIRST_NIGHT.plusDays(2)));
+        assertEquals(2, stayAvailable(FIRST_NIGHT.plusDays(2), FIRST_NIGHT.plusDays(3)));
+    }
+
+    @Test
+    void missingRoomStillRaisesErrorForIntervalQuery() {
+        try (SqlSession session = sessionFactory.openSession()) {
+            RoomServiceImpl service = new RoomServiceImpl();
+            ReflectionTestUtils.setField(service, "roomDailyStockMapper", session.getMapper(RoomDailyStockMapper.class));
+            assertThrows(IllegalArgumentException.class,
+                    () -> service.getAvailableStock(999L, FIRST_NIGHT, FIRST_NIGHT.plusDays(1)));
+        }
+    }
+
+    @Test
+    void maximumAllowedStayIncludesTheLastNight() throws Exception {
+        LocalDate lastNight = FIRST_NIGHT.plusDays(364);
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute("INSERT INTO room_daily_stock VALUES (1, DATE '" + lastNight + "', 0)");
+        }
+        assertEquals(0, stayAvailable(FIRST_NIGHT, FIRST_NIGHT.plusDays(365)));
+    }
+
+    @Test
+    void initializationRepairsOverstatedDailyStockBeforeReservation() throws Exception {
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute("INSERT INTO room_daily_stock VALUES (1, DATE '2026-10-05', 2)");
+            statement.execute("INSERT INTO hotel_order VALUES (1, '已支付', DATE '2026-10-05', DATE '2026-10-06', 2)");
+        }
+
+        assertEquals(0, reserve(FIRST_NIGHT, 1));
+        assertEquals(0, available(FIRST_NIGHT));
+    }
+
+    @Test
+    void cancellingLegacyOverbookingRestoresOnlyActualCapacity() throws Exception {
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute("INSERT INTO hotel_order VALUES (1, '待支付', DATE '2026-10-05', DATE '2026-10-06', 1)");
+            statement.execute("INSERT INTO hotel_order VALUES (1, '已支付', DATE '2026-10-05', DATE '2026-10-06', 2)");
+        }
+        try (SqlSession session = sessionFactory.openSession(false)) {
+            RoomDailyStockMapper mapper = session.getMapper(RoomDailyStockMapper.class);
+            mapper.initializeStock(ROOM_TYPE_ID, FIRST_NIGHT);
+            session.commit();
+        }
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute("UPDATE hotel_order SET order_status = '已取消' WHERE order_status = '待支付'");
+        }
+        try (SqlSession session = sessionFactory.openSession(false)) {
+            RoomDailyStockMapper mapper = session.getMapper(RoomDailyStockMapper.class);
+            assertEquals(1, mapper.increaseStock(ROOM_TYPE_ID, FIRST_NIGHT, 1));
+            session.commit();
+        }
+        assertEquals(0, available(FIRST_NIGHT));
+        assertEquals(0, reserve(FIRST_NIGHT, 1));
     }
 
     @Test
@@ -190,6 +273,14 @@ class RoomDailyStockIntegrationTest {
     private int available(LocalDate stayDate) {
         try (SqlSession session = sessionFactory.openSession()) {
             return session.getMapper(RoomDailyStockMapper.class).selectAvailableStock(ROOM_TYPE_ID, stayDate);
+        }
+    }
+
+    private int stayAvailable(LocalDate checkIn, LocalDate checkOut) {
+        try (SqlSession session = sessionFactory.openSession()) {
+            RoomServiceImpl service = new RoomServiceImpl();
+            ReflectionTestUtils.setField(service, "roomDailyStockMapper", session.getMapper(RoomDailyStockMapper.class));
+            return service.getAvailableStock(ROOM_TYPE_ID, checkIn, checkOut);
         }
     }
 }

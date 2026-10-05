@@ -3,13 +3,14 @@
 <mapper namespace="com.hope.chufala.mapper.RoomDailyStockMapper">
     <insert id="initializeStock">
         INSERT IGNORE INTO room_daily_stock (room_type_id, stay_date, available_stock)
-        SELECT r.id, #{stayDate}, r.stock - COALESCE((
+        SELECT r.id, #{stayDate}, GREATEST(r.stock - COALESCE((
             SELECT SUM(o.room_count) FROM hotel_order o
             WHERE o.room_type_id = r.id
               AND o.order_status IN ('待支付', '未支付', '已支付')
               AND o.check_in &lt;= #{stayDate} AND o.check_out &gt; #{stayDate}
-        ), 0)
+        ), 0), 0)
         FROM room r WHERE r.id = #{roomTypeId}
+        ON DUPLICATE KEY UPDATE available_stock = LEAST(available_stock, VALUES(available_stock))
     </insert>
 
     <update id="decreaseStock">
@@ -21,20 +22,52 @@
 
     <update id="increaseStock">
         UPDATE room_daily_stock
-        SET available_stock = available_stock + #{roomCount}
+        SET available_stock = LEAST(available_stock + #{roomCount}, GREATEST(
+            (SELECT r.stock FROM room r WHERE r.id = #{roomTypeId}) - COALESCE((
+                SELECT SUM(o.room_count) FROM hotel_order o
+                WHERE o.room_type_id = #{roomTypeId}
+                  AND o.order_status IN ('待支付', '未支付', '已支付')
+                  AND o.check_in &lt;= #{stayDate} AND o.check_out &gt; #{stayDate}
+            ), 0), 0))
         WHERE room_type_id = #{roomTypeId} AND stay_date = #{stayDate}
           AND #{roomCount} &gt; 0
     </update>
 
     <select id="selectAvailableStock" resultType="java.lang.Integer">
-        SELECT COALESCE(s.available_stock, r.stock - COALESCE((
+        SELECT GREATEST(LEAST(COALESCE(s.available_stock, r.stock), r.stock - COALESCE((
             SELECT SUM(o.room_count) FROM hotel_order o
             WHERE o.room_type_id = r.id
               AND o.order_status IN ('待支付', '未支付', '已支付')
               AND o.check_in &lt;= #{stayDate} AND o.check_out &gt; #{stayDate}
-        ), 0))
+        ), 0)), 0)
         FROM room r LEFT JOIN room_daily_stock s
           ON s.room_type_id = r.id AND s.stay_date = #{stayDate}
         WHERE r.id = #{roomTypeId}
+    </select>
+
+    <select id="selectMinAvailableStock" resultType="java.lang.Integer">
+        WITH RECURSIVE stay_dates (stay_date) AS (
+            SELECT CAST(#{checkIn} AS DATE)
+            UNION ALL
+            SELECT CAST(TIMESTAMPADD(DAY, 1, stay_date) AS DATE)
+            FROM stay_dates
+            WHERE TIMESTAMPADD(DAY, 1, stay_date) &lt; #{checkOut}
+        )
+        SELECT MIN(GREATEST(LEAST(COALESCE(available_stock, capacity),
+                                  capacity - booked), 0))
+        FROM (
+            SELECT d.stay_date, r.stock AS capacity, s.available_stock,
+                   COALESCE(SUM(o.room_count), 0) AS booked
+            FROM room r
+            CROSS JOIN stay_dates d
+            LEFT JOIN room_daily_stock s
+              ON s.room_type_id = r.id AND s.stay_date = d.stay_date
+            LEFT JOIN hotel_order o
+              ON o.room_type_id = r.id
+             AND o.order_status IN ('待支付', '未支付', '已支付')
+             AND o.check_in &lt;= d.stay_date AND o.check_out &gt; d.stay_date
+            WHERE r.id = #{roomTypeId}
+            GROUP BY d.stay_date, r.stock, s.available_stock
+        ) nightly_stock
     </select>
 </mapper>
