@@ -26,6 +26,14 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+/**
+ * 支付记录 Mapper 集成测试（H2 内存库）。
+ *
+ * <p>加载真实 Mapper XML，在 H2（MySQL 兼容模式）上验证 selectByOrderIdForUpdate
+ * 的悲观锁行为，包括并发场景下的锁等待。
+ *
+ * @author 谢光湘
+ */
 class PaymentRecordMapperIntegrationTest {
     private SqlSessionFactory sessionFactory;
 

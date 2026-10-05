@@ -41,6 +41,14 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 越权访问回归测试。
+ *
+ * <p>校验管理类接口只能由数据库中的管理员操作（不信任 token 里的 role 声明），
+ * 且会话 / 订单 / 规划等资源只能被其归属用户访问。
+ *
+ * @author 谢光湘
+ */
 class AuthorizationRegressionTest {
     @Test
     void onlyDatabaseAdminCanManageCatalog() {

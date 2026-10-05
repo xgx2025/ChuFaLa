@@ -31,6 +31,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 应用级集成测试（需完整 Spring 上下文与外部依赖）。
+ *
+ * <p>覆盖景点/酒店查询、AI 规划流程与外部服务连通性；属手动运行的冒烟测试，
+ * 依赖数据库、Redis、大模型等真实环境。
+ *
+ * @author 谢光湘
+ */
 @Slf4j
 @SpringBootTest
 public class ChufalaApplicationTest {

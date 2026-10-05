@@ -9,6 +9,14 @@ import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+/**
+ * 支付宝支付请求组装单元测试。
+ *
+ * <p>校验订单号、金额、标题等字段正确映射到 SDK 模型，且商品标题中的
+ * 特殊字符（引号）不会破坏请求结构。
+ *
+ * @author 谢光湘
+ */
 class AlipayTemplateTest {
     @Test
     void hotelPaymentUsesOrderDescriptionAndPreservesSpecialCharacters() {

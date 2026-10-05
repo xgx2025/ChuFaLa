@@ -13,6 +13,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+/**
+ * 支付回跳接口回归测试。
+ *
+ * <p>校验浏览器同步回跳只做 302 重定向到前端返回页，不触碰支付状态
+ * （订单状态只由异步通知更新）。
+ *
+ * @author 谢光湘
+ */
 class PayControllerReturnTest {
     @Test
     void browserReturnOnlyRedirectsAndDoesNotChangePaymentState() {

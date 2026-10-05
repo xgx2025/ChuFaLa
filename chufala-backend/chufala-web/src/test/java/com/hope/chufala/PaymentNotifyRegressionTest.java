@@ -30,6 +30,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * 支付宝回调处理回归测试。
+ *
+ * <p>用 Mockito 静态桩替换 EasySDK 的验签入口，覆盖金额/交易号校验、
+ * 重复回调幂等、已取消订单转为 REFUND_REQUIRED 等关键分支。
+ *
+ * @author 谢光湘
+ */
 class PaymentNotifyRegressionTest {
     @Test
     void callbackForCancelledOrderCreatesRefundRequiredRecord() throws Exception {

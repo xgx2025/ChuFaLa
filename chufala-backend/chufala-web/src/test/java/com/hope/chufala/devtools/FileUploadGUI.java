@@ -14,6 +14,14 @@ import java.io.FileInputStream;
 import java.io.IOException;
 
 
+/**
+ * OSS 上传图形界面（开发辅助工具，非测试）。
+ *
+ * <p>选择本地文件后调用 AliOSSUtils 上传到 OSS 并展示返回 URL；
+ * OSS 凭据从环境变量读取，需手动运行。
+ *
+ * @author 谢光湘
+ */
 public class FileUploadGUI extends JFrame {
     private JLabel filePathLabel;
     private JTextField filePathField;

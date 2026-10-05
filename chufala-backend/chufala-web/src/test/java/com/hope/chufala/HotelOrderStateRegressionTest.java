@@ -25,6 +25,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * 酒店订单状态流转回归测试。
+ *
+ * <p>用 Mockito 替换 Mapper，校验「未支付」历史写法归一化、状态 CAS 更新、
+ * 已取消订单不可支付等状态机约束。
+ *
+ * @author 谢光湘
+ */
 class HotelOrderStateRegressionTest {
     private final HotelOrderMapper orderMapper = mock(HotelOrderMapper.class);
     private final RoomMapper roomMapper = mock(RoomMapper.class);

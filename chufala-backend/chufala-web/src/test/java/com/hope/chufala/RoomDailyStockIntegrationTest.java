@@ -32,6 +32,14 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+/**
+ * 逐日房量库存集成测试（H2 内存库）。
+ *
+ * <p>加载真实 Mapper XML，在 H2 上验证：跨日库存互不影响、连住取最短板、
+ * 历史订单占用计入、迁移幂等、第二晚失败整体回滚、并发不超卖。
+ *
+ * @author 谢光湘
+ */
 class RoomDailyStockIntegrationTest {
     private static final Long ROOM_TYPE_ID = 1L;
     private static final LocalDate FIRST_NIGHT = LocalDate.of(2026, 10, 5);
