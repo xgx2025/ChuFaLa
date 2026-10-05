@@ -4,6 +4,13 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hope.chufala.model.entity.UploadedFile;
 import org.apache.ibatis.annotations.Mapper;
 
+/**
+ * 上传文件 Mapper。
+ *
+ * <p>仅使用 MyBatis-Plus 通用 CRUD，无自定义 SQL。
+ *
+ * @author 谢光湘
+ */
 @Mapper
 public interface UploadedFileMapper extends BaseMapper<UploadedFile> {
 }

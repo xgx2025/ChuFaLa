@@ -9,10 +9,24 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
 
+/**
+ * 异步线程池配置。
+ *
+ * <p>显式定义两个互相隔离的线程池：mailExecutor（邮件）与 planExecutor（行程规划）。
+ * 必须隔离：否则在容器内只有一个 TaskExecutor 时，未指定名字的 @Async 会复用它，
+ * 分钟级的规划任务会挤占发信线程。
+ *
+ * @author 谢光湘
+ */
 @Configuration
 @EnableAsync
 public class ThreadPoolConfig {
 
+    /**
+     * 邮件发送专用线程池。
+     *
+     * @return 线程池
+     */
     @Bean("mailExecutor")
     public Executor mailExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
@@ -31,6 +45,8 @@ public class ThreadPoolConfig {
      * 规划任务单次耗时可达分钟级，且内部会并发调用大模型与第三方接口。
      * 必须与邮件线程池隔离：否则在未指定线程池时，@Async 会因容器内
      * 只有一个 TaskExecutor 而默认复用 mailExecutor，长任务会挤占发信线程。
+     *
+     * @return 线程池
      */
     @Bean("planExecutor")
     public Executor planExecutor() {

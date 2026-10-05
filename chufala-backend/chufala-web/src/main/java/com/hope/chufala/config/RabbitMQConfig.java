@@ -6,9 +6,22 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * RabbitMQ 配置。
+ *
+ * <p>只注册 JSON 消息转换器，使消息体以 JSON 序列化（支持 MultiDelayMessage
+ * 这类自定义对象）；延迟交换机与队列由监听器上的 @RabbitListener 声明式创建。
+ *
+ * @author 谢光湘
+ */
 @Configuration
 public class RabbitMQConfig {
 
+    /**
+     * 注册 JSON 消息转换器。
+     *
+     * @return 消息转换器
+     */
     @Bean
     public MessageConverter messageConverter(){
         return new Jackson2JsonMessageConverter();

@@ -7,9 +7,22 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.Properties;
 
+/**
+ * 图形验证码配置。
+ *
+ * <p>4 位纯数字、白底黑字、无边框；由 CaptchaController 调用生成图片，
+ * 答案存入 Session 供注册时校验。
+ *
+ * @author 谢光湘
+ */
 @Configuration
 public class KaptchaConfig {
 
+    /**
+     * 构建 Kaptcha 实例。
+     *
+     * @return 配置好的 DefaultKaptcha
+     */
     @Bean
     public DefaultKaptcha defaultKaptcha(){
         DefaultKaptcha kaptcha = new DefaultKaptcha();

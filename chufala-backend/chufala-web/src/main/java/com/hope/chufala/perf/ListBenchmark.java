@@ -4,6 +4,14 @@ import com.hope.chufala.model.vo.TouristAttractionVO;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 集合插入性能基准测试。
+ *
+ * <p>向不同 List 实现批量插入同一批数据并返回耗时（毫秒），由
+ * PerformanceController 在 /performance 页对比 ArrayList / LinkedList / SmartList。
+ *
+ * @author 谢光湘
+ */
 public class ListBenchmark {
 
     /**
@@ -27,6 +35,12 @@ public class ListBenchmark {
         return TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
     }
 
+    /**
+     * 生成指定数量的随机测试数据。
+     *
+     * @param count 数量
+     * @return 测试数据数组
+     */
     private static TouristAttractionVO[] generateTestDataArray(int count) {
         TouristAttractionVO[] data = new TouristAttractionVO[count];
         Random random = new Random();
