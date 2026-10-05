@@ -15,6 +15,13 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 候选数据获取节点（流水线首节点）。
+ *
+ * <p>按目的地城市取出候选景点与候选酒店，写入状态供后续节点使用。
+ *
+ * @author 谢光湘
+ */
 @Slf4j
 @Component
 public class FetchCandidatesNode implements NodeAction<TravelPlanState> {
@@ -25,6 +32,13 @@ public class FetchCandidatesNode implements NodeAction<TravelPlanState> {
     @Autowired
     private SseManager sseManager;
 
+    /**
+     * 查询目的地的候选景点与酒店。
+     *
+     * @param state 规划状态（需含 userPlan.destination）
+     * @return 含候选景点与候选酒店的状态增量
+     * @throws Exception 节点执行异常
+     */
     @Override
     public Map<String, Object> apply(TravelPlanState state) throws Exception {
         log.info("===FetchCandidatesNode节点===");

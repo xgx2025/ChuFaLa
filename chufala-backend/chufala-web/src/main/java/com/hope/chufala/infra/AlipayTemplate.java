@@ -14,6 +14,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+/**
+ * 支付宝支付模板。
+ *
+ * <p>集中承载 alipay.* 配置：启动时用 EasySDK 初始化全局配置（供回调验签使用），
+ * 下单时用官方 SDK 的 pageExecute 生成支付页表单。业务参数通过 SDK 模型对象序列化，
+ * 避免商品标题中的引号破坏 JSON。
+ *
+ * @author 谢光湘
+ */
 @ConfigurationProperties(prefix = "alipay")
 @Component
 @Data
@@ -56,6 +65,9 @@ public class AlipayTemplate {
     public String gatewayUrl;
 
     // 新增：EasySDK初始化方法（应用启动时自动执行）
+    /**
+     * 启动时初始化 EasySDK 全局配置（回调验签依赖该全局 Factory）。
+     */
     @PostConstruct
     public void initEasySDK() {
         // 1. 创建EasySDK配置对象
@@ -76,6 +88,13 @@ public class AlipayTemplate {
     }
 
 
+    /**
+     * 生成支付宝电脑网站支付表单。
+     *
+     * @param payParam 统一支付参数
+     * @return 支付表单 HTML
+     * @throws AlipayApiException 调用支付宝接口失败
+     */
     public String pay(PayParamDTO payParam) throws AlipayApiException {
 //        System.out.println(appId);
 //        System.out.println(merchantPrivateKey);
@@ -95,6 +114,12 @@ public class AlipayTemplate {
         return result;
     }
 
+    /**
+     * 组装支付请求（同步/异步回调地址 + 业务模型）。
+     *
+     * @param payParam 统一支付参数
+     * @return 支付请求对象
+     */
     AlipayTradePagePayRequest buildPayRequest(PayParamDTO payParam) {
         AlipayTradePagePayRequest request = new AlipayTradePagePayRequest();
         request.setReturnUrl(returnUrl);
@@ -111,4 +136,3 @@ public class AlipayTemplate {
         return request;
     }
 }
-

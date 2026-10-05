@@ -22,6 +22,14 @@ import java.util.List;
 import java.util.Map;
 
 
+/**
+ * 酒店推荐节点。
+ *
+ * <p>由豆包模型按行程与候选酒店为每天挑选若干酒店（每天 3 个左右、不超过 5 个），
+ * 本地再按酒店 ID 补全信息，写入对应日程的 recommendHotels。
+ *
+ * @author 谢光湘
+ */
 @Slf4j
 @Component
 public class RecommendHotelNode implements NodeAction<TravelPlanState>{
@@ -33,6 +41,13 @@ public class RecommendHotelNode implements NodeAction<TravelPlanState>{
     private SseManager sseManager;
 
 
+    /**
+     * 为每日行程推荐酒店并写回行程骨架。
+     *
+     * @param state 规划状态（需含 itinerarySkeleton 与候选酒店）
+     * @return 含更新后 itinerarySkeleton 的状态增量
+     * @throws Exception 节点执行异常
+     */
     @Override
     public Map<String, Object> apply(TravelPlanState state) throws Exception {
         log.info("===RecommendHotelNode节点===");
@@ -76,19 +91,25 @@ public class RecommendHotelNode implements NodeAction<TravelPlanState>{
     }
 
 
+    /** 大模型返回的酒店推荐结果 */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     public static class HotelList {
+        /** 模型补充的说明文本 */
         private List<String> data;
+        /** 逐日推荐酒店 */
         private List<DailyHotel> dailyHotels;
     }
 
+    /** 单日推荐酒店（ID 与名称成对） */
         @Data
         @NoArgsConstructor
         @AllArgsConstructor
         static class DailyHotel{
+        /** 酒店 ID 列表 */
         private List<String> ids;
+        /** 酒店名称列表 */
         private List<String> names;
     }
 }

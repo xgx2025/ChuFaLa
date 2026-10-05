@@ -10,11 +10,24 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * 上传文件记录服务实现。
+ *
+ * <p>落库时统一设置创建时间与过期时间（1 小时后），过期文件可由清理任务回收；
+ * 单条写入失败只记日志、不中断整批。
+ *
+ * @author 谢光湘
+ */
 @Slf4j
 @Service
 public class UploadedFileServiceImpl implements IUploadedFileService {
     @Autowired
     private UploadedFileMapper uploadedFileMapper;
+    /**
+     * 批量保存上传文件信息。
+     *
+     * @param files 上传的文件记录列表
+     */
     @Override
     public void saveUploadedFileInfo(List<UploadedFile> files) {
         LocalDateTime createTime = LocalDateTime.now();

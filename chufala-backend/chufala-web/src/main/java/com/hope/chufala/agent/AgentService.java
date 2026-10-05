@@ -20,6 +20,23 @@ import java.util.Map;
 import java.util.Optional;
 import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
 
+/**
+ * 行程规划编排服务。
+ *
+ * <p>用 LangGraph4j 把六个节点串成一条固定流水线，在专用线程池 planExecutor 上异步执行：
+ * <pre>
+ *   START → fetchCandidate（查候选景点/酒店）
+ *         → recommendAttraction（LLM 选景点、生成总计划）
+ *         → weatherInQuery（LLM 查天气）
+ *         → distanceCalculate（算景点间距离与驾车耗时）
+ *         → recommendHotel（LLM 推荐每日酒店）
+ *         → calculateBudget（LLM 估交通餐饮 + 本地算门票住宿）
+ *         → END
+ * </pre>
+ * 每个节点通过 SseManager 推送进度；成功后写入 PlanHistory 并推送完成事件。
+ *
+ * @author 谢光湘
+ */
 @Slf4j
 @Service
 public class AgentService {
@@ -43,6 +60,15 @@ public class AgentService {
     @Autowired
     private IPlanHistoryService planHistoryService;
 
+    /**
+     * 异步执行一次行程规划任务。
+     *
+     * <p>节点图按固定拓扑编译后执行；任务不存在时直接推送失败并退出（避免后续 NPE），
+     * 任一环节抛异常都会把任务置为 FAILED 并推送失败进度。
+     *
+     * @param taskId 任务 ID（需已存在于 TaskQueue）
+     * @param userId 提交用户 ID，用于归属校验与历史落库
+     */
     //异步执行任务（指定专用线程池，避免与发信等任务互相抢占线程）
     @Async("planExecutor")
     public void planTravel(String taskId,Long userId){

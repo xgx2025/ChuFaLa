@@ -15,11 +15,29 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * 行程规划历史服务实现。
+ *
+ * <p>planResult 以 JSON 落库（见 PlanHistory 的 JacksonTypeHandler）。列表查询
+ * 只 select 摘要字段并限制 10 条，避免把整份大 JSON 一并查出；详情类查询一律带
+ * userId 条件做归属校验。
+ *
+ * @author 谢光湘
+ */
 @Slf4j
 @Service
 public class PlanHistoryServiceImpl implements IPlanHistoryService {
     @Autowired
     private PlanHistoryMapper planHistoryMapper;
+    /**
+     * 保存一条行程规划历史（ID 由 Snowflake 生成）。
+     *
+     * @param userId      用户 ID
+     * @param createTime  创建时间
+     * @param userPlan    本次规划入参
+     * @param planContent 规划内容摘要
+     * @param plan        完整行程结果
+     */
     @Override
     public void addHistory(Long userId, LocalDateTime createTime, UserPlanDTO userPlan,String planContent, TravelItineraryVO plan) {
         //1. 获取雪花算法实例（<默认>机房ID=0，机器ID=0）
@@ -38,6 +56,12 @@ public class PlanHistoryServiceImpl implements IPlanHistoryService {
         planHistoryMapper.insert(history);
     }
 
+    /**
+     * 查询用户的规划历史（仅摘要字段，最多 10 条，按创建时间倒序）。
+     *
+     * @param userId 用户 ID
+     * @return 历史列表
+     */
     @Override
     public List<PlanHistory> queryHistory(Long userId) {
         QueryWrapper<PlanHistory> queryWrapper = new QueryWrapper<>();
@@ -49,6 +73,13 @@ public class PlanHistoryServiceImpl implements IPlanHistoryService {
         return planHistoryMapper.selectList(queryWrapper);
     }
 
+    /**
+     * 查询指定 ID 的规划结果（校验归属）。
+     *
+     * @param id     历史记录 ID
+     * @param userId 用户 ID
+     * @return 完整行程结果
+     */
     @Override
     public TravelItineraryVO queryPlanResult(Long id, Long userId) {
         PlanHistory planHistory = planHistoryMapper.selectOne(new QueryWrapper<PlanHistory>()
@@ -59,6 +90,13 @@ public class PlanHistoryServiceImpl implements IPlanHistoryService {
         return planHistory.getPlanResult();
     }
 
+    /**
+     * 查询指定 ID 的规划内容摘要（校验归属）。
+     *
+     * @param id     历史记录 ID
+     * @param userId 用户 ID
+     * @return 规划内容摘要
+     */
     @Override
     public String getPlanContentById(Long id, Long userId) {
         QueryWrapper<PlanHistory> queryWrapper = new QueryWrapper<>();

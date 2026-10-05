@@ -18,6 +18,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 预算计算节点（流水线末节点）。
+ *
+ * <p>费用来自两个来源：交通与餐饮由 deepseek 估算（模型只返回 category + amount），
+ * 门票与住宿在本地计算——门票按「景点票价 × 人数」逐项累加，住宿按「当日推荐酒店均价 × 人数」
+ * 逐日累加，最后统一折算占比写入 itinerarySkeleton.budgetSummary。
+ *
+ * @author 谢光湘
+ */
 @Slf4j
 @Component
 public class CalculateBudgetNode implements NodeAction<TravelPlanState> {
@@ -26,6 +35,16 @@ public class CalculateBudgetNode implements NodeAction<TravelPlanState> {
     @Autowired
     private SseManager sseManager;
 
+    /**
+     * 计算行程预算并写回行程骨架。
+     *
+     * <p>注意：交通/餐饮金额直接取模型返回列表的下标 0、1，隐含依赖模型
+     * 按「交通在前、餐饮在后」的顺序返回。
+     *
+     * @param state 规划状态（需含 masterPlan 与 itinerarySkeleton）
+     * @return 含更新后 itinerarySkeleton 的状态增量
+     * @throws Exception 节点执行异常
+     */
     @Override
     public Map<String, Object> apply(TravelPlanState state) throws Exception {
         log.info("===CalculateBudgetNode节点===");
@@ -100,17 +119,22 @@ public class CalculateBudgetNode implements NodeAction<TravelPlanState> {
     }
 
 
+    /** 大模型返回的预算结果 */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     static class TravelBudget{
+        /** 分项预算列表（交通、餐饮） */
         private List<Budget> budgetList;
 
+        /** 单个预算分项 */
         @Data
         @NoArgsConstructor
         @AllArgsConstructor
         static class Budget{
+            /** 费用类别 */
             private String category;
+            /** 金额（元） */
             private Double amount;
         }
     }

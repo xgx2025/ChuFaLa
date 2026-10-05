@@ -17,6 +17,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * AI 会话与消息服务实现。
+ *
+ * <p>会话/消息 ID 由 Hutool Snowflake 生成（非自增）；会话采用逻辑删除
+ * （is_deleted），且所有读写都带 userId 条件，从 SQL 层保证越权不可达。
+ *
+ * @author 谢光湘
+ */
 @Service
 public class AiConversationServiceImpl implements IAiConversationService {
 
@@ -26,6 +34,15 @@ public class AiConversationServiceImpl implements IAiConversationService {
     private AiMessageMapper aiMessageMapper;
 
 
+    /**
+     * 新建会话并写入首条用户消息（同一事务）。
+     *
+     * <p>会话标题取首条消息前 13 个字符，超出则截断加省略号。
+     *
+     * @param userId  用户 ID
+     * @param message 首条用户消息
+     * @return 含 conversationId 与 messageId 的映射
+     */
     @Override
     @Transactional
     public Map<String, Long> createConversationAndSaveFirstMessage(Long userId, String message) {
@@ -60,6 +77,14 @@ public class AiConversationServiceImpl implements IAiConversationService {
         return Map.of("conversationId",conversationId,"messageId",messageId);
     }
 
+    /**
+     * 保存一条消息。
+     *
+     * @param conversationId 会话 ID
+     * @param role           消息角色
+     * @param content        消息内容
+     * @return 新消息 ID
+     */
     @Override
     public Long saveMessage(String conversationId, String role, String content) {
         AiMessage aiMessage = new AiMessage();
@@ -75,6 +100,12 @@ public class AiConversationServiceImpl implements IAiConversationService {
     }
 
 
+    /**
+     * 创建助手消息草稿（内容为空，待流式补全）。
+     *
+     * @param conversationId 会话 ID
+     * @return 消息 ID（字符串形式）
+     */
     @Override
     public String createAssistantMessageDraft(String conversationId) {
         Snowflake snowflake = new Snowflake();
@@ -90,6 +121,13 @@ public class AiConversationServiceImpl implements IAiConversationService {
         return messageId;
     }
 
+    /**
+     * 更新助手消息内容。
+     *
+     * @param messageId  消息 ID
+     * @param content    最新内容
+     * @param isComplete 是否已生成完毕（当前未落库，预留字段）
+     */
     @Override
     public void updateAssistantMessageContent(String messageId, String content, boolean isComplete) {
         AiMessage message = new AiMessage();
@@ -100,6 +138,12 @@ public class AiConversationServiceImpl implements IAiConversationService {
     }
 
 
+    /**
+     * 查询用户的全部未删除会话（按下单时间倒序）。
+     *
+     * @param userId 用户 ID
+     * @return 会话列表
+     */
     @Override
     public List<AiConversation> getConversationListByUserId(Long userId) {
         QueryWrapper<AiConversation> queryWrapper = new QueryWrapper<>();
@@ -108,6 +152,12 @@ public class AiConversationServiceImpl implements IAiConversationService {
         return aiConversationMapper.selectList(queryWrapper);
     }
 
+    /**
+     * 逻辑删除会话（同时校验归属，影响行数不为 1 即视为不存在）。
+     *
+     * @param id     会话 ID
+     * @param userId 用户 ID
+     */
     @Override
     public void deleteConversationById(Long id, Long userId) {
         UpdateWrapper<AiConversation> updateWrapper = new UpdateWrapper<>();
@@ -117,6 +167,13 @@ public class AiConversationServiceImpl implements IAiConversationService {
         }
     }
 
+    /**
+     * 查询会话下的全部消息（按创建时间升序）。
+     *
+     * @param id     会话 ID
+     * @param userId 用户 ID
+     * @return 消息列表
+     */
     @Override
     public List<AiMessage> getConversationById(Long id, Long userId) {
         requireConversationOwner(id, userId);
@@ -126,6 +183,12 @@ public class AiConversationServiceImpl implements IAiConversationService {
         return aiMessageMapper.selectList(queryWrapper);
     }
 
+    /**
+     * 校验会话归属，不存在或非本人所属时抛 ResourceNotFoundException。
+     *
+     * @param conversationId 会话 ID
+     * @param userId         用户 ID
+     */
     @Override
     public void requireConversationOwner(Long conversationId, Long userId) {
         QueryWrapper<AiConversation> queryWrapper = new QueryWrapper<>();

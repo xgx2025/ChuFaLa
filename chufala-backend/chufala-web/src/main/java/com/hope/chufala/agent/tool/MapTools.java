@@ -12,6 +12,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 高德地图 MCP 工具集。
+ *
+ * <p>把高德 MCP Server 的能力包装成 Spring AI 的 {@code @Tool}，供模型在对话中调用，
+ * 覆盖天气、IP 定位、地理编码、POI 检索、路径规划与唤端。所有调用都转发给注入的
+ * MCP 客户端（当前固定取列表中的第一个）。
+ *
+ * @author 谢光湘
+ */
 @Component
 public class MapTools {
 
@@ -23,6 +32,13 @@ public class MapTools {
     }
 
     // --- 辅助方法，用于简化调用 ---
+    /**
+     * 转发调用到 MCP 工具。
+     *
+     * @param toolName  MCP 工具名
+     * @param arguments 调用参数
+     * @return 异步调用结果
+     */
     private Mono<McpSchema.CallToolResult> callMcpTool(String toolName, Map<String, Object> arguments) {
         // 假设我们只使用第一个配置好的MCP客户端
         var mcpClient = mcpAsyncClients.get(0);
@@ -31,12 +47,14 @@ public class MapTools {
 
     // --- 天气与定位 ---
 
+    /** 查询指定城市天气预报 */
     @Tool(description = "根据城市名称查询指定城市的天气预报")
     public Mono<String> getWeather(@ToolParam(description = "城市名称，例如：北京") String city) {
         return callMcpTool("mapsweather", Map.of("city", city))
                 .map(result -> result.toString());
     }
 
+    /** 按 IP 定位所在位置 */
     @Tool(description = "根据IP地址定位其所在位置")
     public Mono<String> locateByIp(@ToolParam(description = "用户的IP地址") String ip) {
         return callMcpTool("mapsiplocation", Map.of("ip", ip))
@@ -45,6 +63,7 @@ public class MapTools {
 
     // --- 地址与坐标转换 ---
 
+    /** 结构化地址转经纬度坐标 */
     @Tool(description = "将详细的结构化地址转换为经纬度坐标")
     public Mono<String> geocode(@ToolParam(description = "详细地址，例如：北京市海淀区颐和园路5号") String address,
                                 @ToolParam(description = "所在城市，有助于提高准确性，例如：北京") String city) {
@@ -57,6 +76,7 @@ public class MapTools {
                 .map(result -> result.toString());
     }
 
+    /** 经纬度坐标转行政区划地址 */
     @Tool(description = "将经纬度坐标转换为详细的行政区划地址信息")
     public Mono<String> reverseGeocode(@ToolParam(description = "经纬度坐标，格式为'经度,纬度'，例如：116.397428,39.90923") String location) {
         return callMcpTool("mapsregeocode", Map.of("location", location))
@@ -77,6 +97,7 @@ public class MapTools {
 //                .map(result -> result.toString());
 //    }
 
+    /** 在中心点周围按半径搜索地点 */
     @Tool(description = "在指定中心点周围一定半径内搜索相关地点")
     public Mono<String> searchPoiNearby(@ToolParam(description = "搜索关键词，例如：停车场、加油站") String keywords,
                                         @ToolParam(description = "中心点经纬度，格式为'经度,纬度'") String location,
@@ -91,6 +112,7 @@ public class MapTools {
                 .map(result -> result.toString());
     }
 
+    /** 按 POI ID 查询地点详情 */
     @Tool(description = "根据POI ID查询地点的详细信息")
     public Mono<String> getPoiDetail(@ToolParam(description = "通过搜索获取到的POI ID") String id) {
         return callMcpTool("mapssearchpoibyid", Map.of("id", id))
@@ -99,6 +121,7 @@ public class MapTools {
 
     // --- 路径规划 ---
 
+    /** 驾车路线规划 */
     @Tool(description = "规划两点之间的驾车路线")
     public Mono<String> planDrivingRoute(@ToolParam(description = "起点经纬度，格式为'经度,纬度'") String origin,
                                          @ToolParam(description = "终点经纬度，格式为'经度,纬度'") String destination) {
@@ -106,6 +129,7 @@ public class MapTools {
                 .map(result -> result.toString());
     }
 
+    /** 步行路线规划 */
     @Tool(description = "规划两点之间的步行路线")
     public Mono<String> planWalkingRoute(@ToolParam(description = "起点经纬度，格式为'经度,纬度'") String origin,
                                          @ToolParam(description = "终点经纬度，格式为'经度,纬度'") String destination) {
@@ -113,6 +137,7 @@ public class MapTools {
                 .map(result -> result.toString());
     }
 
+    /** 骑行路线规划 */
     @Tool(description = "规划两点之间的骑行路线")
     public Mono<String> planBicyclingRoute(@ToolParam(description = "起点经纬度，格式为'经度,纬度'") String origin,
                                            @ToolParam(description = "终点经纬度，格式为'经度,纬度'") String destination) {
@@ -120,6 +145,7 @@ public class MapTools {
                 .map(result -> result.toString());
     }
 
+    /** 公共交通路线规划 */
     @Tool(description = "规划两点之间的公共交通路线（公交、地铁等）")
     public Mono<String> planTransitRoute(@ToolParam(description = "起点经纬度，格式为'经度,纬度'") String origin,
                                          @ToolParam(description = "终点经纬度，格式为'经度,纬度'") String destination,
@@ -138,6 +164,7 @@ public class MapTools {
 
     // --- 实用工具 ---
 
+    /** 测量直线距离与驾车时间 */
     @Tool(description = "测量两个经纬度坐标之间的直线距离和驾车时间")
     public Mono<String> measureDistance(@ToolParam(description = "起点经纬度，格式为'经度,纬度'") String origin,
                                         @ToolParam(description = "终点经纬度，格式为'经度,纬度'") String destination) {
@@ -147,6 +174,7 @@ public class MapTools {
 
     // --- 导出与唤端功能 ---
 
+    /** 生成高德专属行程地图链接 */
     @Tool(description = "将一份详细的行程规划导入高德地图，生成一个专属地图链接")
     public Mono<String> generatePersonalizedMap(@ToolParam(description = "行程的名称，例如：北京三日游") String tripName,
                                                 @ToolParam(description = "行程的详细描述，可以包含每日的安排和途径的地点") String tripDetails) {
@@ -156,12 +184,14 @@ public class MapTools {
                 .map(result -> result.toString());
     }
 
+    /** 生成高德导航唤端链接 */
     @Tool(description = "根据目的地经纬度，生成一个高德导航唤端链接，用户点击后可直接启动高德地图App进行导航")
     public Mono<String> startNavigation(@ToolParam(description = "目的地的经纬度，格式为'经度,纬度'") String destination) {
         return callMcpTool("mapsnavigation", Map.of("destination", destination))
                 .map(result -> result.toString());
     }
 
+    /** 生成高德打车唤端链接 */
     @Tool(description = "根据起点和终点经纬度，生成一个高德打车唤端链接")
     public Mono<String> requestRide(@ToolParam(description = "起点经纬度，格式为'经度,纬度'") String origin,
                                     @ToolParam(description = "终点经纬度，格式为'经度,纬度'") String destination) {

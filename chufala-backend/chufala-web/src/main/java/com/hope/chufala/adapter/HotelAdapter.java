@@ -13,6 +13,14 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * 酒店业务适配器。
+ *
+ * <p>把酒店订单转换为统一支付参数，并在支付成功后推进订单状态；发起支付前会校验
+ * 订单归属、状态，以及 30 分钟支付时限。
+ *
+ * @author 谢光湘
+ */
 @Service
 public class HotelAdapter implements BizAdapter {
 
@@ -22,6 +30,13 @@ public class HotelAdapter implements BizAdapter {
     @Autowired
     private IPayRecordService payRecordService;
 
+    /**
+     * 由酒店订单构建统一支付参数。
+     *
+     * @param orderId 业务订单 ID
+     * @param userId  下单用户 ID
+     * @return 统一支付参数
+     */
     @Override
     public PayParamDTO buildPayParam(Long orderId, Long userId) {
         // 1. 查询酒店订单（业务逻辑）
@@ -44,6 +59,12 @@ public class HotelAdapter implements BizAdapter {
         return param;
     }
 
+    /**
+     * 支付成功后把酒店订单标记为已支付。
+     *
+     * @param orderId   业务订单 ID
+     * @param payRecord 支付记录
+     */
     @Override
     public void handlePaySuccess(Long orderId, PayRecord payRecord) {
         // 支付成功后处理酒店业务（业务逻辑）

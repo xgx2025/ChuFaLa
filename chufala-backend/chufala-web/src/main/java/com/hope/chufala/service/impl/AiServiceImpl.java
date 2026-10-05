@@ -19,9 +19,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * AI 对话附件服务实现。
+ *
+ * <p>上传采用「先传 OSS、再落库暂存」两阶段；归属关系写入 Redis
+ * （chat:upload:owner:{fileId} → userId，TTL 1 小时），读取时据此校验，
+ * 避免仅凭文件 ID 就能越权读取他人附件。
+ *
+ * @author 谢光湘
+ */
 @Slf4j
 @Service
 public class AiServiceImpl implements IAiService {
+    /** 附件归属关系的 Redis 前缀 */
     private static final String UPLOAD_OWNER_KEY_PREFIX = "chat:upload:owner:";
     @Autowired
     private IUploadedFileService uploadedFileService;
@@ -34,6 +44,13 @@ public class AiServiceImpl implements IAiService {
 
 
 
+    /**
+     * 上传对话附件（最多 3 个），写入 OSS 与暂存表并登记归属。
+     *
+     * @param files  上传的文件数组
+     * @param userId 上传用户 ID
+     * @return 文件 ID 列表（字符串）
+     */
     @Override
     public List<String> uploadChatFile(MultipartFile[] files, Long userId) {
         if (files == null || files.length == 0) {
@@ -72,6 +89,13 @@ public class AiServiceImpl implements IAiService {
         return fileIds.stream().map(String::valueOf).toList();
     }
 
+    /**
+     * 按 ID 批量查询附件，逐个校验归属。
+     *
+     * @param fileIds 文件 ID 列表
+     * @param userId  用户 ID
+     * @return 文件记录列表
+     */
     @Override
     public List<UploadedFile> getFilesByIds(List<String> fileIds, Long userId) {
         List<UploadedFile> fileUrls = new ArrayList<>();

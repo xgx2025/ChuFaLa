@@ -15,6 +15,15 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+/**
+ * 订单延迟消息监听器。
+ *
+ * <p>消费阶梯延迟消息：订单仍未支付且还有下一个延迟时长时重新投递；
+ * 阶梯走完（约 30 分钟）仍未支付则取消订单并回补库存。
+ * 已支付或已取消的订单直接忽略，不再投递。
+ *
+ * @author 谢光湘
+ */
 @Slf4j
 @Service
 public class OrderStatusCheckListener {
@@ -24,6 +33,11 @@ public class OrderStatusCheckListener {
     @Autowired
     private RabbitTemplate rabbitTemplate;
 
+    /**
+     * 处理订单延迟消息（阶梯重投或最终取消）。
+     *
+     * @param msg 多级延迟消息（消息体为业务订单号）
+     */
     @RabbitListener(bindings = @QueueBinding(
             value = @Queue(value="order.hotel.delay.queue",durable = "true"),
             exchange = @Exchange(value = "order.delay.direct",type = ExchangeTypes.DIRECT,delayed = "true"),

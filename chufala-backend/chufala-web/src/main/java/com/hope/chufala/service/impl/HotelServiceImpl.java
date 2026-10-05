@@ -29,6 +29,15 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.springframework.util.StringUtils;
 
+/**
+ * 酒店服务实现。
+ *
+ * <p>列表查询带 Redis 缓存：缓存 Key 刻意不含用户坐标（坐标只影响 distance 字段），
+ * 因此 distance 排序会跳过缓存，否则会把上一个用户算出的顺序发给下一个用户。
+ * 距离计算统一走 {@link #calculateDistances}，注意其参数顺序为 (经度, 纬度)。
+ *
+ * @author 谢光湘
+ */
 @Service
 public class HotelServiceImpl implements IHotelService {
     @Autowired
@@ -42,6 +51,12 @@ public class HotelServiceImpl implements IHotelService {
 
     private static final Logger log = LoggerFactory.getLogger(HotelServiceImpl.class);
 
+    /**
+     * 新增酒店。
+     *
+     * @param hotel 酒店实体
+     * @return 是否成功
+     */
     @Override
     public boolean addHotel(Hotel hotel) {
         return hotelMapper.insert(hotel) > 0;
@@ -55,6 +70,15 @@ public class HotelServiceImpl implements IHotelService {
 
 
     // 分页查询
+    /**
+     * 按条件分页查询酒店（支持评分、价格与距离排序）。
+     *
+     * <p>流程：构造缓存 Key（含分页与筛选条件、含 sort，但不含坐标）→ 命中则反序列化后
+     * 重算距离返回 → 未命中查库并计算距离 → 回写缓存。distance 排序跳过缓存读写。
+     *
+     * @param query 查询条件
+     * @return 分页结果
+     */
     @Override
     public PageResult<Hotel> queryHotelsByScoreRank(HotelPageQueryDTO query) {
         Integer page = query.getPage();
@@ -148,6 +172,13 @@ public class HotelServiceImpl implements IHotelService {
     }
 
     // 提取距离计算为单独方法，便于复用
+    /**
+     * 计算每个酒店与用户的距离（公里，保留一位小数），写回 Hotel.distance。
+     *
+     * @param hotels  酒店列表
+     * @param userLat 用户纬度
+     * @param userLng 用户经度
+     */
     private void calculateDistances(List<Hotel> hotels, Double userLat, Double userLng) {
         for (Hotel hotel : hotels) {
             // ⚠️ 参数顺序：签名是 calculateDistance(lon1, lat1, lon2, lat2)，
@@ -171,6 +202,13 @@ public class HotelServiceImpl implements IHotelService {
 
 
     // 普通分页：查询全部酒店
+    /**
+     * 分页查询全部酒店（带缓存）。
+     *
+     * @param page 页码，从 1 开始
+     * @param size 每页大小
+     * @return 分页结果
+     */
     @Override
     public PageResult<Hotel> queryAllHotels(Integer page, Integer size) {
         // 1. 生成缓存Key
@@ -202,6 +240,11 @@ public class HotelServiceImpl implements IHotelService {
     }
 
     //提交评论并更新酒店评分（带事务）
+    /**
+     * 提交评价，并在同一事务内更新酒店的评分与评论数冗余字段，最后清理相关缓存。
+     *
+     * @param review 评价内容
+     */
     @Override
     @Transactional
     public void submitReview(HotelReview review) {
@@ -222,6 +265,12 @@ public class HotelServiceImpl implements IHotelService {
         deleteRelatedCache(review.getHotelId());
     }
 
+    /**
+     * 查询酒店详情（含图片与房型列表，房型图片逐个补全）。
+     *
+     * @param id 酒店 ID
+     * @return 酒店详情
+     */
     @Override
     public Hotel getHotelDetail(Long id) {
         Hotel hotel = hotelMapper.selectById(id);
@@ -237,21 +286,45 @@ public class HotelServiceImpl implements IHotelService {
         return hotel;
     }
 
+    /**
+     * 查询房型信息。
+     *
+     * @param id 房型 ID
+     * @return 房型
+     */
     @Override
     public Room getRoomInfo(Long id) {
         return roomMapper.selectById(id);
     }
 
+    /**
+     * 按城市查询酒店信息。
+     *
+     * @param city 城市名称
+     * @return 酒店信息列表
+     */
     @Override
     public List<HotelInfoVO> findHotelByCity(String city) {
         return hotelMapper.findHotelByCity(city);
     }
 
+    /**
+     * 按城市查询酒店简单信息。
+     *
+     * @param city 城市名称
+     * @return 酒店信息列表
+     */
     @Override
     public List<HotelInfoVO> findHotelSimpleByCity(String city){
         return hotelMapper.findHotelSimpleByCity(city);
     }
 
+    /**
+     * 按 ID 查询酒店简单信息。
+     *
+     * @param id 酒店 ID
+     * @return 酒店信息
+     */
     @Override
     public HotelInfoVO findHotelSimpleById(Long id) {
         return hotelMapper.findHotelSimpleById(id);
@@ -266,6 +339,11 @@ public class HotelServiceImpl implements IHotelService {
 
 
     // 删除与该酒店相关的所有缓存（简化实现：实际可按前缀批量删除）
+    /**
+     * 清理酒店列表相关缓存（当前按前缀全量删除，实现从简）。
+     *
+     * @param hotelId 酒店 ID（仅用于日志）
+     */
     private void deleteRelatedCache(Long hotelId) {
         // 实际项目中可通过Redis的KEYS命令模糊匹配删除，这里简化逻辑
         redisTemplate.delete(redisTemplate.keys(CACHE_PREFIX_ALL + "*"));

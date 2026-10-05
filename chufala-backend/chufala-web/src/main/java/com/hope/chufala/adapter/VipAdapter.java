@@ -11,6 +11,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.hope.chufala.model.dto.PayParamDTO;
 
+/**
+ * 会员业务适配器。
+ *
+ * <p>把会员订单转换为统一支付参数；支付成功后在同一事务内把支付记录置为成功，
+ * 并把用户标记为 VIP。
+ *
+ * @author 谢光湘
+ */
 @Service
 public class VipAdapter implements BizAdapter{
 
@@ -21,6 +29,13 @@ public class VipAdapter implements BizAdapter{
     @Autowired
     private UserMapper userMapper;
 
+    /**
+     * 由会员订单构建统一支付参数。
+     *
+     * @param orderId 业务订单 ID
+     * @param userId  下单用户 ID
+     * @return 统一支付参数
+     */
     @Override
     public PayParamDTO buildPayParam(Long orderId, Long userId) {
         // 1. 查询酒店订单（业务逻辑）
@@ -38,6 +53,12 @@ public class VipAdapter implements BizAdapter{
         return param;
     }
 
+    /**
+     * 支付成功后：置会员支付记录为成功，并把用户标记为 VIP。
+     *
+     * @param orderId   业务订单 ID（商户订单号）
+     * @param payRecord 支付记录
+     */
     @Transactional
     @Override
     public void handlePaySuccess(Long orderId, PayRecord payRecord) {

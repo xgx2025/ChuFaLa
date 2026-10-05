@@ -14,6 +14,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
+/**
+ * Redis 缓存工具。
+ *
+ * <p>封装三种缓存策略：普通写入、逻辑过期写入、以及对应的两种读模式——
+ * {@link #queryWithPassThrough} 用空值缓存防穿透，
+ * {@link #queryWithLogicalExpire} 用互斥锁 + 异步重建防击穿。
+ *
+ * @author 谢光湘
+ */
 @Component
 public class CacheClient {
     private final StringRedisTemplate stringRedisTemplate;
@@ -24,10 +33,26 @@ public class CacheClient {
         this.stringRedisTemplate = stringRedisTemplate;
     }
 
+    /**
+     * 写入缓存（JSON 序列化，带物理过期时间）。
+     *
+     * @param key   缓存键
+     * @param value 缓存值
+     * @param time  过期时间
+     * @param unit  时间单位
+     */
     public void set(String key, Object value, Long time, TimeUnit unit) {
         stringRedisTemplate.opsForValue().set(key, JSONUtil.toJsonStr(value), time, unit);
     }
 
+    /**
+     * 以「逻辑过期」方式写入缓存（不设物理过期，过期时间存进值里）。
+     *
+     * @param key   缓存键
+     * @param value 缓存值
+     * @param time  逻辑过期时长
+     * @param unit  时间单位
+     */
     public void setWithLogicalExpire(String key, Object value, Long time, TimeUnit unit) {
         RedisData redisData = new RedisData();
         redisData.setData(value);

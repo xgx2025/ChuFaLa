@@ -6,6 +6,13 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * 行程规划任务。
+ *
+ * <p>提交后暂存在 TaskQueue 中，供异步执行与进度订阅时按 taskId 检索。
+ *
+ * @author 谢光湘
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -30,6 +37,14 @@ public class AgentTask {
      */
     private TravelItineraryVO result;
 
+    /**
+     * 构造不含结果的初始任务（提交时使用）。
+     *
+     * @param taskId   任务 ID
+     * @param userId   提交用户 ID
+     * @param userPlan 规划入参
+     * @param status   初始状态
+     */
     public AgentTask(String taskId, Long userId, UserPlanDTO userPlan, TaskStatus status) {
         this.taskId = taskId;
         this.userId = userId;

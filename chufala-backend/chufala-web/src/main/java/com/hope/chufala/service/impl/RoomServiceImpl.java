@@ -11,6 +11,14 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
+/**
+ * 房型服务实现。
+ *
+ * <p>总价计算前先校验库存（按入住区间取每晚最短板），再由 SignaturePriceUtils
+ * 生成带签名的订单原始数据，供下单时校验价格未被篡改。
+ *
+ * @author 谢光湘
+ */
 @Service
 public class RoomServiceImpl implements IRoomService {
 
@@ -21,11 +29,30 @@ public class RoomServiceImpl implements IRoomService {
     @Autowired
     private SignaturePriceUtils signaturePriceUtils;
 
+    /**
+     * 查询房型价格。
+     *
+     * <p>占位实现：恒返回 0.0，真实价格取自 RoomMapper.selectRoomPrice。
+     *
+     * @param roomTypeId 房型 ID
+     * @return 固定 0.0
+     */
     @Override
     public Double selectRoomPrice(Long roomTypeId) {
         return 0.0;
     }
 
+    /**
+     * 计算房型总价并生成价格签名。
+     *
+     * <p>房间数或库存不满足时抛 IllegalArgumentException；价格为 null 视为房型不存在。
+     *
+     * @param roomTypeId 房型 ID
+     * @param checkIn    入住日期
+     * @param checkOut   离店日期
+     * @param roomCount  房间数
+     * @return 含订单原始数据（data）与签名（signature）的键值对
+     */
     @Override
     public Map<String, String> calculateRoomTotalPrice(Long roomTypeId, LocalDate checkIn, LocalDate checkOut,int roomCount) {
         if (roomCount <= 0) {
@@ -43,6 +70,14 @@ public class RoomServiceImpl implements IRoomService {
         return signaturePriceUtils.generatePriceWithSignature(roomTypeId.toString(), checkIn.toString(), checkOut.toString(),nightNum,roomCount, totalPrice);
     }
 
+    /**
+     * 查询指定入住区间内可售的最少房量（按每晚取最短板）。
+     *
+     * @param roomTypeId 房型 ID
+     * @param checkIn    入住日期
+     * @param checkOut   离店日期
+     * @return 可售房量
+     */
     @Override
     public int getAvailableStock(Long roomTypeId, LocalDate checkIn, LocalDate checkOut) {
         if (checkIn == null || checkOut == null || !checkOut.isAfter(checkIn)) {

@@ -24,6 +24,14 @@ import java.util.List;
 import java.util.Map;
 
 
+/**
+ * 行程骨架生成节点。
+ *
+ * <p>由 deepseek 依据候选景点与用户偏好，为每天挑选景点并给出游玩提示，同时生成
+ * 文字版总计划（masterPlan）；本地再按景点 ID 补全展示信息，组装成 itinerarySkeleton。
+ *
+ * @author 谢光湘
+ */
 @Slf4j
 @Component
 public class PlanItineraryNode implements NodeAction<TravelPlanState> {
@@ -35,6 +43,12 @@ public class PlanItineraryNode implements NodeAction<TravelPlanState> {
     private SseManager sseManager;
 
 
+    /**
+     * 生成逐日行程骨架与总计划。
+     *
+     * @param state 规划状态（需含 userPlan 与候选景点）
+     * @return 含 masterPlan 与 itinerarySkeleton 的状态增量；模型无返回时为空 Map
+     */
     @Override
     public Map<String, Object> apply(TravelPlanState state) {
         log.info("===PlanItineraryNode节点===");
@@ -102,22 +116,28 @@ public class PlanItineraryNode implements NodeAction<TravelPlanState> {
     }
 
 
+    /** 大模型返回的行程规划结果 */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     public static class PlanVo implements Serializable {
         @Serial
         private static final long serialVersionUID = 1L;
+        /** 文字版总计划 */
         private String masterPlan;
+        /** 逐日安排 */
         private List<PlanVo.Schedule> schedules;
 
+        /** 单日安排：景点 ID 与对应游玩提示 */
         @Data
         @NoArgsConstructor
         @AllArgsConstructor
         public static class Schedule implements Serializable{
             @Serial
             private static final long serialVersionUID = 1L;
+            /** 当日景点 ID 列表 */
             private List<String> attractionIds;
+            /** 与景点一一对应的游玩提示 */
             private List<String> tips;
         }
     }

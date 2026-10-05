@@ -23,6 +23,15 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.regex.Pattern;
 
+/**
+ * 用户服务实现。
+ *
+ * <p>登录同时承担历史密码哈希的平滑升级：早期数据为 MD5(固定盐 + 明文)，命中旧格式时
+ * 按旧算法校验，成功后就地改写为 BCrypt（只 set password 一列，避免 updateById 把
+ * 原始 int 字段写回 0）。用户资料的更新也统一用 UpdateWrapper 逐字段 set。
+ *
+ * @author 谢光湘
+ */
 @Slf4j
 @Service
 public class UserServiceImpl implements IUserService {
@@ -45,6 +54,16 @@ public class UserServiceImpl implements IUserService {
      */
     private static final Pattern LEGACY_MD5 = Pattern.compile("^[0-9a-fA-F]{32}$");
 
+    /**
+     * 用户登录（校验邮箱与密码）。
+     *
+     * <p>用户不存在与密码错误返回同一提示，避免暴露邮箱是否已注册；
+     * 校验通过后顺带把历史哈希升级为 BCrypt。
+     *
+     * @param email    邮箱
+     * @param password 明文密码
+     * @return 登录成功的用户
+     */
     @Override
     public User login(String email, String password) {
         User user = userMapper.selectOne(new QueryWrapper<User>().eq("email", email));
@@ -111,12 +130,24 @@ public class UserServiceImpl implements IUserService {
         }
     }
 
+    /**
+     * 按 ID 查询用户。
+     *
+     * @param id 用户 ID
+     * @return 用户
+     */
     @Override
     public User getUserById(Long id) {
         return userMapper.selectById(id);
     }
 
 
+    /**
+     * 用户注册（校验邮箱验证码后写入，密码 BCrypt 哈希存储）。
+     *
+     * @param registerFormDTO 注册表单
+     * @param userIP          注册来源 IP，用于日志与频控
+     */
     @Override
     public void register(RegisterFormDTO registerFormDTO,String userIP) {
         User user = new User();
@@ -145,11 +176,23 @@ public class UserServiceImpl implements IUserService {
         }
     }
 
+    /**
+     * 判断用户是否为 VIP（vip 字段为 1）。
+     *
+     * @param userId 用户 ID
+     * @return 是 VIP 返回 true
+     */
     @Override
     public boolean isVipUser(Long userId) {
         return userMapper.selectOne(new QueryWrapper<User>().eq("id", userId).eq("vip", 1)) != null;
     }
 
+    /**
+     * 上传用户头像到 OSS。
+     *
+     * @param avatar 头像文件
+     * @return 头像访问 URL
+     */
     @Override
     public String uploadAvatar(MultipartFile avatar) {
         String url = null;
@@ -167,6 +210,12 @@ public class UserServiceImpl implements IUserService {
         return url;
     }
 
+    /**
+     * 更新用户资料（仅更新非 null 字段）。
+     *
+     * @param userUpdateFrom 待更新的资料
+     * @return 是否成功
+     */
     @Override
     public boolean updateById(UserUpdateFormDTO userUpdateFrom) {
         UpdateWrapper<User> updateWrapper = new UpdateWrapper<>();

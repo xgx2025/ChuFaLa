@@ -18,12 +18,28 @@ import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 景点距离与驾车耗时计算节点。
+ *
+ * <p>逐个补全景点坐标，并计算「相邻景点」之间的距离与驾车时间；结果写在
+ * <b>前一个</b>景点上，表示「由此前往下一个景点」的行程段。
+ * 驾车时间按固定 10km/h 估算，不足 1 分钟时显示为 1 分钟。
+ *
+ * @author 谢光湘
+ */
 @Slf4j
 @Component
 public class DistanceCalculationNode implements NodeAction<TravelPlanState> {
     @Autowired
     private IAttractionService attractionService;
 
+    /**
+     * 计算每日相邻景点间的距离与驾车耗时，并写回行程骨架。
+     *
+     * @param state 规划状态（需含 itinerarySkeleton）
+     * @return 含更新后 itinerarySkeleton 的状态
+     * @throws Exception 节点执行异常
+     */
     @Override
     public Map<String, Object> apply(TravelPlanState state) throws Exception {
         log.info("===DistanceCalculateNode节点===");
@@ -61,14 +77,20 @@ public class DistanceCalculationNode implements NodeAction<TravelPlanState> {
         return TravelPlanState.updateState(state, Map.of(TravelPlanState.ITINERARY_SKELETON, travelItinerary), TravelPlanState.SCHEMA);
     }
 
+    /** 地理信息载体（当前未被引用，保留作为结构化扩展位） */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     public static class GeoInfo {
+        /** 地点名称 */
         private List<String> name;
+        /** 经度 */
         private List<Double> lng;
+        /** 纬度 */
         private List<Double> lat;
+        /** 距离描述 */
         private List<String> distance;
+        /** 驾车耗时描述 */
         private List<String> drivingTime;
     }
 

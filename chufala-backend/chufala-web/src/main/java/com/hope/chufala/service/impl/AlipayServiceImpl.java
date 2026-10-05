@@ -33,6 +33,15 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
+/**
+ * 支付宝支付服务实现。
+ *
+ * <p>核心在回调处理的「先校验、后幂等、再落库」：验签 → 核对 appId / 收款方 PID /
+ * 金额 / 交易号 → 悲观锁读取支付记录 → 同一事务内推进业务状态与支付记录 →
+ * 事务提交后再异步发通知邮件。业务差异由 {@link BizAdapter} 隔离，本类只负责通用支付流程。
+ *
+ * @author 谢光湘
+ */
 @Slf4j
 @Service
 public class AlipayServiceImpl implements IAlipayService {
@@ -52,6 +61,16 @@ public class AlipayServiceImpl implements IAlipayService {
     @Qualifier("mailExecutor")
     private Executor mailExecutor;
 
+    /**
+     * 创建支付：由业务适配器给出统一支付参数，落一条 WAIT_PAY 支付记录后生成支付表单。
+     *
+     * <p>若已有支付记录，会校验其状态、归属、业务类型与金额是否一致，不一致直接拒绝，
+     * 防止同一订单被改价或换人重复发起支付。
+     *
+     * @param bizType 业务类型（HOTEL / TICKET / VIP）
+     * @param orderId 业务订单 ID
+     * @return 支付宝支付表单 HTML
+     */
     @Override
     public String createPay(String bizType, Long orderId) {
         Claims claims = ThreadLocalUtils.get();
@@ -86,6 +105,16 @@ public class AlipayServiceImpl implements IAlipayService {
         }
     }
 
+    /**
+     * 处理支付宝异步回调。
+     *
+     * <p>任何校验不通过都返回 "fail" 让支付宝重试；重复回调按幂等处理，
+     * 已取消订单收到支付成功回调时置为 REFUND_REQUIRED 等待退款。
+     *
+     * @param channel 支付渠道标识（当前固定为"支付宝"）
+     * @param request 回调请求
+     * @return 返回给支付宝的应答（success / fail）
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String handleNotify(String channel, HttpServletRequest request) {
@@ -181,6 +210,15 @@ public class AlipayServiceImpl implements IAlipayService {
         return "success";
     }
 
+    /**
+     * 以 WAIT_PAY 为条件更新支付记录（CAS，保证只被推进一次）。
+     *
+     * @param record  支付记录
+     * @param status  目标状态
+     * @param payTime 支付时间
+     * @param tradeNo 交易号
+     * @return 是否更新成功
+     */
     private boolean updatePaymentRecord(PayRecord record, String status, LocalDateTime payTime, String tradeNo) {
         UpdateWrapper<PayRecord> update = new UpdateWrapper<>();
         update.eq("id", record.getId()).eq("status", "WAIT_PAY")
@@ -188,6 +226,13 @@ public class AlipayServiceImpl implements IAlipayService {
         return payRecordMapper.update(null, update) == 1;
     }
 
+    /**
+     * 异步发送支付成功通知邮件（失败只记日志，不影响主流程）。
+     *
+     * @param userId  用户 ID
+     * @param subject 订单标题
+     * @param orderId 订单号
+     */
     private void sendSuccessEmail(Long userId, String subject, String orderId) {
         try {
             CompletableFuture.runAsync(() -> {
@@ -207,6 +252,12 @@ public class AlipayServiceImpl implements IAlipayService {
     }
 
     // 解析请求参数为Map
+    /**
+     * 把回调请求的参数表拍平成单值 Map（同名多值只取第一个）。
+     *
+     * @param request 回调请求
+     * @return 参数 Map
+     */
     private Map<String, String> parseParams(HttpServletRequest request) {
         Map<String, String> params = new HashMap<>();
         request.getParameterMap().forEach((k, v) -> {

@@ -15,6 +15,8 @@ import java.util.concurrent.TimeUnit;
  *
  * 局限：任务只存放在本进程内存中，服务重启后进行中的任务会丢失。
  * 如需跨重启保留，应改为 Redis 或数据库存储。
+ *
+ * @author 谢光湘
  */
 @Component
 public class TaskQueue {
@@ -38,6 +40,10 @@ public class TaskQueue {
 
     /**
      * 提交任务
+     *
+     * <p>提交时顺带清理已结束且超期的任务，避免内存只增不减。
+     *
+     * @param userId   提交用户 ID
      * @param userPlan 用户旅行的相关信息
      * @return 任务ID
      */
@@ -70,6 +76,12 @@ public class TaskQueue {
         });
     }
 
+    /**
+     * 判断任务是否已结束。
+     *
+     * @param status 任务状态
+     * @return 已结束返回 true
+     */
     private boolean isFinished(TaskStatus status) {
         return status == TaskStatus.COMPLETED || status == TaskStatus.FAILED;
     }
