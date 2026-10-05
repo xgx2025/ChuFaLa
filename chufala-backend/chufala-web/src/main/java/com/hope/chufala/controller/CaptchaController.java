@@ -12,6 +12,13 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 
+/**
+ * 图形验证码接口。
+ *
+ * <p>基于 Kaptcha 生成图片验证码，答案存入 Session，注册时由服务端校验。
+ *
+ * @author 谢光湘
+ */
 @RestController
 @RequestMapping("/captcha")
 public class CaptchaController {
@@ -19,6 +26,13 @@ public class CaptchaController {
     @Autowired
     private DefaultKaptcha defaultKaptcha;
 
+    /**
+     * 生成并输出图形验证码图片（JPEG），答案写入 Session 的 captcha 属性。
+     *
+     * @param request  用于写入 Session
+     * @param response 图片直接写入响应流
+     * @throws IOException 图片写出失败
+     */
     @GetMapping("/generate")
     public void generateCaptcha(HttpServletRequest request, HttpServletResponse response) throws IOException {
         //生成验证码文本

@@ -14,6 +14,13 @@ import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 景点接口。
+ *
+ * <p>提供景点新增（仅管理员）、分页列表与详情查询。
+ *
+ * @author 谢光湘
+ */
 @RestController
 @RequestMapping("/attraction")
 public class AttractionController {
@@ -22,6 +29,12 @@ public class AttractionController {
     private IAttractionService attractionService;
     @Autowired
     private AccessControl accessControl;
+    /**
+     * 新增景点（仅管理员）。
+     *
+     * @param attraction 景点实体
+     * @return 操作结果
+     */
     @PostMapping("/add")
     public Result add(@RequestBody Attraction attraction) {
       Claims claims = ThreadLocalUtils.get();
@@ -32,6 +45,12 @@ public class AttractionController {
       }
       return Result.ok(null);
     }
+    /**
+     * 分页查询景点列表。
+     *
+     * @param query 查询条件
+     * @return 分页结果
+     */
     @GetMapping("/list")
     public Result getAttractions(@ModelAttribute AttractionPageQueryDTO query) {
         PageResult<Attraction> pageResult = attractionService.queryAttraction(query);
@@ -41,6 +60,12 @@ public class AttractionController {
         return Result.ok(pageResult);
     }
 
+    /**
+     * 查询景点详情。
+     *
+     * @param id 景点 ID
+     * @return 景点详情
+     */
     @GetMapping("/detail/{id}")
     public Result getAttractionDetail(@PathVariable Long id) {
         Attraction attraction = attractionService.getAttractionById(id);

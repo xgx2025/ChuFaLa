@@ -13,6 +13,13 @@ import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 酒店接口。
+ *
+ * <p>提供酒店新增（仅管理员）、详情查询与列表查询。
+ *
+ * @author 谢光湘
+ */
 @RestController
 @RequestMapping("/hotels")
 public class HotelController {
@@ -22,6 +29,12 @@ public class HotelController {
     @Autowired
     private AccessControl accessControl;
 
+    /**
+     * 新增酒店（仅管理员）。
+     *
+     * @param hotel 酒店实体
+     * @return 操作结果
+     */
     @PostMapping
     public Result add(@RequestBody Hotel hotel) {
         Claims claims = ThreadLocalUtils.get();
@@ -33,6 +46,12 @@ public class HotelController {
         return Result.ok(null);
     }
 
+    /**
+     * 查询酒店详情。
+     *
+     * @param id 酒店 ID
+     * @return 酒店详情
+     */
     @GetMapping("/detail/{id}")
     public Result getHotelDetail(@PathVariable Long id) {
         Hotel hotel = hotelService.getHotelDetail(id);
@@ -44,9 +63,10 @@ public class HotelController {
 
     /**
      * 普通分页：查询全部酒店
-     * @param page
-     * @param size
-     * @return
+     *
+     * @param page 页码，从 1 开始
+     * @param size 每页大小
+     * @return 分页结果
      */
     @GetMapping
     public Result getAllHotels(
@@ -62,8 +82,9 @@ public class HotelController {
 
     /**
      * 普通分页：按评分排名查询
-     * @param query
-     * @return
+     *
+     * @param query 查询条件
+     * @return 分页结果
      */
     @GetMapping("/list")
     public Result getHotelsByScoreRank(@ModelAttribute HotelPageQueryDTO query) {
@@ -73,8 +94,6 @@ public class HotelController {
         }
         return Result.ok(pageResult);
     }
-
-
 
 
 

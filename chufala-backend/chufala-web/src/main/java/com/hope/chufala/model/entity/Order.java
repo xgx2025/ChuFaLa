@@ -6,7 +6,12 @@ import java.io.Serializable;
 import java.util.Date;
 
 /**
- * 接口次数订单表
+ * 接口次数订单表。
+ *
+ * <p>注意：当前主代码中未见对该实体的引用，属于历史遗留实体；
+ * 现行酒店/会员支付订单请分别参考 {@link HotelOrder} 与 {@link VipPaymentRecord}。
+ *
+ * @author 谢光湘
  * @TableName order
  */
 @Data

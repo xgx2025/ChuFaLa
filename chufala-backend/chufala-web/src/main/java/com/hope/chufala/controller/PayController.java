@@ -17,6 +17,8 @@ import java.net.URI;
 
 /**
  * 支付宝接口
+ *
+ * @author 谢光湘
  */
 @RestController
 @RequestMapping("/alipay")
@@ -33,7 +35,7 @@ public class PayController {
      *
      * @param bizType 商品类型：HOTEL(酒店)、TICKET(门票)
      * @param orderId 商品ID：酒店订单ID、门票订单ID
-     * @return
+     * @return 支付表单 HTML
      */
     @GetMapping(value = "/pay", produces = "text/html")
     public String createPay(
@@ -45,12 +47,23 @@ public class PayController {
 
 
 
+    /**
+     * 接收支付宝异步支付通知并推进订单状态。
+     *
+     * @param request 回调请求
+     * @return 返回给支付宝的应答内容
+     */
     @PostMapping("/notify")  // 注意这里必须是POST接口
     public String payNotify(HttpServletRequest request) {
         return alipayService.handleNotify("支付宝", request);
     }
 
     // 浏览器回跳仅负责导航，订单状态由异步通知更新。
+    /**
+     * 支付完成后浏览器回跳，重定向到前端返回页。
+     *
+     * @return 302 重定向响应
+     */
     @GetMapping("/return")
     public ResponseEntity<Void> payReturn() {
         return ResponseEntity.status(HttpStatus.FOUND)
@@ -59,13 +72,6 @@ public class PayController {
     }
 
 }
-
-
-
-
-
-
-
 
 
 

@@ -16,6 +16,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 酒店订单接口。
+ *
+ * <p>提供下单、订单分页查询、删除与取消；用户身份从 ThreadLocal 中的 JWT claims 获取。
+ *
+ * @author 谢光湘
+ */
 @Slf4j
 @RestController
 @RequestMapping("/hotelOrders")
@@ -23,6 +30,12 @@ public class HotelOrderController {
     @Autowired
     private IHotelOrderService hotelOrderService;
 
+    /**
+     * 创建酒店订单。
+     *
+     * @param hotelOrderDTO 下单参数（含被签名的原始数据）
+     * @return 新订单的业务订单号
+     */
     @PostMapping
     public Result createHotelOrder(@RequestBody HotelOrderDTO hotelOrderDTO){
         Claims claims = ThreadLocalUtils.get();
@@ -31,6 +44,14 @@ public class HotelOrderController {
         return Result.ok(orderId);
     }
 
+    /**
+     * 分页查询当前用户的酒店订单。
+     *
+     * @param currentPage 当前页
+     * @param pageSize    每页大小
+     * @param orderStatus 订单状态筛选
+     * @return 分页结果
+     */
     @GetMapping
     public Result getAllHotelOrder(@RequestParam Integer currentPage,@RequestParam Integer pageSize,@RequestParam String orderStatus) {
         Claims claims =  ThreadLocalUtils.get();
@@ -42,6 +63,12 @@ public class HotelOrderController {
         return Result.ok(pageResult);
     }
 
+    /**
+     * 删除订单（校验归属）。
+     *
+     * @param orderId 业务订单号
+     * @return 操作结果
+     */
     @DeleteMapping("/{orderId}")
     public Result deleteOrder(@PathVariable Long orderId) {
         Claims claims = ThreadLocalUtils.get();
@@ -50,6 +77,12 @@ public class HotelOrderController {
         return Result.ok(null);
     }
 
+    /**
+     * 取消订单（回补库存）。
+     *
+     * @param orderId 业务订单号
+     * @return 操作结果
+     */
     @PutMapping("/cancel/{orderId}")
     public Result cancelOrder(@PathVariable Long orderId) {
         Claims claims = ThreadLocalUtils.get();

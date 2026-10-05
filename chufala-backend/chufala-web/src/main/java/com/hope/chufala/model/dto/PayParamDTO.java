@@ -4,6 +4,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 
+/**
+ * 发起支付请求参数。
+ *
+ * @author 谢光湘
+ */
 @Data
 @NoArgsConstructor
 public class PayParamDTO {

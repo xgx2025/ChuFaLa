@@ -17,6 +17,13 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 认证接口。
+ *
+ * <p>负责登录签发双 Token、注册、邮箱验证码发送与刷新 Token。
+ *
+ * @author 谢光湘
+ */
 @Slf4j
 @RestController
 @RequestMapping("/auth")
@@ -27,6 +34,12 @@ public class AuthController {
     private EmailVerificationCodeUtils emailVerificationCodeUtils;
     @Autowired
     private JwtTokenUtils jwtTokenUtils;
+    /**
+     * 用户登录，签发 access / refresh token。
+     *
+     * @param loginFormDTO 登录表单（邮箱 + 密码）
+     * @return 含 accessToken 与 refreshToken 的映射
+     */
     @PostMapping("/login")
     public Result login(@RequestBody LoginFormDTO loginFormDTO) {
         User user = userService.login(loginFormDTO.getEmail(), loginFormDTO.getPassword());
@@ -39,6 +52,13 @@ public class AuthController {
         return Result.ok(tokens);
     }
 
+    /**
+     * 用户注册（校验邮箱验证码与图形验证码）。
+     *
+     * @param registerFormDTO 注册表单
+     * @param request         用于取来源 IP 并清除 Session 中的图形验证码
+     * @return 操作结果
+     */
     @PostMapping("/register")
     public Result register(@RequestBody RegisterFormDTO registerFormDTO, HttpServletRequest request) {
         request.getSession().removeAttribute("captcha");
@@ -46,6 +66,13 @@ public class AuthController {
         return Result.ok(null);
     }
 
+    /**
+     * 发送邮箱验证码。
+     *
+     * @param email   接收验证码的邮箱
+     * @param request 用于取来源 IP 做频控
+     * @return 操作结果
+     */
     @GetMapping("/sendVerificationCode")
     public Result sendVerificationCode(@RequestParam String email, HttpServletRequest request) {
         emailVerificationCodeUtils.generateAndSendCode(email,request.getRemoteAddr());
@@ -53,6 +80,14 @@ public class AuthController {
     }
 
 
+    /**
+     * 用 refresh token 换取新的双 Token。
+     *
+     * @param params   含 refreshToken 的请求体
+     * @param request  用于记录来源 IP
+     * @param response 校验失败时置 401
+     * @return 新的 accessToken 与 refreshToken
+     */
     @PostMapping("/refreshToken")
     public Result refreshToken(@RequestBody Map<String, String> params, HttpServletRequest request, HttpServletResponse response) {
         //TODO 校验刷新token是否在redis（或者数据库）白名单中

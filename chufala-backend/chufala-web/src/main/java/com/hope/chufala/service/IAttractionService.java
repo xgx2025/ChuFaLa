@@ -7,55 +7,82 @@ import com.hope.chufala.common.model.vo.PageResult;
 
 import java.util.List;
 
+/**
+ * 景点服务。
+ *
+ * <p>提供景点新增、分页检索，以及面向 AI 行程规划的按城市/关键词轻量查询。
+ *
+ * @author 谢光湘
+ */
 public interface IAttractionService {
 
     /**
-     * 添加景点
-     * @param attraction
-     * @return
+     * 新增景点。
+     *
+     * @param attraction 景点实体
+     * @return 是否成功
      */
     boolean addAttraction(Attraction attraction);
 
     /**
-     * 分页查询景点
-     * @return
+     * 分页查询景点。
+     *
+     * @param query 查询条件
+     * @return 分页结果
      */
     PageResult<Attraction> queryAttraction(AttractionPageQueryDTO query);
 
     /**
-     * 根据城市名称查询景点
-     * @param name
-     * @return
+     * 按城市查询景点（含图片等完整展示信息）。
+     *
+     * @param name 城市名称
+     * @return 景点信息列表
      */
     List<AttractionInfoVO> queryAttractionByCity(String name);
     /**
-     * 根据城市名称查询景点简单信息
-     * @param name
-     * @return
+     * 按城市查询景点简单信息。
+     *
+     * @param name 城市名称
+     * @return 景点信息列表
      */
     List<AttractionInfoVO> queryAttractionSimpleByCity(String name);
 
     /**
-     * 根据id查询景点基本信息
-     * @param id
-     * @return
+     * 按 ID 查询景点基本信息。
+     *
+     * @param id 景点 ID
+     * @return 景点信息
      */
     AttractionInfoVO queryAttractionInfoById(Long id);
 
+    /**
+     * 按 ID 查询景点名称。
+     *
+     * @param id 景点 ID
+     * @return 景点名称
+     */
     String queryAttractionNameById(Long id);
     /**
-     * 根据id查询景点详细信息
-     * @param id
-     * @return
+     * 按 ID 查询景点详细信息。
+     *
+     * @param id 景点 ID
+     * @return 景点实体
      */
     Attraction getAttractionById(Long id);
 
+    /**
+     * 按 ID 查询景点坐标。
+     *
+     * @param id 景点 ID
+     * @return 坐标数组，格式为 [经度, 纬度]
+     */
     Double[] queryAttractionPositionById(Long id);
 
     /**
-     * 根据关键词查询景点基本信息
-     * @param keyword
-     * @return
+     * 按关键词检索景点。
+     *
+     * @param keyword 关键词
+     * @return 景点列表
      */
     List<Attraction> searchAttractionsByKeyword(String keyword);
 }

@@ -38,6 +38,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * AI 智能体接口。
+ *
+ * <p>是智能旅行助手的统一入口，覆盖三类能力：
+ * <ol>
+ *   <li>行程规划：提交异步任务（{@code /plan}）并通过 SSE 订阅进度（{@code /progress/{taskId}}）；</li>
+ *   <li>智能对话：以 SSE 流式返回模型回复，支持携带图片附件（由豆包模型做多模态理解）；</li>
+ *   <li>会话管理：历史会话与消息的查询、删除，以及图片上传。</li>
+ * </ol>
+ *
+ * <p>模型选择上，默认使用 qwen；deepseek 仅对 VIP 用户开放。所有接口的用户身份
+ * 均取自 ThreadLocal 中的 JWT claims。
+ *
+ * @author 谢光湘
+ */
 @Slf4j
 @RestController
 @RequestMapping("/agent")
@@ -77,6 +92,7 @@ public class AgentController {
     @Autowired
     private TimeTools otherTools;
 
+    /** 智能助手的系统提示词：限定旅游领域、规定 Markdown 输出格式与注意事项 */
     private static final String SYSTEM_PROMPT =
             """
                     # 角色：\s
@@ -108,6 +124,7 @@ public class AgentController {
             """;
 
 
+    /** 允许客户端指定的模型白名单，实际 Bean 名与之一致 */
     private static final Set<String> ALLOWED_MODELS = Set.of("deepseek", "qwen");
 
     private boolean isValidModel(String model) {
@@ -116,6 +133,7 @@ public class AgentController {
 
     /**
      * 提交行程规划任务
+     *
      * @param userPlanDTO 用户规划信息
      * @return 任务ID
      */
@@ -131,8 +149,9 @@ public class AgentController {
 
     /**
      * 订阅规划进度
-     * @param taskId
-     * @return
+     *
+     * @param taskId 任务 ID
+     * @return SSE 发射器，超时时间 5 分钟
      */
     @GetMapping("/progress/{taskId}")
     public SseEmitter subscribeProgress(@PathVariable String taskId){
@@ -151,7 +170,8 @@ public class AgentController {
 
     /**
      * 查询历史规划
-     * @return
+     *
+     * @return 当前用户的规划历史列表
      */
     @GetMapping("/plan/history")
     public Result history() {
@@ -163,8 +183,9 @@ public class AgentController {
 
     /**
      * 查询规划的结果
-     * @param id
-     * @return
+     *
+     * @param id 历史记录 ID
+     * @return 完整行程结果
      */
     @GetMapping("/plan/{id}")
     public Result queryPlanResult(@PathVariable Long id) {
@@ -177,8 +198,9 @@ public class AgentController {
 
     /**
      * 智能助手聊天
-     * @param chatRequest
-     * @return
+     *
+     * @param chatRequest 对话请求（消息、会话、模型、关联规划、附件）
+     * @return 以 text/event-stream 流式返回模型输出；响应头 X-Conversation-Id 回传会话 ID
      */
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<Flux<String>> chat(@RequestBody ChatRequest chatRequest) {
@@ -311,7 +333,8 @@ public class AgentController {
 
     /**
      * 获取历史聊天会话
-     * @return
+     *
+     * @return 当前用户的会话列表
      */
     @GetMapping("/chat/history")
     public Result getChatHistory() {
@@ -322,6 +345,12 @@ public class AgentController {
     }
 
 
+    /**
+     * 查询指定会话下的全部消息。
+     *
+     * @param id 会话 ID
+     * @return 消息列表
+     */
     @GetMapping("/chat/{id}")
     public Result getChatById(@PathVariable Long id) {
         Claims claims = ThreadLocalUtils.get();
@@ -330,6 +359,12 @@ public class AgentController {
         return Result.ok(conversation);
     }
 
+    /**
+     * 删除指定会话。
+     *
+     * @param id 会话 ID
+     * @return 操作结果
+     */
     @DeleteMapping("/chat/{id}")
     public Result deleteChatById(@PathVariable Long id) {
         Claims claims = ThreadLocalUtils.get();
@@ -338,6 +373,12 @@ public class AgentController {
         return Result.ok(null);
     }
 
+    /**
+     * 上传对话图片附件。
+     *
+     * @param files 上传的图片文件
+     * @return 文件 ID 列表
+     */
     @PostMapping("/chat-image")
     public Result uploadChatImage(@RequestParam("files")MultipartFile[] files){
         Claims claims = ThreadLocalUtils.get();

@@ -13,6 +13,13 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 向量检索测试接口（开发工具，仅管理员可访问）。
+ *
+ * <p>向向量库写入几条示例文档并做一次相似度检索，用于验证 Milvus 向量库连通性。
+ *
+ * @author 谢光湘
+ */
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/rag")
@@ -20,6 +27,11 @@ public class RAGController {
     private final VectorStore vectorStore;
     private final AccessControl accessControl;
 
+    /**
+     * 写入示例文档并执行一次相似度检索（结果打印到控制台）。
+     *
+     * @return 固定返回 "test"
+     */
     @RequestMapping("/test")
     public String test(){
         Claims claims = ThreadLocalUtils.get();

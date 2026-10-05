@@ -13,6 +13,8 @@ import java.time.LocalDateTime;
 
 /**
  * VIP会员支付记录
+ *
+ * @author 谢光湘
  */
 @Data
 @NoArgsConstructor
