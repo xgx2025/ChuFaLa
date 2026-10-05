@@ -4,6 +4,15 @@ import java.util.List;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+/**
+ * 简易动态数组实现。
+ *
+ * <p>以 Object[] 承载元素，容量不足时按 2 倍扩容，仅实现 List 的最小子集
+ * （add / get / size / iterator）。当前用于性能对比基准（perf.ListBenchmark），
+ * 业务代码请优先使用 ArrayList。
+ *
+ * @author 谢光湘
+ */
 public class SmartList<T> extends AbstractList<T> implements List<T> {
     private Object[] elements;
     private int size;
@@ -40,6 +49,11 @@ public class SmartList<T> extends AbstractList<T> implements List<T> {
         return size;
     }
 
+    /**
+     * 保证底层数组至少能容纳 minCapacity 个元素，不足则按 2 倍扩容。
+     *
+     * @param minCapacity 需要的最小容量
+     */
     private void ensureCapacity(int minCapacity) {
         if (minCapacity > elements.length) {
             int newCapacity = Math.max(elements.length * 2, minCapacity);
@@ -49,6 +63,11 @@ public class SmartList<T> extends AbstractList<T> implements List<T> {
         }
     }
 
+    /**
+     * 下标越界检查。
+     *
+     * @param index 待访问下标
+     */
     private void rangeCheck(int index) {
         if (index >= size || index < 0) {
             throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);

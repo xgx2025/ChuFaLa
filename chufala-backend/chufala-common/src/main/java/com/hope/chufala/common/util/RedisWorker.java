@@ -24,6 +24,15 @@ public class RedisWorker {
     private static final long BEGIN_TIMESTAMP = 1735689600; // 2023-12-31 00:00:00 UTC的秒级时间戳
     private static final int COUNT_BITS = 32;
 
+    /**
+     * 生成下一个全局唯一 ID。
+     *
+     * <p>以秒级时间戳为高位、Redis 当日自增计数为低位拼接；按 keyPrefix + 日期分桶，
+     * 每日计数独立。
+     *
+     * @param keyPrefix 业务前缀（不同业务互不干扰）
+     * @return 唯一 ID
+     */
     public long nextId(String keyPrefix){
         LocalDateTime now = LocalDateTime.now();
         long nowSecond = now.toEpochSecond(ZoneOffset.UTC);

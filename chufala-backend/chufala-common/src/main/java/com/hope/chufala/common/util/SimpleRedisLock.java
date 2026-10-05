@@ -13,6 +13,8 @@ import java.util.concurrent.TimeUnit;
  *
  * 用法：每个需要互斥的操作 new 一个实例；tryLock 成功后必须在 finally
  * 或事务完成回调中 unlock，否则只能等过期时间自动释放。
+ *
+ * @author 谢光湘
  */
 public class SimpleRedisLock {
     private final StringRedisTemplate stringRedisTemplate;

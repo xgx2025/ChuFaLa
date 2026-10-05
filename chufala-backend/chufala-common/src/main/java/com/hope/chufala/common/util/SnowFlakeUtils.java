@@ -7,6 +7,8 @@ package com.hope.chufala.common.util;
  * 2. 内置默认workerId和dataCenterId
  * 3. 线程安全
  * 4. 处理时钟回拨问题
+ *
+ * @author 谢光湘
  */
 public class SnowFlakeUtils {
     // 起始时间戳 (2020-01-01 00:00:00)

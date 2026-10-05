@@ -15,6 +15,12 @@ import java.util.Map;
 /**
  * 价格签名工具
  * 对称密钥统一由 application.yml 的 sign.price-secret-key 提供
+ *
+ * <p>下单前由服务端把房型、日期、间夜数、房间数与总价拼成 data 串并做
+ * HMAC-SHA256 签名，客户端回传 data + signature，服务端重新验签并检查时间戳，
+ * 从而防止前端篡改价格。
+ *
+ * @author 谢光湘
  */
 @Component
 public class SignaturePriceUtils {
@@ -27,6 +33,14 @@ public class SignaturePriceUtils {
 
     /**
      * 生成价格数据及签名
+     *
+     * @param roomId     房型 ID
+     * @param checkIn    入住日期
+     * @param checkOut   离店日期
+     * @param nightNum   晚数
+     * @param roomCount  房间数
+     * @param totalPrice 总价
+     * @return 含 data（原始串）与 signature（签名）的键值对
      */
     public Map<String, String> generatePriceWithSignature(String roomId, String checkIn, String checkOut, long nightNum, int roomCount, double totalPrice) {
         // 1. 构建包含业务上下文的数据
@@ -45,6 +59,12 @@ public class SignaturePriceUtils {
 
     /**
      * 验证前端传递的签名
+     *
+     * <p>依次校验：参数非空 → 签名匹配 → 时间戳在 5 分钟有效期内。
+     *
+     * @param data      被签名的原始串
+     * @param signature 待校验签名
+     * @return 校验通过返回 true
      */
     public boolean verifyPriceSignature(String data, String signature) {
         // 1. 验证签名格式
@@ -77,6 +97,9 @@ public class SignaturePriceUtils {
 
     /**
      * 使用HMAC-SHA256生成签名
+     *
+     * @param data 待签名内容
+     * @return Base64 编码的签名
      */
     private String generateHmacSHA256(String data) {
         try {

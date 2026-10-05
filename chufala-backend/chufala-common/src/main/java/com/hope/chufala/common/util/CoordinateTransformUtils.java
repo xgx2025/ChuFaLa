@@ -6,6 +6,11 @@ import lombok.NoArgsConstructor;
 
 /**
  * 坐标系转换工具类（支持WGS84/GCJ02/BD09互转）
+ *
+ * <p>WGS84 为 GPS 原始坐标，GCJ02 为高德/腾讯坐标，BD09 为百度坐标。
+ * 境外坐标不做偏移（GCJ02/BD09 的加密只在中国大陆生效）。
+ *
+ * @author 谢光湘
  */
 public class CoordinateTransformUtils {
     // 常量优化：X_PI、A、EE保持标准值，PI改用JDK内置Math.PI（精度一致且更规范）

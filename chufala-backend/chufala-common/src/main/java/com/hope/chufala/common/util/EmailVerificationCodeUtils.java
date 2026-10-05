@@ -21,6 +21,11 @@ import java.util.concurrent.TimeUnit;
 /**
  * 邮件验证码服务类（Redis存储版）
  * 负责生成、发送、验证和管理验证码
+ *
+ * <p>验证码存 Redis Hash（{@code email:code:{email}}，含 code/createTime/lastSendTime），
+ * 有效期 10 分钟；发送有 60 秒冷却限制，验证成功后立即删除以防重复使用。
+ *
+ * @author 谢光湘
  */
 @Slf4j
 @Component
@@ -59,9 +64,12 @@ public class EmailVerificationCodeUtils {
 
     /**
      * 生成并发送验证码（添加频率控制）
-     * @param email 目标邮箱
-     * @return 包含验证码和状态的结果对象
-     * @throws MessagingException 邮件发送异常
+     *
+     * <p>若 Redis 中已有未过期验证码则复用，否则重新生成；命中 60 秒冷却时抛
+     * VerifyCodeTooFrequentException。邮件发送失败只记日志，不向上抛。
+     *
+     * @param email  目标邮箱
+     * @param userIP 请求来源 IP，用于日志
      */
     public void generateAndSendCode(String email,String userIP){
         String redisKey = REDIS_KEY_PREFIX + email;

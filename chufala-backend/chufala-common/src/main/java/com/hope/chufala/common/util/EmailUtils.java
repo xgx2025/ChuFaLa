@@ -12,19 +12,25 @@ import java.util.Properties;
  * 用于发送各类邮件消息
  *
  * 邮件服务器配置统一由 application.yml 的 email.smtp.* 提供，不在源码中硬编码
+ *
+ * @author 谢光湘
  */
 @Component
 public class EmailUtils {
 
+    /** SMTP 服务器地址 */
     @Value("${email.smtp.host:smtp.qq.com}")
     private String smtpHost;
 
+    /** SMTP 端口（SSL） */
     @Value("${email.smtp.port:465}")
     private String smtpPort;
 
+    /** 发件人账号 */
     @Value("${email.smtp.user}")
     private String username;
 
+    /** 发件人授权码 */
     @Value("${email.smtp.password}")
     private String password;
 

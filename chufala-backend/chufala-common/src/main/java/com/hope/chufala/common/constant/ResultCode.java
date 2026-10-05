@@ -1,6 +1,14 @@
 package com.hope.chufala.common.constant;
 
 
+/**
+ * 统一响应码。
+ *
+ * <p>约定 {@code code == 0} 表示成功（见 {@code Result.ok}），非 0 为各类失败；
+ * 前端拦截器依据该约定判断业务成败。message 即面向用户的提示文案。
+ *
+ * @author 谢光湘
+ */
 public enum ResultCode {
 
     SUCCESS(0, "成功"),
@@ -45,7 +53,9 @@ public enum ResultCode {
     USER_NOT_LOGIN_OR_NOT_AUTHORIZED_OR_NOT_PERMITTED_OR_NOT_FOUND(3003, "用户未登录或未授权或无权限或未找到"),
     LOCATION_UNAVAILABLE(3004, "位置不可用");
 
+    /** 业务状态码，0 表示成功 */
     private final int code;
+    /** 面向用户的提示文案 */
     private final String message;
 
     ResultCode(int code, String message) {
@@ -53,10 +63,20 @@ public enum ResultCode {
         this.message = message;
     }
 
+    /**
+     * 获取状态码。
+     *
+     * @return 状态码
+     */
     public int getCode() {
         return code;
     }
 
+    /**
+     * 获取提示文案。
+     *
+     * @return 提示文案
+     */
     public String getMessage() {
         return message;
     }

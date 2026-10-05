@@ -10,6 +10,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.UUID;
 
+/**
+ * 阿里云 OSS 上传工具。
+ *
+ * <p>配置取自 {@code aliyun.oss.*}。上传前用 UUID 重命名文件以避免同名覆盖，
+ * 返回可直接访问的完整 URL。每次调用新建并关闭 OSS 客户端。
+ *
+ * @author 谢光湘
+ */
 @Component
 public class AliOSSUtils {
     @Value("${aliyun.oss.endpoint}")
@@ -26,6 +34,10 @@ public class AliOSSUtils {
 
     /**
      * 实现上传图片到OSS
+     *
+     * @param multipartFile 待上传文件
+     * @return 文件访问 URL
+     * @throws IOException 读取文件流失败
      */
     public String upload(MultipartFile multipartFile) throws IOException {
         // 获取上传的文件的输入流
