@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -88,28 +89,23 @@ public class AlipayServiceImpl implements IAlipayService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String handleNotify(String channel, HttpServletRequest request) {
-        // 1. 验签
         Map<String, String> params = parseParams(request);
         try {
             if (!Factory.Payment.Common().verifyNotify(params)) {
-                log.error("支付宝回调验签失败：{}", params);
+                log.warn("支付宝回调验签失败");
                 return "fail";
             }
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            log.warn("支付宝回调验签异常", e);
+            return "fail";
         }
 
-        // 2. 解析回调参数
         String orderId = params.get("out_trade_no");
-        String subject = params.get("subject");
-        String tradeStatus = params.get("trade_status");
-        if (!"TRADE_SUCCESS".equals(tradeStatus)) {
-            return "success"; // 只处理支付成功状态
-        }
-
-        // 3. 查询支付记录，校验状态（防重复处理）
-        if (orderId == null || !alipayTemplate.getAppId().equals(params.get("app_id"))) {
-            log.error("支付宝回调订单号或应用 ID 不匹配，orderId={}", orderId);
+        if (orderId == null || orderId.isBlank()
+                || !alipayTemplate.getAppId().equals(params.get("app_id"))
+                || alipayTemplate.getSellerId() == null || alipayTemplate.getSellerId().isBlank()
+                || !alipayTemplate.getSellerId().equals(params.get("seller_id"))) {
+            log.warn("支付宝回调订单号、应用 ID 或收款方 PID 不匹配，orderId={}", orderId);
             return "fail";
         }
         Long numericOrderId;
@@ -119,38 +115,63 @@ public class AlipayServiceImpl implements IAlipayService {
             log.error("支付宝回调订单号格式无效，orderId={}", orderId);
             return "fail";
         }
-        PayRecord record = payRecordMapper.selectByOrderId(numericOrderId);
-        if (record == null) {
+        // 历史上同一订单可能有多条 WAIT_PAY；锁住全部记录，避免并发回调分别选中不同记录。
+        List<PayRecord> records = payRecordMapper.selectByOrderIdForUpdate(numericOrderId);
+        if (records.isEmpty()) {
             log.error("支付宝回调找不到支付记录，orderId={}", orderId);
             return "fail";
         }
-        if ("SUCCESS".equals(record.getStatus()) || "REFUND_REQUIRED".equals(record.getStatus())
-                || "REFUNDED".equals(record.getStatus())) {
+        PayRecord record = records.get(0);
+        BigDecimal paidAmount;
+        try {
+            paidAmount = new BigDecimal(params.get("total_amount"));
+        } catch (NullPointerException | NumberFormatException e) {
+            log.warn("支付宝回调金额格式无效，orderId={}", orderId);
+            return "fail";
+        }
+        String tradeNo = params.get("trade_no");
+        if (record.getMoney() == null || record.getMoney().compareTo(paidAmount) != 0
+                || tradeNo == null || tradeNo.isBlank()) {
+            log.warn("支付宝回调金额或交易号不匹配，orderId={}", orderId);
+            return "fail";
+        }
+        String tradeStatus = params.get("trade_status");
+        if (!"TRADE_SUCCESS".equals(tradeStatus) && !"TRADE_FINISHED".equals(tradeStatus)) {
             return "success";
         }
-        if (!"WAIT_PAY".equals(record.getStatus()) || params.get("total_amount") == null
-                || record.getMoney().compareTo(new BigDecimal(params.get("total_amount"))) != 0) {
-            log.error("支付宝回调状态或金额不匹配，orderId={}", orderId);
+        if ("SUCCESS".equals(record.getStatus()) || "REFUND_REQUIRED".equals(record.getStatus())
+                || "REFUNDED".equals(record.getStatus())) {
+            return tradeNo.equals(record.getTradeNo()) ? "success" : "fail";
+        }
+        if (!"WAIT_PAY".equals(record.getStatus())) {
+            log.warn("支付宝回调支付记录状态不允许处理，orderId={}", orderId);
             return "fail";
         }
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        LocalDateTime payTime = LocalDateTime.parse(params.get("gmt_payment"), formatter);
+        LocalDateTime payTime;
+        try {
+            payTime = LocalDateTime.parse(params.get("gmt_payment"), formatter);
+        } catch (RuntimeException e) {
+            log.warn("支付宝回调付款时间格式无效，orderId={}", orderId);
+            return "fail";
+        }
 
         // 业务状态变更与支付记录落库处于同一事务。
         BizAdapter adapter = bizAdapterFactory.getAdapter(record.getBizType());
         try {
             adapter.handlePaySuccess(record.getOrderId(), record);
         } catch (OrderAlreadyCancelledException e) {
-            if (!updatePaymentRecord(record, "REFUND_REQUIRED", payTime, params.get("trade_no"))) {
+            if (!updatePaymentRecord(record, "REFUND_REQUIRED", payTime, tradeNo)) {
                 throw new IllegalStateException("支付记录状态变更失败，orderId=" + orderId);
             }
-            log.error("已取消订单收到支付成功回调，需退款，orderId={}, tradeNo={}", orderId, params.get("trade_no"));
+            log.error("已取消订单收到支付成功回调，需退款，orderId={}, tradeNo={}", orderId, tradeNo);
             return "success";
         }
-        if (!updatePaymentRecord(record, "SUCCESS", payTime, params.get("trade_no"))) {
+        if (!updatePaymentRecord(record, "SUCCESS", payTime, tradeNo)) {
             throw new IllegalStateException("支付记录状态变更失败，orderId=" + orderId);
         }
+        String subject = params.get("subject");
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
@@ -188,7 +209,11 @@ public class AlipayServiceImpl implements IAlipayService {
     // 解析请求参数为Map
     private Map<String, String> parseParams(HttpServletRequest request) {
         Map<String, String> params = new HashMap<>();
-        request.getParameterMap().forEach((k, v) -> params.put(k, v[0]));
+        request.getParameterMap().forEach((k, v) -> {
+            if (v != null && v.length > 0) {
+                params.put(k, v[0]);
+            }
+        });
         return params;
     }
 

@@ -107,10 +107,12 @@ mybatis-plus:
 # 支付宝（沙箱）
 alipay:
   appId: ${ALIPAY_APP_ID}
+  sellerId: ${ALIPAY_SELLER_ID} # 支付宝收款方 PID，与异步通知 seller_id 一致
   merchantPrivateKey: ${ALIPAY_MERCHANT_PRIVATE_KEY}
   alipayPublicKey: ${ALIPAY_PUBLIC_KEY}
   notifyUrl: ${ALIPAY_NOTIFY_URL}
   returnUrl: ${ALIPAY_RETURN_URL}
+  frontendReturnUrl: ${ALIPAY_FRONTEND_RETURN_URL}
   signType: RSA2
   charset: utf-8
   gatewayUrl: https://openapi-sandbox.dl.alipaydev.com/gateway.do

@@ -14,8 +14,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -39,7 +41,8 @@ class PaymentNotifyRegressionTest {
         AlipayServiceImpl service = service(mapper, factory, template);
         PayRecord record = record();
         when(template.getAppId()).thenReturn("merchant-app");
-        when(mapper.selectByOrderId(101L)).thenReturn(record);
+        when(template.getSellerId()).thenReturn("seller-123");
+        when(mapper.selectByOrderIdForUpdate(101L)).thenReturn(List.of(record));
         when(factory.getAdapter("HOTEL")).thenReturn(adapter);
         when(mapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
         when(client.verifyNotify(any(Map.class))).thenReturn(true);
@@ -65,7 +68,8 @@ class PaymentNotifyRegressionTest {
         Client client = mock(Client.class);
         AlipayServiceImpl service = service(mapper, factory, template);
         when(template.getAppId()).thenReturn("merchant-app");
-        when(mapper.selectByOrderId(101L)).thenReturn(record());
+        when(template.getSellerId()).thenReturn("seller-123");
+        when(mapper.selectByOrderIdForUpdate(101L)).thenReturn(List.of(record()));
         when(client.verifyNotify(any(Map.class))).thenReturn(true);
 
         try (MockedStatic<Factory.Payment> payment = mockStatic(Factory.Payment.class)) {
@@ -75,6 +79,99 @@ class PaymentNotifyRegressionTest {
 
         verify(factory, never()).getAdapter(any());
         verify(mapper, never()).update(isNull(), any(UpdateWrapper.class));
+    }
+
+    @Test
+    void malformedAmountIsRejectedWithoutUpdatingBusinessOrder() throws Exception {
+        PayRecordMapper mapper = mock(PayRecordMapper.class);
+        BizAdapterFactory factory = mock(BizAdapterFactory.class);
+        AlipayTemplate template = mock(AlipayTemplate.class);
+        Client client = mock(Client.class);
+        when(template.getAppId()).thenReturn("merchant-app");
+        when(template.getSellerId()).thenReturn("seller-123");
+        when(mapper.selectByOrderIdForUpdate(101L)).thenReturn(List.of(record()));
+        when(client.verifyNotify(any(Map.class))).thenReturn(true);
+
+        try (MockedStatic<Factory.Payment> payment = mockStatic(Factory.Payment.class)) {
+            payment.when(Factory.Payment::Common).thenReturn(client);
+            assertEquals("fail", service(mapper, factory, template).handleNotify("支付宝", notification("invalid")));
+        }
+        verify(factory, never()).getAdapter(any());
+        verify(mapper, never()).update(isNull(), any(UpdateWrapper.class));
+    }
+
+    @Test
+    void sellerMismatchCannotMarkOrderPaid() throws Exception {
+        PayRecordMapper mapper = mock(PayRecordMapper.class);
+        BizAdapterFactory factory = mock(BizAdapterFactory.class);
+        AlipayTemplate template = mock(AlipayTemplate.class);
+        Client client = mock(Client.class);
+        when(template.getAppId()).thenReturn("merchant-app");
+        when(template.getSellerId()).thenReturn("seller-123");
+        when(client.verifyNotify(any(Map.class))).thenReturn(true);
+
+        try (MockedStatic<Factory.Payment> payment = mockStatic(Factory.Payment.class)) {
+            payment.when(Factory.Payment::Common).thenReturn(client);
+            assertEquals("fail", service(mapper, factory, template).handleNotify("支付宝",
+                    notification("10.00", "another-seller", "gateway-trade-1")));
+            when(template.getSellerId()).thenReturn("");
+            assertEquals("fail", service(mapper, factory, template).handleNotify("支付宝", notification("10.00")));
+        }
+        verify(mapper, never()).selectByOrderIdForUpdate(any());
+        verify(factory, never()).getAdapter(any());
+    }
+
+    @Test
+    void duplicateCallbackOnlyAcknowledgesTheSameTrade() throws Exception {
+        PayRecordMapper mapper = mock(PayRecordMapper.class);
+        BizAdapterFactory factory = mock(BizAdapterFactory.class);
+        AlipayTemplate template = mock(AlipayTemplate.class);
+        Client client = mock(Client.class);
+        PayRecord record = record();
+        record.setStatus("SUCCESS");
+        record.setTradeNo("gateway-trade-1");
+        when(template.getAppId()).thenReturn("merchant-app");
+        when(template.getSellerId()).thenReturn("seller-123");
+        when(mapper.selectByOrderIdForUpdate(101L)).thenReturn(List.of(record));
+        when(client.verifyNotify(any(Map.class))).thenReturn(true);
+
+        try (MockedStatic<Factory.Payment> payment = mockStatic(Factory.Payment.class)) {
+            payment.when(Factory.Payment::Common).thenReturn(client);
+            AlipayServiceImpl service = service(mapper, factory, template);
+            assertEquals("success", service.handleNotify("支付宝", notification("10.00")));
+            assertEquals("fail", service.handleNotify("支付宝",
+                    notification("10.00", "seller-123", "another-trade")));
+        }
+        verify(factory, never()).getAdapter(any());
+        verify(mapper, never()).update(isNull(), any(UpdateWrapper.class));
+    }
+
+    @Test
+    void finishedTradeCanMarkOrderPaidOnce() throws Exception {
+        PayRecordMapper mapper = mock(PayRecordMapper.class);
+        BizAdapterFactory factory = mock(BizAdapterFactory.class);
+        BizAdapter adapter = mock(BizAdapter.class);
+        AlipayTemplate template = mock(AlipayTemplate.class);
+        Client client = mock(Client.class);
+        PayRecord record = record();
+        when(template.getAppId()).thenReturn("merchant-app");
+        when(template.getSellerId()).thenReturn("seller-123");
+        when(mapper.selectByOrderIdForUpdate(101L)).thenReturn(List.of(record));
+        when(factory.getAdapter("HOTEL")).thenReturn(adapter);
+        when(mapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
+        when(client.verifyNotify(any(Map.class))).thenReturn(true);
+        MockHttpServletRequest request = notification("10.00");
+        request.setParameter("trade_status", "TRADE_FINISHED");
+
+        TransactionSynchronizationManager.initSynchronization();
+        try (MockedStatic<Factory.Payment> payment = mockStatic(Factory.Payment.class)) {
+            payment.when(Factory.Payment::Common).thenReturn(client);
+            assertEquals("success", service(mapper, factory, template).handleNotify("支付宝", request));
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+        verify(adapter).handlePaySuccess(101L, record);
+        verify(mapper).update(isNull(), any(UpdateWrapper.class));
     }
 
     private AlipayServiceImpl service(PayRecordMapper mapper, BizAdapterFactory factory, AlipayTemplate template) {
@@ -96,13 +193,18 @@ class PaymentNotifyRegressionTest {
     }
 
     private MockHttpServletRequest notification(String amount) {
+        return notification(amount, "seller-123", "gateway-trade-1");
+    }
+
+    private MockHttpServletRequest notification(String amount, String sellerId, String tradeNo) {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addParameter("out_trade_no", "101");
         request.addParameter("app_id", "merchant-app");
+        request.addParameter("seller_id", sellerId);
         request.addParameter("trade_status", "TRADE_SUCCESS");
         request.addParameter("total_amount", amount);
         request.addParameter("gmt_payment", "2026-10-04 12:00:00");
-        request.addParameter("trade_no", "gateway-trade-1");
+        request.addParameter("trade_no", tradeNo);
         return request;
     }
 }

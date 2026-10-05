@@ -148,7 +148,9 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
         if (hotelOrderMapper.update(null, update) == 1) {
             return;
         }
-        HotelOrder order = getByOrderId(orderId);
+        QueryWrapper<HotelOrder> currentOrder = new QueryWrapper<>();
+        currentOrder.eq("order_id", orderId).last("FOR UPDATE");
+        HotelOrder order = hotelOrderMapper.selectOne(currentOrder);
         if (order != null && HotelOrderStatus.PAID.equals(order.getOrderStatus())) {
             return;
         }

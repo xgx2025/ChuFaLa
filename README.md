@@ -40,9 +40,12 @@ cp chufala-web/src/main/resources/mcp-servers-config.json.example chufala-web/sr
 | `DRUID_USERNAME` / `DRUID_PASSWORD` | Druid 监控台账号 |
 | `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | RabbitMQ 账号 |
 | `ALIPAY_APP_ID` | 支付宝应用 ID |
+| `ALIPAY_SELLER_ID` | 支付宝收款方 PID |
 | `ALIPAY_MERCHANT_PRIVATE_KEY` | 支付宝商户私钥 |
 | `ALIPAY_PUBLIC_KEY` | 支付宝公钥 |
-| `ALIPAY_NOTIFY_URL` / `ALIPAY_RETURN_URL` | 支付回调地址 |
+| `ALIPAY_NOTIFY_URL` | 支付宝服务器异步通知地址，需能从公网访问 |
+| `ALIPAY_RETURN_URL` | 支付完成后的浏览器回跳入口，例如本机测试用 `http://127.0.0.1:9010/alipay/return` |
+| `ALIPAY_FRONTEND_RETURN_URL` | 回跳入口最终重定向的前端页面，本机测试用 `http://localhost:8881/payment/return` |
 | `ALIYUN_OSS_ACCESS_KEY_ID` / `ALIYUN_OSS_ACCESS_KEY_SECRET` | 阿里云 OSS 凭据 |
 | `AI_DASHSCOPE_API_KEY` | 阿里云百炼 API Key |
 | `ZHIPU_API_KEY` | 智谱 API Key |
@@ -128,7 +131,10 @@ node index.js
 
 - 酒店订单创建时按房型和入住日期逐晚条件扣减 `room_daily_stock.available_stock`，状态为“待支付”。整笔预订处于一个数据库事务中，任一晚库存不足则全部回滚。付款只允许“待支付 → 已支付”，取消只允许“待支付 → 已取消”；取消成功才逐晚回补库存。删除待支付订单会先取消，再软删除。
 - 订单创建提交后发送延迟消息。延迟消息在实际满 30 分钟时取消待支付订单；定时任务每分钟扫描一次，兜底处理消息丢失或发送失败。
-- 支付宝成功通知需通过签名、应用 ID 和金额校验。若订单已取消，支付记录标为 `REFUND_REQUIRED`，不会重新标记订单为已支付，也不会再次扣减库存。
+- 支付宝成功通知需通过签名、应用 ID、收款方 `seller_id`、商户订单号及金额校验。部署时配置 `ALIPAY_SELLER_ID`（收款方 PID）；未配置或不匹配时回调返回 `fail`。支付记录行锁和条件更新保证重复通知只处理一次；支付与超时关单竞争时，仅成功的订单状态变更会产生相应业务效果。
+- 浏览器付款后通过 `ALIPAY_RETURN_URL` 回到 `/alipay/return`，再跳转到 `ALIPAY_FRONTEND_RETURN_URL`。本机测试时前者使用 `127.0.0.1`，后者保持用户打开前端时使用的 `localhost:8881`，以保留同一浏览器来源的登录状态。该跳转不修改订单状态；支付结果以异步通知为准。
+- 若订单已取消，支付记录标为 `REFUND_REQUIRED`，不会重新标记订单为已支付，也不会再次扣减库存。
+- 部署新版回调前执行 [支付记录索引迁移](chufala-backend/db/migration/20261005_pay_record_order_index.sql)，让按订单号的行锁查询只扫描该订单的支付记录；迁移保留历史重复的待支付记录。
 - **退款待办需要人工处理**：使用 `SELECT id, order_id, money, trade_no, pay_time FROM pay_record WHERE status = 'REFUND_REQUIRED';` 查出记录，在支付宝后台确认并退款后核对交易记录，再将对应记录更新为 `REFUNDED`。当前项目尚未实现自动退款；上线前应补充自动退款、失败重试与对账。
 
 数据库中酒店订单的待付款状态以 `待支付` 为准。逐日库存上线前，停用旧版下单和取消入口，执行 [数据库迁移脚本](chufala-backend/db/migration/20261004_room_daily_stock.sql)。脚本也会把旧数据中的 `未支付` 统一为 `待支付`，并将旧的全局剩余库存还原为房型基准房量，保留现有未取消订单；首次访问入住日期时，系统根据已有订单占用初始化该日可用量。上线后 `room.stock` 表示房型基准房量，实际可用量以 `room_daily_stock` 为准。

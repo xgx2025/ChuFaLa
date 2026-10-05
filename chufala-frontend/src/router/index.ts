@@ -24,6 +24,7 @@ import AttractionDetailVue from '@/views/attraction/AttractionDetail.vue'
 import CalendarStockVue from '@/views/ticket/CalendarStock.vue'
 import SubscriptionVue from '@/views/my/Subscription.vue'
 import ShareTripVue from '@/views/ShareTrip.vue'
+import PaymentReturnVue from '@/views/PaymentReturn.vue'
 
 
 
@@ -46,6 +47,7 @@ const routes = [
             {path:'/test',component:TestVue},
             {path:'/my/profile',component:ProfileVue},
             {path:'/my/subscription',component:SubscriptionVue},
+            {path:'/payment/return',component:PaymentReturnVue},
             {path:'/calendarStock',component:CalendarStockVue}, //商家端测试
             {
                 path:'/my/order/',

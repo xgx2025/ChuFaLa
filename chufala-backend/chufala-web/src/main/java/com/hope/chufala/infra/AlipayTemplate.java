@@ -3,6 +3,7 @@ package com.hope.chufala.infra;
 import com.alipay.api.AlipayApiException;
 import com.alipay.api.AlipayClient;
 import com.alipay.api.DefaultAlipayClient;
+import com.alipay.api.domain.AlipayTradePagePayModel;
 import com.alipay.api.request.AlipayTradePagePayRequest;
 import com.alipay.easysdk.factory.Factory;
 import com.alipay.easysdk.kernel.Config;
@@ -13,9 +14,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
-
-
 @ConfigurationProperties(prefix = "alipay")
 @Component
 @Data
@@ -24,6 +22,10 @@ public class AlipayTemplate {
     @Value("${alipay.appId}")
 
     public String appId;
+
+    // 支付宝收款方 PID，回调中的 seller_id 必须与之相同。
+    @Value("${alipay.sellerId:}")
+    private String sellerId;
 
     // 应用私钥，就是工具生成的应用私钥
     @Value("${alipay.merchantPrivateKey}")
@@ -87,28 +89,26 @@ public class AlipayTemplate {
                 DefaultAlipayClient(gatewayUrl, appId, merchantPrivateKey,
                 "json", charset, alipayPublicKey, signType);
 
-        //2、创建一个支付请求，并设置请求参数
-        AlipayTradePagePayRequest alipayRequest = new AlipayTradePagePayRequest();
-        alipayRequest.setReturnUrl(returnUrl);
-        alipayRequest.setNotifyUrl(notifyUrl);
-
-        Long orderId = payParam.getOrderId();
-        String subject = payParam.getSubject();
-        BigDecimal money = payParam.getMoney();
-        String paymentMethod = payParam.getPaymentMethod();
-        alipayRequest.setBizContent(" {\"out_trade_no\":\"" + orderId + "\","
-                + "\"total_amount\":\"" + money + "\","
-                + "\"subject\":\"" + subject
-                + "\","
-                + "\"body\":\"" + paymentMethod + "\","
-                +
-                "\"timeout_express\":\"" + timeout + "\","
-                +
-                "\"product_code\":\"FAST_INSTANT_TRADE_PAY\"}");
+        //2、使用 SDK 模型序列化业务参数，避免酒店名称中的引号破坏 JSON。
+        AlipayTradePagePayRequest alipayRequest = buildPayRequest(payParam);
         String result = alipayClient.pageExecute(alipayRequest).getBody();
-        //会收到支付宝的响应，响应的是一个页面，只要浏览器显示这个页面，就会自动来到支付宝的收银台页面
-        System.out.println("支付宝的响应：" + result);
         return result;
+    }
+
+    AlipayTradePagePayRequest buildPayRequest(PayParamDTO payParam) {
+        AlipayTradePagePayRequest request = new AlipayTradePagePayRequest();
+        request.setReturnUrl(returnUrl);
+        request.setNotifyUrl(notifyUrl);
+
+        AlipayTradePagePayModel model = new AlipayTradePagePayModel();
+        model.setOutTradeNo(payParam.getOrderId().toString());
+        model.setTotalAmount(payParam.getMoney().toPlainString());
+        model.setSubject(payParam.getSubject());
+        model.setBody(payParam.getBody());
+        model.setTimeoutExpress(timeout);
+        model.setProductCode("FAST_INSTANT_TRADE_PAY");
+        request.setBizModel(model);
+        return request;
     }
 }
 

@@ -4,12 +4,16 @@ package com.hope.chufala.controller;
 import com.hope.chufala.service.IAlipayService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.net.URI;
 
 /**
  * 支付宝接口
@@ -20,6 +24,9 @@ public class PayController {
 
     @Autowired
     private IAlipayService alipayService;
+
+    @Value("${alipay.frontendReturnUrl}")
+    private String frontendReturnUrl;
 
     /**
      * 创建支付
@@ -41,6 +48,14 @@ public class PayController {
     @PostMapping("/notify")  // 注意这里必须是POST接口
     public String payNotify(HttpServletRequest request) {
         return alipayService.handleNotify("支付宝", request);
+    }
+
+    // 浏览器回跳仅负责导航，订单状态由异步通知更新。
+    @GetMapping("/return")
+    public ResponseEntity<Void> payReturn() {
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(frontendReturnUrl))
+                .build();
     }
 
 }
