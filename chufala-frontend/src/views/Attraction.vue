@@ -20,7 +20,7 @@
         />
         <el-button type="primary" @click="fetchAttractions">搜索</el-button>
 
-        <el-select v-model="filterCity" placeholder="城市" style="width: 120px; margin-left: 10px" filterable>
+        <el-select v-model="filterCity" placeholder="城市" style="width: 120px; margin-left: 10px">
           <el-option
             v-for="item in cityOptions"
             :key="item.value"
@@ -36,7 +36,7 @@
           <el-option label="3 A级" value="3" />
         </el-select>
 
-        <el-select v-model="filterType" placeholder="类型" style="width: 120px; margin-left: 10px" filterable>
+        <el-select v-model="filterType" placeholder="类型" style="width: 120px; margin-left: 10px">
           <el-option
             v-for="item in options"
             :key="item.value"
