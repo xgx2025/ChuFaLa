@@ -135,7 +135,7 @@ node index.js
 - 浏览器付款后通过 `ALIPAY_RETURN_URL` 回到 `/alipay/return`，再跳转到 `ALIPAY_FRONTEND_RETURN_URL`。本机测试时前者使用 `127.0.0.1`，后者保持用户打开前端时使用的 `localhost:8881`，以保留同一浏览器来源的登录状态。该跳转不修改订单状态；支付结果以异步通知为准。
 - **沙箱支付注意事项**：`ALIPAY_NOTIFY_URL` 必须是支付宝服务器可访问、能转发到后端 `POST /alipay/notify` 的公网地址；使用 cpolar 等临时隧道时，每次启动或地址变化后都要核对该地址并重启后端，使新支付请求使用更新后的通知地址。支付页面显示成功或浏览器回到网站，只能说明前台支付流程完成，不能证明异步通知已到达。若酒店订单仍显示“待支付”，先检查隧道是否仍有效、是否收到该订单的 `POST /alipay/notify`，再查看后端回调日志中的验签、`app_id`、`seller_id`、金额和支付记录校验结果。对已经付款但未更新的订单，应先按支付宝交易号核实支付结果并对账，再补发通知或按核实结果处理；不要直接让用户重复付款，也不要仅凭浏览器回跳手动改为“已支付”。
 - 若订单已取消，支付记录标为 `REFUND_REQUIRED`，不会重新标记订单为已支付，也不会再次扣减库存。
-- 部署新版回调前执行 [支付记录索引迁移](chufala-backend/db/migration/20261005_pay_record_order_index.sql)，让按订单号的行锁查询只扫描该订单的支付记录；迁移保留历史重复的待支付记录。
+- 支付记录采用一单一记录模型。部署前核对重复 `order_id`，处理完毕后执行 [商户订单号唯一索引迁移](chufala-backend/db/migration/20261006_pay_record_order_unique.sql)。数据库唯一键阻止并发创建重复支付记录；并发插入冲突时服务会回查并校验已有记录。旧版 [普通索引迁移](chufala-backend/db/migration/20261005_pay_record_order_index.sql) 不提供唯一性约束。
 - **退款待办需要人工处理**：使用 `SELECT id, order_id, money, trade_no, pay_time FROM pay_record WHERE status = 'REFUND_REQUIRED';` 查出记录，在支付宝后台确认并退款后核对交易记录，再将对应记录更新为 `REFUNDED`。当前项目尚未实现自动退款；上线前应补充自动退款、失败重试与对账。
 
 数据库中酒店订单的待付款状态以 `待支付` 为准。逐日库存上线前，停用旧版下单和取消入口，执行 [数据库迁移脚本](chufala-backend/db/migration/20261004_room_daily_stock.sql)。脚本也会把旧数据中的 `未支付` 统一为 `待支付`，并将旧的全局剩余库存还原为房型基准房量，保留现有未取消订单；首次访问入住日期时，系统根据已有订单占用初始化该日可用量。上线后 `room.stock` 表示房型基准房量，实际可用量以 `room_daily_stock` 为准。

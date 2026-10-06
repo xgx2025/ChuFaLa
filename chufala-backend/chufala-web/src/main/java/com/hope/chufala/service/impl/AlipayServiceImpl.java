@@ -12,6 +12,7 @@ import com.hope.chufala.mapper.PayRecordMapper;
 import com.hope.chufala.mapper.UserMapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.hope.chufala.service.IAlipayService;
+import com.hope.chufala.service.IPayRecordService;
 import com.hope.chufala.adapter.BizAdapter;
 import com.hope.chufala.infra.AlipayTemplate;
 import io.jsonwebtoken.Claims;
@@ -53,6 +54,8 @@ public class AlipayServiceImpl implements IAlipayService {
     @Autowired
     private PayRecordMapper payRecordMapper;
     @Autowired
+    private IPayRecordService payRecordService;
+    @Autowired
     private UserMapper userMapper;
     @Autowired
     private EmailUtils emailUtils;
@@ -79,21 +82,8 @@ public class AlipayServiceImpl implements IAlipayService {
         BizAdapter adapter = bizAdapterFactory.getAdapter(bizType);
         PayParamDTO payParam = adapter.buildPayParam(orderId, userId); // 由业务适配器转换参数
 
-        // 2. 生成支付记录（通用逻辑：记录支付状态）
-        PayRecord record = payRecordMapper.selectByOrderId(orderId);
-        if (record == null) {
-            record = new PayRecord();
-            record.setUserId(userId);
-            record.setBizType(bizType);
-            record.setOrderId(orderId);
-            record.setMoney(payParam.getMoney());
-            record.setStatus("WAIT_PAY");
-            payRecordMapper.insert(record);
-        } else if (!"WAIT_PAY".equals(record.getStatus())
-                || !userId.equals(record.getUserId()) || !bizType.equals(record.getBizType())
-                || record.getMoney().compareTo(payParam.getMoney()) != 0) {
-            throw new IllegalArgumentException("订单支付状态或金额异常");
-        }
+        // 2. 依靠商户订单号唯一键幂等建档，再调用支付宝接口。
+        payRecordService.ensurePayRecord(bizType, orderId, userId, payParam.getMoney());
 
         // 3. 调用支付宝接口生成支付表单（通用逻辑）
         try {

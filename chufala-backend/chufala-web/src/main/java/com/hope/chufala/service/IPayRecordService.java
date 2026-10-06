@@ -2,12 +2,19 @@ package com.hope.chufala.service;
 
 import com.hope.chufala.model.entity.PayRecord;
 
+import java.math.BigDecimal;
+
 /**
  * 支付流水服务。
  *
  * @author 谢光湘
  */
 public interface IPayRecordService {
+    /**
+     * 幂等创建并校验商户订单的支付记录。
+     */
+    void ensurePayRecord(String bizType, Long orderId, Long userId, BigDecimal money);
+
     /**
      * 更新支付流水状态。
      *
