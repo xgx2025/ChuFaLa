@@ -96,13 +96,6 @@ public class AlipayTemplate {
      * @throws AlipayApiException 调用支付宝接口失败
      */
     public String pay(PayParamDTO payParam) throws AlipayApiException {
-//        System.out.println(appId);
-//        System.out.println(merchantPrivateKey);
-//        System.out.println(alipayPublicKey);
-//        System.out.println(notifyUrl);
-//        System.out.println(charset);
-//        System.out.println(timeout);
-//        System.out.println(gatewayUrl);
         //1、根据支付宝的配置生成一个支付客户端
         AlipayClient alipayClient = new
                 DefaultAlipayClient(gatewayUrl, appId, merchantPrivateKey,
