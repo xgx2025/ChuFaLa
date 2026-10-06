@@ -56,6 +56,7 @@
                     v-model="searchForm.type" 
                     placeholder="景点类型" 
                     class="custom-select"
+                    :offset="32"
                     clearable
                   >
                     <el-option 
@@ -76,6 +77,7 @@
                     v-model="searchForm.stars" 
                     placeholder="景区等级" 
                     class="custom-select"
+                    :offset="32"
                     clearable
                   >
                     <el-option label="不限" value="" />
@@ -926,6 +928,14 @@ html {
 
 .search-form__group:hover {
   border-color: var(--c-primary-300);
+  box-shadow: 0 0 0 3px var(--c-primary-50);
+}
+
+/* 下拉展开 / 输入聚焦时给出与 hover 同级的主色反馈。
+   搜索组内的 el-input / el-select 自身的 focus 环已被抹掉，
+   没有这条的话「正在编辑哪一格」在四个格子里完全看不出来。 */
+.search-form__group:focus-within {
+  border-color: var(--c-primary-400);
   box-shadow: 0 0 0 3px var(--c-primary-50);
 }
 

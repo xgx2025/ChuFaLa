@@ -183,6 +183,83 @@
     color var(--dur-fast) var(--ease-out);
 }
 
+/* ==================================================================
+ * 下拉选择面板（el-select 浮层）
+ * ------------------------------------------------------------------
+ * 浮层被 teleport 到 body，页面里 scoped 的 :deep() 够不到，只能全局写。
+ * 默认面板的问题：4px 圆角 + 1px 浅灰描边 + 几乎看不见的阴影，选项
+ * 34px 行高、文字贴边（实测 padding 被压成 0）、hover 只有一层灰、
+ * 选中项仅文字变蓝 —— 整体像系统原生菜单，与页面里 12~16px 圆角 +
+ * 三级阴影的白卡语言不搭。
+ * 这里统一为：12px 圆角 + 三级阴影 + 圆角选项块，hover/选中走主色浅底。
+ * ================================================================== */
+.el-select__popper.el-popper {
+  border-radius: var(--r-md);
+  border-color: var(--c-line);
+  box-shadow: var(--sh-3);
+}
+
+/* 小三角箭头在窄面板上会压住首选项，且与「无描边浮层」的语言冲突 */
+.el-select__popper.el-popper .el-popper__arrow {
+  display: none;
+}
+
+/* 给圆角选项块留 4px 呼吸，避免高亮块顶到面板边缘 */
+.el-select-dropdown__list {
+  padding: var(--sp-1);
+}
+
+.el-select-dropdown__item {
+  height: 36px;
+  line-height: 36px;
+  padding: 0 var(--sp-3) !important;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-body);
+  color: var(--c-ink-2);
+  transition: background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.el-select-dropdown__item.is-hovering {
+  background-color: var(--c-primary-50);
+  color: var(--c-primary-700);
+}
+
+/* 单选：选中项 = 主色浅底 + 主色文字 + 右侧对勾。
+   默认只有文字变蓝，一屏多个选项时很难一眼看出「当前选的是哪个」。 */
+.el-select-dropdown:not(.is-multiple) .el-select-dropdown__item.is-selected {
+  padding-right: var(--sp-8) !important;
+  background-color: var(--c-primary-50);
+  color: var(--c-primary-700);
+  font-weight: 500;
+}
+
+.el-select-dropdown:not(.is-multiple)
+  .el-select-dropdown__item.is-selected::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: var(--sp-3);
+  width: 14px;
+  height: 14px;
+  transform: translateY(-50%);
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><path fill='currentColor' d='M406.656 706.944L195.84 496.256a32 32 0 10-45.248 45.248l256 256 512-512a32 32 0 00-45.248-45.248L406.592 706.944z'/></svg>")
+    no-repeat center / 100% 100%;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><path fill='currentColor' d='M406.656 706.944L195.84 496.256a32 32 0 10-45.248 45.248l256 256 512-512a32 32 0 00-45.248-45.248L406.592 706.944z'/></svg>")
+    no-repeat center / 100% 100%;
+}
+
+.el-select-dropdown__item.is-disabled {
+  color: var(--c-ink-4);
+}
+
+.el-select-dropdown__empty {
+  padding: var(--sp-4) 0;
+  color: var(--c-ink-3);
+  font-size: var(--fs-body);
+}
+
 .el-message,
 .el-notification {
   border-radius: var(--r-sm);
