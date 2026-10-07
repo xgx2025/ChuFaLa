@@ -2,6 +2,7 @@ package com.hope.chufala.controller;
 
 
 import com.hope.chufala.common.util.ThreadLocalUtils;
+import com.hope.chufala.common.constant.ResultCode;
 import com.hope.chufala.infra.SseManager;
 import com.hope.chufala.infra.TaskQueue;
 import com.hope.chufala.model.dto.ChatRequest;
@@ -37,6 +38,7 @@ import java.net.MalformedURLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * AI 智能体接口。
@@ -143,7 +145,13 @@ public class AgentController {
         Claims claims = ThreadLocalUtils.get();
         Long userId = claims.get("userId", Long.class);
         String taskId = taskQueue.submitTask(userId, userPlanDTO);
-        agentService.planTravel(taskId,userId);    //根据任务ID 异步执行 规划任务
+        try {
+            agentService.planTravel(taskId,userId);    //根据任务ID 异步执行规划任务
+        } catch (RejectedExecutionException e) {
+            taskQueue.removeTask(taskId);
+            log.warn("行程规划线程池已满，拒绝任务 taskId={}", taskId);
+            return Result.fail(ResultCode.SYSTEM_BUSY);
+        }
         return Result.ok(taskId);
     }
 

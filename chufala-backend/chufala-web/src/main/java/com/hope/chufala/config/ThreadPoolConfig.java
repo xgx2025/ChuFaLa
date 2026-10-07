@@ -55,7 +55,8 @@ public class ThreadPoolConfig {
         executor.setMaxPoolSize(16);
         executor.setQueueCapacity(50);
         executor.setThreadNamePrefix("plan-async-");
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        // 规划任务耗时较长，满载时不能回退到提交请求的线程执行。
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
         executor.initialize();
         return executor;
     }

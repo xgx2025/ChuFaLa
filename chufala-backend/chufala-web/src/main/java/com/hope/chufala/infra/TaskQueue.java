@@ -65,6 +65,11 @@ public class TaskQueue {
         return entry == null ? null : entry.task();
     }
 
+    /** 移除未能提交到执行器的任务，避免留下永远处于 PENDING 的记录。 */
+    public void removeTask(String taskId) {
+        taskMap.remove(taskId);
+    }
+
     /**
      * 清理已结束（COMPLETED / FAILED）且超过保留时长的任务。
      */
