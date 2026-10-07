@@ -1,6 +1,7 @@
 package com.hope.chufala.service;
 
 import jakarta.servlet.http.HttpServletRequest;
+import com.hope.chufala.model.dto.ConfirmedAlipayTrade;
 
 /**
  * 支付宝支付服务。
@@ -25,4 +26,7 @@ public interface IAlipayService {
      * @return 返回给支付平台的应答内容
      */
     String handleNotify(String channel, HttpServletRequest request);
+
+    /** 处理主动查单确认的成功交易，与异步通知共用幂等落库流程。 */
+    void confirmQueriedTrade(ConfirmedAlipayTrade trade);
 }

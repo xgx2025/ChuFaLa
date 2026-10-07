@@ -6,6 +6,7 @@ import com.hope.chufala.model.dto.PayParamDTO;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -38,7 +39,22 @@ class AlipayTemplateTest {
         assertEquals(param.getSubject(), model.getSubject());
         assertEquals(param.getBody(), model.getBody());
         assertEquals("FAST_INSTANT_TRADE_PAY", model.getProductCode());
+        assertEquals("30m", model.getTimeoutExpress());
         assertEquals("https://example.com/return", request.getReturnUrl());
         assertEquals("https://example.com/notify", request.getNotifyUrl());
+    }
+
+    @Test
+    void hotelPaymentUsesTheOrderDeadlineInsteadOfAnotherThirtyMinutes() {
+        AlipayTemplate template = new AlipayTemplate();
+        PayParamDTO param = new PayParamDTO();
+        param.setOrderId(123L);
+        param.setMoney(new BigDecimal("299.00"));
+        param.setExpireTime(LocalDateTime.of(2026, 10, 7, 12, 30));
+
+        AlipayTradePagePayModel model = (AlipayTradePagePayModel) template.buildPayRequest(param).getBizModel();
+
+        assertEquals("2026-10-07 12:30:00", model.getTimeExpire());
+        assertEquals(null, model.getTimeoutExpress());
     }
 }

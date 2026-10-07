@@ -5,15 +5,22 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.hope.chufala.constant.HotelOrderStatus;
 import com.hope.chufala.exception.OrderAlreadyCancelledException;
 import com.hope.chufala.mapper.HotelOrderMapper;
+import com.hope.chufala.mapper.PayRecordMapper;
 import com.hope.chufala.mapper.RoomMapper;
 import com.hope.chufala.mapper.RoomDailyStockMapper;
 import com.hope.chufala.model.entity.HotelOrder;
+import com.hope.chufala.model.entity.PayRecord;
 import com.hope.chufala.service.impl.HotelOrderServiceImpl;
+import com.hope.chufala.service.impl.HotelPaymentCloseGuard;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -37,6 +44,9 @@ class HotelOrderStateRegressionTest {
     private final HotelOrderMapper orderMapper = mock(HotelOrderMapper.class);
     private final RoomMapper roomMapper = mock(RoomMapper.class);
     private final RoomDailyStockMapper dailyStockMapper = mock(RoomDailyStockMapper.class);
+    private final PayRecordMapper payRecordMapper = mock(PayRecordMapper.class);
+    private final HotelPaymentCloseGuard closeGuard = mock(HotelPaymentCloseGuard.class);
+    private final PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
     private final HotelOrderServiceImpl service = new HotelOrderServiceImpl();
 
     @BeforeEach
@@ -44,6 +54,13 @@ class HotelOrderStateRegressionTest {
         ReflectionTestUtils.setField(service, "hotelOrderMapper", orderMapper);
         ReflectionTestUtils.setField(service, "roomMapper", roomMapper);
         ReflectionTestUtils.setField(service, "roomDailyStockMapper", dailyStockMapper);
+        ReflectionTestUtils.setField(service, "payRecordMapper", payRecordMapper);
+        ReflectionTestUtils.setField(service, "hotelPaymentCloseGuard", closeGuard);
+        ReflectionTestUtils.setField(service, "transactionManager", transactionManager);
+        when(transactionManager.getTransaction(any(TransactionDefinition.class)))
+                .thenReturn(mock(TransactionStatus.class));
+        when(closeGuard.prepareCancellation(any(), any()))
+                .thenReturn(HotelPaymentCloseGuard.Result.CLOSED);
     }
 
     @Test
@@ -129,6 +146,19 @@ class HotelOrderStateRegressionTest {
     }
 
     @Test
+    void paymentCreatedWhileCancellationWaitsForOrderLockCannotReleaseStock() {
+        when(orderMapper.selectOne(any(QueryWrapper.class))).thenReturn(order(HotelOrderStatus.UNPAID));
+        when(closeGuard.prepareCancellation(any(), any()))
+                .thenReturn(HotelPaymentCloseGuard.Result.NO_PAYMENT_RECORD);
+        when(payRecordMapper.selectByOrderId(101L)).thenReturn(new PayRecord());
+
+        assertThrows(IllegalStateException.class, () -> service.cancelDelayOrder(101L));
+
+        verify(orderMapper, never()).update(isNull(), any(UpdateWrapper.class));
+        verify(dailyStockMapper, never()).increaseStock(any(), any(LocalDate.class), any(Integer.class));
+    }
+
+    @Test
     void deletingPendingOrderCancelsAndRestoresStockInSameTransaction() {
         when(orderMapper.selectOne(any(QueryWrapper.class))).thenReturn(order(HotelOrderStatus.UNPAID));
         when(orderMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
@@ -163,6 +193,7 @@ class HotelOrderStateRegressionTest {
         order.setCheckIn(LocalDate.of(2026, 10, 4));
         order.setCheckOut(LocalDate.of(2026, 10, 6));
         order.setOrderStatus(status);
+        order.setBookTime(LocalDateTime.now().minusMinutes(31));
         return order;
     }
 }

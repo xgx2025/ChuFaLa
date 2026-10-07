@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 /**
  * 酒店业务适配器。
@@ -46,7 +47,7 @@ public class HotelAdapter implements BizAdapter {
         }
         if (!HotelOrderStatus.UNPAID.equals(order.getOrderStatus())
                 || (order.getBookTime() != null
-                && !order.getBookTime().plusMinutes(30).isAfter(LocalDateTime.now()))) {
+                && !order.getBookTime().plusMinutes(30).isAfter(LocalDateTime.now(ZoneId.of("Asia/Shanghai"))))) {
             throw new IllegalArgumentException("订单已取消、已支付或已超时，不能发起支付");
         }
 
@@ -56,6 +57,10 @@ public class HotelAdapter implements BizAdapter {
         param.setMoney(BigDecimal.valueOf(order.getTotalPrice())); // 支付金额
         param.setSubject("酒店预订：" + order.getTitle()); // 订单标题
         param.setBody("房间：" + order.getRoomType() + "，入住时间：" + order.getCheckIn());
+        if (order.getBookTime() == null) {
+            throw new IllegalStateException("酒店订单缺少下单时间，不能发起支付");
+        }
+        param.setExpireTime(order.getBookTime().plusMinutes(30));
         return param;
     }
 

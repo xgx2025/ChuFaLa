@@ -9,6 +9,7 @@ import com.hope.chufala.exception.OrderAlreadyCancelledException;
 import com.hope.chufala.infra.AlipayTemplate;
 import com.hope.chufala.mapper.PayRecordMapper;
 import com.hope.chufala.model.entity.PayRecord;
+import com.hope.chufala.model.dto.ConfirmedAlipayTrade;
 import com.hope.chufala.service.impl.AlipayServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -17,6 +18,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -178,6 +180,29 @@ class PaymentNotifyRegressionTest {
         } finally {
             TransactionSynchronizationManager.clearSynchronization();
         }
+        verify(adapter).handlePaySuccess(101L, record);
+        verify(mapper).update(isNull(), any(UpdateWrapper.class));
+    }
+
+    @Test
+    void activeQueryUsesTheSameOrderAndPaymentRecordTransition() {
+        PayRecordMapper mapper = mock(PayRecordMapper.class);
+        BizAdapterFactory factory = mock(BizAdapterFactory.class);
+        BizAdapter adapter = mock(BizAdapter.class);
+        PayRecord record = record();
+        when(mapper.selectByOrderIdForUpdate(101L)).thenReturn(List.of(record));
+        when(factory.getAdapter("HOTEL")).thenReturn(adapter);
+        when(mapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
+        ConfirmedAlipayTrade trade = new ConfirmedAlipayTrade(101L, "gateway-trade-1",
+                new BigDecimal("10.00"), LocalDateTime.of(2026, 10, 4, 12, 0), "酒店订单");
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            service(mapper, factory, mock(AlipayTemplate.class)).confirmQueriedTrade(trade);
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+
         verify(adapter).handlePaySuccess(101L, record);
         verify(mapper).update(isNull(), any(UpdateWrapper.class));
     }

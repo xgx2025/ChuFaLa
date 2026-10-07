@@ -97,7 +97,8 @@ public interface IHotelOrderService {
      * 查询超时未支付的订单 ID 列表。
      *
      * @param limit 单次最大返回条数
+     * @param afterOrderId 上次扫描的订单号；null 表示从头开始
      * @return 订单 ID 列表
      */
-    List<Long> getExpiredUnpaidOrderIds(int limit);
+    List<Long> getExpiredUnpaidOrderIds(int limit, Long afterOrderId);
 }

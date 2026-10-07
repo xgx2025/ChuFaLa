@@ -4,7 +4,13 @@ import com.alipay.api.AlipayApiException;
 import com.alipay.api.AlipayClient;
 import com.alipay.api.DefaultAlipayClient;
 import com.alipay.api.domain.AlipayTradePagePayModel;
+import com.alipay.api.domain.AlipayTradeCloseModel;
+import com.alipay.api.domain.AlipayTradeQueryModel;
 import com.alipay.api.request.AlipayTradePagePayRequest;
+import com.alipay.api.request.AlipayTradeCloseRequest;
+import com.alipay.api.request.AlipayTradeQueryRequest;
+import com.alipay.api.response.AlipayTradeCloseResponse;
+import com.alipay.api.response.AlipayTradeQueryResponse;
 import com.alipay.easysdk.factory.Factory;
 import com.alipay.easysdk.kernel.Config;
 import com.hope.chufala.model.dto.PayParamDTO;
@@ -13,6 +19,8 @@ import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
+
+import java.time.format.DateTimeFormatter;
 
 /**
  * 支付宝支付模板。
@@ -97,14 +105,35 @@ public class AlipayTemplate {
      */
     public String pay(PayParamDTO payParam) throws AlipayApiException {
         //1、根据支付宝的配置生成一个支付客户端
-        AlipayClient alipayClient = new
-                DefaultAlipayClient(gatewayUrl, appId, merchantPrivateKey,
-                "json", charset, alipayPublicKey, signType);
+        AlipayClient alipayClient = newClient();
 
         //2、使用 SDK 模型序列化业务参数，避免酒店名称中的引号破坏 JSON。
         AlipayTradePagePayRequest alipayRequest = buildPayRequest(payParam);
         String result = alipayClient.pageExecute(alipayRequest).getBody();
         return result;
+    }
+
+    /** 按商户订单号查询真实交易状态。 */
+    public AlipayTradeQueryResponse queryTrade(Long orderId) throws AlipayApiException {
+        AlipayTradeQueryModel model = new AlipayTradeQueryModel();
+        model.setOutTradeNo(orderId.toString());
+        AlipayTradeQueryRequest request = new AlipayTradeQueryRequest();
+        request.setBizModel(model);
+        return newClient().execute(request);
+    }
+
+    /** 关闭尚未付款的交易；调用方必须检查业务响应。 */
+    public AlipayTradeCloseResponse closeTrade(Long orderId) throws AlipayApiException {
+        AlipayTradeCloseModel model = new AlipayTradeCloseModel();
+        model.setOutTradeNo(orderId.toString());
+        AlipayTradeCloseRequest request = new AlipayTradeCloseRequest();
+        request.setBizModel(model);
+        return newClient().execute(request);
+    }
+
+    private AlipayClient newClient() {
+        return new DefaultAlipayClient(gatewayUrl, appId, merchantPrivateKey,
+                "json", charset, alipayPublicKey, signType);
     }
 
     /**
@@ -123,7 +152,12 @@ public class AlipayTemplate {
         model.setTotalAmount(payParam.getMoney().toPlainString());
         model.setSubject(payParam.getSubject());
         model.setBody(payParam.getBody());
-        model.setTimeoutExpress(timeout);
+        if (payParam.getExpireTime() != null) {
+            model.setTimeExpire(payParam.getExpireTime()
+                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+        } else {
+            model.setTimeoutExpress(timeout);
+        }
         model.setProductCode("FAST_INSTANT_TRADE_PAY");
         request.setBizModel(model);
         return request;

@@ -17,6 +17,7 @@ import com.hope.chufala.model.entity.HotelOrder;
 import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.mapper.HotelMapper;
 import com.hope.chufala.mapper.HotelOrderMapper;
+import com.hope.chufala.mapper.PayRecordMapper;
 import com.hope.chufala.mapper.RoomMapper;
 import com.hope.chufala.mapper.RoomDailyStockMapper;
 import com.hope.chufala.service.IHotelOrderService;
@@ -26,11 +27,14 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
@@ -48,8 +52,15 @@ import java.util.Map;
 @Slf4j
 @Service
 public class HotelOrderServiceImpl implements IHotelOrderService {
+    private static final ZoneId HOTEL_ZONE = ZoneId.of("Asia/Shanghai");
     @Autowired
     private HotelOrderMapper hotelOrderMapper;
+    @Autowired
+    private PayRecordMapper payRecordMapper;
+    @Autowired
+    private HotelPaymentCloseGuard hotelPaymentCloseGuard;
+    @Autowired
+    private PlatformTransactionManager transactionManager;
     @Autowired
     private RoomMapper roomMapper;
     @Autowired
@@ -139,7 +150,7 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
         hotelOrder.setOrderId(orderId);
         hotelOrder.setUserId(userId);
         hotelOrder.setOrderStatus(HotelOrderStatus.UNPAID);
-        hotelOrder.setBookTime(LocalDateTime.now());
+        hotelOrder.setBookTime(LocalDateTime.now(HOTEL_ZONE));
         hotelOrder.setHotelId(hotelId);
         hotelOrder.setRoomTypeId(roomTypeId);
         hotelOrder.setRoomCount(roomCount);
@@ -187,7 +198,7 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
     public void markOrderPaid(Long orderId) {
         UpdateWrapper<HotelOrder> update = new UpdateWrapper<>();
         update.eq("order_id", orderId).eq("order_status", HotelOrderStatus.UNPAID)
-                .set("order_status", HotelOrderStatus.PAID).set("paid_time", LocalDateTime.now());
+                .set("order_status", HotelOrderStatus.PAID).set("paid_time", LocalDateTime.now(HOTEL_ZONE));
         if (hotelOrderMapper.update(null, update) == 1) {
             return;
         }
@@ -265,21 +276,29 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
      * @param userId  用户 ID
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void deleteOrder(Long orderId, Long userId) {
         HotelOrder order = getByOrderIdAndUserId(orderId, userId);
         if (order == null) {
             throw new ResourceNotFoundException("订单不存在");
         }
-        if (HotelOrderStatus.UNPAID.equals(order.getOrderStatus())) {
-            cancelPendingOrder(order, userId, null);
-        }
-        UpdateWrapper<HotelOrder> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("order_id", orderId).eq("user_id", userId)
-                .eq("is_deleted", 0).set("is_deleted", 1);
-        if (hotelOrderMapper.update(null, updateWrapper) != 1) {
-            throw new ResourceNotFoundException("订单不存在");
-        }
+        HotelPaymentCloseGuard.Result proof = HotelOrderStatus.UNPAID.equals(order.getOrderStatus())
+                ? hotelPaymentCloseGuard.prepareCancellation(orderId, paymentDeadline(order)) : null;
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+            HotelOrder current = lockedOrder(orderId);
+            if (current == null || !userId.equals(current.getUserId())) {
+                throw new ResourceNotFoundException("订单不存在");
+            }
+            if (HotelOrderStatus.UNPAID.equals(current.getOrderStatus())) {
+                requireSafeCancellation(orderId, proof);
+                cancelPendingOrder(current, userId, null);
+            }
+            UpdateWrapper<HotelOrder> updateWrapper = new UpdateWrapper<>();
+            updateWrapper.eq("order_id", orderId).eq("user_id", userId)
+                    .eq("is_deleted", 0).set("is_deleted", 1);
+            if (hotelOrderMapper.update(null, updateWrapper) != 1) {
+                throw new ResourceNotFoundException("订单不存在");
+            }
+        });
     }
 
     /**
@@ -292,7 +311,6 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
      * @param userId  用户 ID
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void cancelOrder(Long orderId, Long userId) {
         QueryWrapper<HotelOrder> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("order_id", orderId).eq("user_id", userId);
@@ -306,15 +324,27 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
         if (HotelOrderStatus.PAID.equals(hotelOrder.getOrderStatus())) {
             throw new IllegalArgumentException("已支付订单不能取消");
         }
-        if (!cancelPendingOrder(hotelOrder, userId, null)) {
-            HotelOrder current = getByOrderIdAndUserId(orderId, userId);
-            if (current != null && HotelOrderStatus.PAID.equals(current.getOrderStatus())) {
+        HotelPaymentCloseGuard.Result proof = hotelPaymentCloseGuard.prepareCancellation(
+                orderId, paymentDeadline(hotelOrder));
+        if (proof == HotelPaymentCloseGuard.Result.PAID) {
+            throw new IllegalArgumentException("订单已付款，不能取消");
+        }
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+            HotelOrder current = lockedOrder(orderId);
+            if (current == null || !userId.equals(current.getUserId())) {
+                throw new ResourceNotFoundException("订单不存在");
+            }
+            if (HotelOrderStatus.PAID.equals(current.getOrderStatus())) {
                 throw new IllegalArgumentException("已支付订单不能取消");
             }
-            if (current == null || !HotelOrderStatus.CANCELLED.equals(current.getOrderStatus())) {
+            if (HotelOrderStatus.CANCELLED.equals(current.getOrderStatus())) {
+                return;
+            }
+            requireSafeCancellation(orderId, proof);
+            if (!cancelPendingOrder(current, userId, null)) {
                 throw new IllegalStateException("订单状态发生变化，请重试");
             }
-        }
+        });
     }
 
     /**
@@ -325,11 +355,49 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
      * @param orderId 业务订单 ID
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void cancelDelayOrder(Long orderId) {
         HotelOrder order = getByOrderId(orderId);
-        if (order != null && HotelOrderStatus.UNPAID.equals(order.getOrderStatus())) {
-            cancelPendingOrder(order, null, LocalDateTime.now().minusMinutes(30));
+        if (order == null || !HotelOrderStatus.UNPAID.equals(order.getOrderStatus())
+                || LocalDateTime.now(HOTEL_ZONE).isBefore(paymentDeadline(order))) {
+            return;
+        }
+        HotelPaymentCloseGuard.Result proof = hotelPaymentCloseGuard.prepareCancellation(
+                orderId, paymentDeadline(order));
+        if (proof == HotelPaymentCloseGuard.Result.PAID) {
+            return;
+        }
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+            HotelOrder current = lockedOrder(orderId);
+            if (current == null || !HotelOrderStatus.UNPAID.equals(current.getOrderStatus())
+                    || LocalDateTime.now(HOTEL_ZONE).isBefore(paymentDeadline(current))) {
+                return;
+            }
+            requireSafeCancellation(orderId, proof);
+            cancelPendingOrder(current, null, LocalDateTime.now(HOTEL_ZONE).minusMinutes(30));
+        });
+    }
+
+    private LocalDateTime paymentDeadline(HotelOrder order) {
+        if (order.getBookTime() == null) {
+            throw new IllegalStateException("酒店订单缺少下单时间，orderId=" + order.getOrderId());
+        }
+        return order.getBookTime().plusMinutes(30);
+    }
+
+    private HotelOrder lockedOrder(Long orderId) {
+        QueryWrapper<HotelOrder> query = new QueryWrapper<>();
+        query.eq("order_id", orderId).last("FOR UPDATE");
+        return hotelOrderMapper.selectOne(query);
+    }
+
+    private void requireSafeCancellation(Long orderId, HotelPaymentCloseGuard.Result proof) {
+        if (proof == null || proof == HotelPaymentCloseGuard.Result.PAID) {
+            throw new IllegalStateException("订单支付状态尚未确认，暂不释放库存，orderId=" + orderId);
+        }
+        // 发起支付也先锁酒店订单，再创建支付记录。锁内重查可覆盖取消前的竞态。
+        if (proof == HotelPaymentCloseGuard.Result.NO_PAYMENT_RECORD
+                && payRecordMapper.selectByOrderId(orderId) != null) {
+            throw new IllegalStateException("订单刚发起支付，请重试取消，orderId=" + orderId);
         }
     }
 
@@ -337,14 +405,16 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
      * 查询超时未支付的订单 ID 列表（供定时任务兜底扫描）。
      *
      * @param limit 单次最大返回条数，内部钳制在 1~100
+     * @param afterOrderId 上次扫描的订单号；null 表示从头开始
      * @return 订单 ID 列表
      */
     @Override
-    public List<Long> getExpiredUnpaidOrderIds(int limit) {
+    public List<Long> getExpiredUnpaidOrderIds(int limit, Long afterOrderId) {
         QueryWrapper<HotelOrder> query = new QueryWrapper<>();
         query.eq("order_status", HotelOrderStatus.UNPAID)
-                .le("book_time", LocalDateTime.now().minusMinutes(30))
-                .orderByAsc("book_time").last("LIMIT " + Math.min(Math.max(limit, 1), 100));
+                .le("book_time", LocalDateTime.now(HOTEL_ZONE).minusMinutes(30))
+                .gt(afterOrderId != null, "order_id", afterOrderId)
+                .orderByAsc("order_id").last("LIMIT " + Math.min(Math.max(limit, 1), 100));
         return hotelOrderMapper.selectList(query).stream().map(HotelOrder::getOrderId).toList();
     }
 

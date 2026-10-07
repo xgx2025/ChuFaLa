@@ -17,8 +17,21 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PayRecordServiceTest {
+    @Test
+    void newHotelPaymentRecordMarksItsFormAsAbsolutelyExpiring() {
+        PayRecordMapper mapper = mock(PayRecordMapper.class);
+
+        service(mapper).ensurePayRecord("HOTEL", 101L, 7L, new BigDecimal("10.00"));
+
+        ArgumentCaptor<PayRecord> inserted = ArgumentCaptor.forClass(PayRecord.class);
+        verify(mapper).insert(inserted.capture());
+        assertTrue(inserted.getValue().getAbsoluteExpiryEnabled());
+    }
+
     @Test
     void concurrentInsertConflictReusesTheCommittedPaymentRecord() {
         PayRecordMapper mapper = mock(PayRecordMapper.class);

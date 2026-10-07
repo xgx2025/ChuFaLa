@@ -6,6 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 /**
  * 超时未支付订单清理任务。
  *
@@ -19,13 +21,21 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ExpiredHotelOrderTask {
     private final IHotelOrderService hotelOrderService;
+    private Long lastScannedOrderId;
 
     /**
      * 扫描并取消超时未支付订单（单次最多 100 条）。
      */
     @Scheduled(fixedDelay = 60_000)
     public void cancelExpiredOrders() {
-        for (Long orderId : hotelOrderService.getExpiredUnpaidOrderIds(100)) {
+        List<Long> orderIds = hotelOrderService.getExpiredUnpaidOrderIds(100, lastScannedOrderId);
+        if (orderIds.isEmpty() && lastScannedOrderId != null) {
+            lastScannedOrderId = null;
+            orderIds = hotelOrderService.getExpiredUnpaidOrderIds(100, null);
+        }
+        for (Long orderId : orderIds) {
+            // 失败的订单不能永远占据第一页，下一轮从本次最后的订单号继续扫描。
+            lastScannedOrderId = orderId;
             try {
                 hotelOrderService.cancelDelayOrder(orderId);
             } catch (Exception e) {

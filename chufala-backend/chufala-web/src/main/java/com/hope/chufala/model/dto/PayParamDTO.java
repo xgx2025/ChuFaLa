@@ -3,6 +3,7 @@ package com.hope.chufala.model.dto;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 /**
  * 发起支付请求参数。
@@ -45,6 +46,9 @@ public class PayParamDTO {
      * 支付方式
      */
     private String paymentMethod;
+
+    /** 酒店订单的绝对支付截止时间；其他业务保持渠道默认相对时限。 */
+    private LocalDateTime expireTime;
 
 
 }

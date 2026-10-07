@@ -33,6 +33,8 @@ public class PayRecord {
     private String tradeNo;
     /** 支付完成时间 */
     private LocalDateTime payTime;
+    /** 新版酒店支付表单是否带有订单绝对截止时间；旧流水保持 false。 */
+    private Boolean absoluteExpiryEnabled;
 
 
 }

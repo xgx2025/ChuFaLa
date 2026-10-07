@@ -36,6 +36,7 @@ public class PayRecordServiceImpl implements IPayRecordService {
             record.setOrderId(orderId);
             record.setMoney(money);
             record.setStatus("WAIT_PAY");
+            record.setAbsoluteExpiryEnabled("HOTEL".equals(bizType));
             try {
                 payRecordMapper.insert(record);
                 return;
@@ -49,7 +50,7 @@ public class PayRecordServiceImpl implements IPayRecordService {
         }
 
         if (!"WAIT_PAY".equals(record.getStatus())
-                || !userId.equals(record.getUserId()) || !bizType.equals(record.getBizType())
+                || !userId.equals(record.getUserId()) || !bizType.equalsIgnoreCase(record.getBizType())
                 || record.getMoney() == null || record.getMoney().compareTo(money) != 0) {
             throw new IllegalArgumentException("订单支付状态或金额异常");
         }

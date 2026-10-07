@@ -56,7 +56,12 @@ public class OrderStatusCheckListener {
             return;
         }
         //不存在下一个延迟时间(说明已过30分钟),取消订单并恢复库存
-        hotelOrderService.cancelDelayOrder(order.getOrderId());
+        try {
+            hotelOrderService.cancelDelayOrder(order.getOrderId());
+        } catch (RuntimeException e) {
+            // 渠道状态不确定时由每分钟的数据库扫描继续重试，避免 MQ 立即重投形成热循环。
+            log.warn("延迟关单暂未完成，交由定时任务重试，orderId={}", order.getOrderId(), e);
+        }
     }
 
 

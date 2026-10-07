@@ -6,11 +6,16 @@ import com.hope.chufala.common.util.EmailUtils;
 import com.hope.chufala.common.util.ThreadLocalUtils;
 import com.hope.chufala.exception.OrderAlreadyCancelledException;
 import com.hope.chufala.model.dto.PayParamDTO;
+import com.hope.chufala.model.dto.ConfirmedAlipayTrade;
 import com.hope.chufala.model.entity.PayRecord;
+import com.hope.chufala.model.entity.HotelOrder;
+import com.hope.chufala.constant.HotelOrderStatus;
 import com.hope.chufala.adapter.BizAdapterFactory;
 import com.hope.chufala.mapper.PayRecordMapper;
+import com.hope.chufala.mapper.HotelOrderMapper;
 import com.hope.chufala.mapper.UserMapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.hope.chufala.service.IAlipayService;
 import com.hope.chufala.service.IPayRecordService;
 import com.hope.chufala.adapter.BizAdapter;
@@ -27,9 +32,11 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -54,6 +61,8 @@ public class AlipayServiceImpl implements IAlipayService {
     @Autowired
     private PayRecordMapper payRecordMapper;
     @Autowired
+    private HotelOrderMapper hotelOrderMapper;
+    @Autowired
     private IPayRecordService payRecordService;
     @Autowired
     private UserMapper userMapper;
@@ -75,15 +84,33 @@ public class AlipayServiceImpl implements IAlipayService {
      * @return 支付宝支付表单 HTML
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public String createPay(String bizType, Long orderId) {
+        if (bizType == null || bizType.isBlank()) {
+            throw new IllegalArgumentException("支付业务类型不能为空");
+        }
+        String normalizedBizType = bizType.toUpperCase(Locale.ROOT);
         Claims claims = ThreadLocalUtils.get();
         Long userId = claims.get("userId", Long.class);
+        // 与取消订单的最后一步共用订单行锁，避免刚检查完未支付就生成可付款表单。
+        if ("HOTEL".equals(normalizedBizType)) {
+            QueryWrapper<HotelOrder> query = new QueryWrapper<>();
+            query.eq("order_id", orderId).last("FOR UPDATE");
+            HotelOrder order = hotelOrderMapper.selectOne(query);
+            if (order == null || !HotelOrderStatus.UNPAID.equals(order.getOrderStatus())) {
+                throw new IllegalArgumentException("酒店订单已取消或已支付");
+            }
+        }
         // 1. 通过业务适配器获取统一支付参数（隔离业务差异）
-        BizAdapter adapter = bizAdapterFactory.getAdapter(bizType);
+        BizAdapter adapter = bizAdapterFactory.getAdapter(normalizedBizType);
         PayParamDTO payParam = adapter.buildPayParam(orderId, userId); // 由业务适配器转换参数
+        if (payParam.getExpireTime() != null
+                && !payParam.getExpireTime().isAfter(LocalDateTime.now(ZoneId.of("Asia/Shanghai")))) {
+            throw new IllegalArgumentException("酒店订单已超过支付时限");
+        }
 
         // 2. 依靠商户订单号唯一键幂等建档，再调用支付宝接口。
-        payRecordService.ensurePayRecord(bizType, orderId, userId, payParam.getMoney());
+        payRecordService.ensurePayRecord(normalizedBizType, orderId, userId, payParam.getMoney());
 
         // 3. 调用支付宝接口生成支付表单（通用逻辑）
         try {
@@ -162,17 +189,47 @@ public class AlipayServiceImpl implements IAlipayService {
                 || "REFUNDED".equals(record.getStatus())) {
             return tradeNo.equals(record.getTradeNo()) ? "success" : "fail";
         }
-        if (!"WAIT_PAY".equals(record.getStatus())) {
-            log.warn("支付宝回调支付记录状态不允许处理，orderId={}", orderId);
-            return "fail";
-        }
-
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         LocalDateTime payTime;
         try {
-            payTime = LocalDateTime.parse(params.get("gmt_payment"), formatter);
+            payTime = LocalDateTime.parse(params.get("gmt_payment"),
+                    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         } catch (RuntimeException e) {
             log.warn("支付宝回调付款时间格式无效，orderId={}", orderId);
+            return "fail";
+        }
+        return applyPaidTrade(record, tradeNo, payTime, params.get("subject"));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void confirmQueriedTrade(ConfirmedAlipayTrade trade) {
+        if (trade == null || trade.orderId() == null || trade.amount() == null
+                || trade.tradeNo() == null || trade.tradeNo().isBlank() || trade.paidAt() == null) {
+            throw new IllegalArgumentException("支付宝查单结果缺少成功交易信息");
+        }
+        List<PayRecord> records = payRecordMapper.selectByOrderIdForUpdate(trade.orderId());
+        if (records.isEmpty()) {
+            throw new IllegalStateException("已付款交易找不到支付记录，orderId=" + trade.orderId());
+        }
+        PayRecord record = records.get(0);
+        if (record.getMoney() == null || record.getMoney().compareTo(trade.amount()) != 0
+                || !"HOTEL".equalsIgnoreCase(record.getBizType())) {
+            throw new IllegalStateException("支付宝查单金额或业务类型不匹配，orderId=" + trade.orderId());
+        }
+        if (!"success".equals(applyPaidTrade(record, trade.tradeNo(), trade.paidAt(), trade.subject()))) {
+            throw new IllegalStateException("支付宝查单交易号冲突，orderId=" + trade.orderId());
+        }
+    }
+
+    /** 回调与主动查单共用的事务内状态推进。 */
+    private String applyPaidTrade(PayRecord record, String tradeNo, LocalDateTime payTime, String subject) {
+        String orderId = record.getOrderId().toString();
+        if ("SUCCESS".equals(record.getStatus()) || "REFUND_REQUIRED".equals(record.getStatus())
+                || "REFUNDED".equals(record.getStatus())) {
+            return tradeNo.equals(record.getTradeNo()) ? "success" : "fail";
+        }
+        if (!"WAIT_PAY".equals(record.getStatus())) {
+            log.warn("支付宝回调支付记录状态不允许处理，orderId={}", orderId);
             return "fail";
         }
 
@@ -190,7 +247,6 @@ public class AlipayServiceImpl implements IAlipayService {
         if (!updatePaymentRecord(record, "SUCCESS", payTime, tradeNo)) {
             throw new IllegalStateException("支付记录状态变更失败，orderId=" + orderId);
         }
-        String subject = params.get("subject");
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
