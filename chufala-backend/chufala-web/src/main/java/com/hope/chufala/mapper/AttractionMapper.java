@@ -39,17 +39,6 @@ public interface AttractionMapper extends BaseMapper<Attraction> {
                                          @Param("lastValue") Double lastValue);
 
     /**
-     * 按与列表相同的筛选条件统计景点总数，不应用游标条件。
-     * @param keyword 关键词
-     * @param stars 星级
-     * @param city 城市
-     * @param tags 标签
-     * @return 景点总数
-     */
-    Long selectAttractionCount(@Param("keyword") String keyword, @Param("stars") Integer stars,
-                               @Param("city") String city, @Param("tags") List<String> tags);
-
-    /**
      * 按城市查询景点（含图片等完整信息）。
      *
      * @param city 城市名称

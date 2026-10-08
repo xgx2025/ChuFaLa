@@ -219,14 +219,14 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
     /**
      * 按下单时间降序、ID 降序游标分页查询用户未删除的酒店订单。
      *
-     * <p>游标绑定用户和订单状态；查询 size + 1 条判断是否还有下一页，仅首页统计总数。
+     * <p>游标绑定用户和订单状态；查询 size + 1 条判断是否还有下一页。
      * 本页订单的酒店名称与地址通过批量查询补全。
      *
      * @param userId      用户 ID
      * @param orderStatus 订单状态筛选，"all" 或 null 表示不过滤
      * @param size        每页大小，最大为 50
      * @param cursorToken 上一页返回的 nextCursor；首页为空
-     * @return 本页订单、hasMore 和可选 nextCursor；total 仅首页返回
+     * @return 本页订单、hasMore 和可选 nextCursor
      */
     @Override
     public PageResult<HotelOrder> getHotelOrderByUserIdPage(Long userId, String orderStatus,
@@ -242,7 +242,6 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
         if (!"all".equals(status)) {
             queryWrapper.eq("order_status", status);
         }
-        Long total = cursor == null ? hotelOrderMapper.selectCount(queryWrapper) : null;
         if (cursor != null) {
             queryWrapper.and(condition -> condition.lt("book_time", cursor.bookTime())
                     .or(tie -> tie.eq("book_time", cursor.bookTime()).lt("id", cursor.id())));
@@ -254,7 +253,6 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
         populateHotels(hotelOrderList);
         PageResult<HotelOrder> pageResult = new PageResult<>();
         pageResult.setData(hotelOrderList);
-        pageResult.setTotal(total);
         pageResult.setSize(safeSize);
         pageResult.setHasMore(hasMore);
         if (hasMore) {

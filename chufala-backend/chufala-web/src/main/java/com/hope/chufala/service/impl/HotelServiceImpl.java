@@ -58,10 +58,10 @@ public class HotelServiceImpl implements IHotelService {
      * 按筛选条件和排序方式游标分页查询酒店，并计算本页酒店距离。
      *
      * <p>游标绑定筛选条件、排序方式及距离排序所用坐标。查询 size + 1 条判断是否还有
-     * 下一页；仅首页统计总数。距离游标保存 SQL 排序原值，避免展示值四舍五入后漏页。
+     * 下一页。距离游标保存 SQL 排序原值，避免展示值四舍五入后漏页。
      *
      * @param query 筛选条件、排序方式、页大小、用户坐标及可选游标
-     * @return 本页酒店、hasMore 和可选 nextCursor；total 仅首页返回
+     * @return 本页酒店、hasMore 和可选 nextCursor
      */
     @Override
     public PageResult<Hotel> queryHotelsByScoreRank(HotelPageQueryDTO query) {
@@ -92,10 +92,6 @@ public class HotelServiceImpl implements IHotelService {
         result.setData(hotels);
         result.setSize(size);
         result.setHasMore(hasMore);
-        if (cursor == null) {
-            result.setTotal(hotelMapper.countTotalByCondition(query.getStars(), query.getCity(),
-                    query.getMaxPrice(), query.getMinPrice(), query.getFacilities()));
-        }
         if (hasMore) {
             Hotel last = hotels.get(hotels.size() - 1);
             Double value;

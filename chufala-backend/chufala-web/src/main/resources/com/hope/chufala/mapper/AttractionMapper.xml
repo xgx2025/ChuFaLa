@@ -46,34 +46,6 @@
         LIMIT #{size}
     </select>
 
-    <select id="selectAttractionCount" resultType="java.lang.Long">
-        SELECT COUNT(*)
-        FROM attraction
-        <where>
-            <!-- 复用相同的查询条件 -->
-            <if test="keyword != null and keyword != ''">
-                (name LIKE CONCAT('%', #{keyword}, '%')
-                OR city LIKE CONCAT('%', #{keyword}, '%')
-                OR country LIKE CONCAT('%', #{keyword}, '%')
-                OR address LIKE CONCAT('%', #{keyword}, '%')
-                OR description LIKE CONCAT('%', #{keyword}, '%'))
-            </if>
-            <if test="city != null and city != ''">
-                AND city = #{city}
-            </if>
-            <if test="tags != null and tags.size() > 0">
-                AND (
-                <foreach collection="tags" item="tag" separator="OR">
-                    FIND_IN_SET(#{tag}, tags) > 0
-                </foreach>
-                )
-            </if>
-            <if test="stars != null">
-                AND stars = #{stars}
-            </if>
-        </where>
-    </select>
-
     <select id="selectAttractionByCity" resultType="com.hope.chufala.model.vo.AttractionInfoVO">
         SELECT id,name,city,address,open_time,adult_ticket_price AS price,stars,rating,tags,ai.image AS image
         FROM attraction LEFT JOIN attraction_image AS ai ON  ai.attraction_id = id AND ai.sort_order = 1

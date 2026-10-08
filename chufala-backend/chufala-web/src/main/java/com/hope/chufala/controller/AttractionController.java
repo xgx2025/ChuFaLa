@@ -51,7 +51,7 @@ public class AttractionController {
      * <p>首次请求不传 cursor；后续请求沿用相同筛选条件，传入上次返回的 nextCursor。
      *
      * @param query 筛选条件、页大小、用户坐标及可选游标
-     * @return 景点列表、是否有下一页及下一页游标；total 仅首页返回
+     * @return 景点列表、是否有下一页及下一页游标
      */
     @GetMapping("/list")
     public Result getAttractions(@ModelAttribute AttractionPageQueryDTO query) {

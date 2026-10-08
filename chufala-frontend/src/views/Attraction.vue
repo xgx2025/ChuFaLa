@@ -115,9 +115,9 @@
     <!-- 底部加载状态 -->
     <div class="loading-state">
       <p v-if="loading && !firstLoading">加载中...</p>
-      <p v-else-if="noMore">没有更多了 (共 {{ totalAttractions }} 个结果)</p>
+      <p v-else-if="noMore">没有更多了 (共 {{ attractions.length }} 个结果)</p>
       <p v-else-if="attractions.length > 0">
-        上滑加载更多 (当前 {{ attractions.length }} / 共 {{ totalAttractions }})
+        上滑加载更多 (已加载 {{ attractions.length }} 个)
       </p>
     </div>
 
@@ -189,7 +189,6 @@ const nextCursor = ref(null)
 const hasMore = ref(true)
 let requestVersion = 0
 const pageSize = ref(12)
-const totalAttractions = ref(0)
 
 // 首屏加载（含重新搜索）：列表还是空的 → 展示骨架屏而不是空白
 const firstLoading = computed(() => loading.value && attractions.value.length === 0)
@@ -248,7 +247,6 @@ const loadAttractionsData = async (append = false) => {
     } else {
       attractions.value = res.data.data || []
     }
-    if (res.data.total != null) totalAttractions.value = res.data.total
     hasMore.value = Boolean(res.data.hasMore)
     nextCursor.value = res.data.nextCursor || null
   } catch (err) {
@@ -276,13 +274,12 @@ const resetFilters = () => {
 const fetchAttractions = () => {
   nextCursor.value = null
   hasMore.value = true
-  totalAttractions.value = 0
   loadAttractionsData(false)
 }
 
 // 加载更多 (追加列表)
 const loadMore = () => {
-  console.log('尝试触发加载更多...', { loading: loading.value, noMore: noMore.value, current: attractions.value.length, total: totalAttractions.value })
+  console.log('尝试触发加载更多...', { loading: loading.value, noMore: noMore.value, current: attractions.value.length })
   if (loading.value || noMore.value) return
   loadAttractionsData(true)
 }

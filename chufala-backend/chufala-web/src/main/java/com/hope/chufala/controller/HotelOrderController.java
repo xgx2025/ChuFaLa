@@ -50,7 +50,7 @@ public class HotelOrderController {
      * @param size        每页大小，默认为 10，最大为 50
      * @param cursor      上一页返回的 nextCursor；首页不传
      * @param orderStatus 订单状态筛选；后续页需与首页一致
-     * @return 订单列表、是否有下一页及下一页游标；total 仅首页返回
+     * @return 订单列表、是否有下一页及下一页游标
      */
     @GetMapping
     public Result getHotelOrderPage(@RequestParam(defaultValue = "10") Integer size,

@@ -57,7 +57,7 @@ public interface IHotelOrderService {
      * @param orderStatus 订单状态筛选；null 或 all 表示全部
      * @param size        每页大小，最大为 50
      * @param cursor      上一页返回的 nextCursor；首页为空
-     * @return 分页结果；total 仅首页返回，nextCursor 仅有下一页时返回
+     * @return 分页结果；nextCursor 仅有下一页时返回
      */
     PageResult<HotelOrder> getHotelOrderByUserIdPage(Long userId, String orderStatus, Integer size, String cursor);
 

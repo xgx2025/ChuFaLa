@@ -68,18 +68,6 @@ public interface HotelMapper extends BaseMapper<Hotel> {
     );
 
     /**
-     * 按与列表相同的筛选条件统计酒店总数，不应用游标条件。
-     *
-     * @param stars      星级筛选
-     * @param city       城市筛选
-     * @param maxPrice   价格上限
-     * @param minPrice   价格下限
-     * @param facilities 设施筛选
-     * @return 总数
-     */
-    Long countTotalByCondition(Integer stars, String city, Double maxPrice, Double minPrice, List<String> facilities);
-
-    /**
      * 查询酒店图片 URL 列表。
      *
      * @param hotelId 酒店 ID

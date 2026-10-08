@@ -23,10 +23,7 @@
             <if test="city != null and city != ''">AND h.city = #{city}</if>
             <if test="minPrice != null">AND h.price &gt;= #{minPrice}</if>
             <if test="maxPrice != null">AND h.price &lt;= #{maxPrice}</if>
-            <!-- 多选设施是「且」：勾了几个就要同时满足几个，与前端 filteredHotels 一致。
-                 原来是 separator="OR"（有泳池**或**有WiFi），后端返回超集、前端再按 AND 筛一遍，
-                 结果虽然对，但要多翻好几页才收敛，而且 countTotalByCondition 的 total 会偏大、
-                 和列表对不上。两处必须同时改成 AND。 -->
+            <!-- 多选设施按 AND 语义筛选。 -->
             <if test="facilities != null and facilities.size() > 0">
                 AND (
                 <foreach collection="facilities" item="facility" separator="AND">
@@ -88,25 +85,6 @@
             review_count = #{newCommentCount}
         WHERE id = #{hotelId}
     </update>
-
-    <!-- 统计总条数 -->
-    <select id="countTotalByCondition" resultType="java.lang.Long">
-        SELECT COUNT(*) FROM hotel
-        <where>
-            <if test="stars != null">AND stars = #{stars}</if>
-            <if test="city != null and city != ''">AND city = #{city}</if>
-            <if test="minPrice != null">AND price &gt;= #{minPrice}</if>
-            <if test="maxPrice != null">AND price &lt;= #{maxPrice}</if>
-            <if test="facilities != null and facilities.size() > 0">
-                AND (
-                <foreach collection="facilities" item="facility" separator="AND">
-                    FIND_IN_SET(#{facility}, facilities) > 0
-                </foreach>
-                )
-            </if>
-        </where>
-    </select>
-
 
     <select id="findHotelImage" resultType="java.lang.String">
         SELECT image FROM hotel_image WHERE hotel_id = #{hotelId} ORDER BY sort_order ASC

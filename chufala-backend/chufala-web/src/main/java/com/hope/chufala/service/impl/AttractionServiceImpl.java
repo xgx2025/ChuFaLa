@@ -48,10 +48,10 @@ public class AttractionServiceImpl implements IAttractionService {
      * 按评分降序、ID 降序游标分页查询景点，并计算本页景点距离。
      *
      * <p>游标绑定关键词、星级、城市和标签条件；查询 size + 1 条判断是否还有下一页，
-     * 仅首页统计总数。缺少用户坐标时抛出 LocationUnavailableException。
+     * 缺少用户坐标时抛出 LocationUnavailableException。
      *
      * @param query 筛选条件、页大小、用户坐标及可选游标
-     * @return 本页景点、hasMore 和可选 nextCursor；total 仅首页返回
+     * @return 本页景点、hasMore 和可选 nextCursor
      */
     @Override
     public PageResult<Attraction> queryAttraction(AttractionPageQueryDTO query) {
@@ -80,12 +80,8 @@ public class AttractionServiceImpl implements IAttractionService {
             attraction.setDistance(formattedDistance);
         });
 
-        Long total = cursor == null
-                ? attractionMapper.selectAttractionCount(query.getKeyword(), query.getStars(), query.getCity(), query.getTags())
-                : null;
         PageResult<Attraction> result = new PageResult<>();
         result.setData(attractions);
-        result.setTotal(total);
         result.setSize(size);
         result.setHasMore(hasMore);
         if (hasMore) {

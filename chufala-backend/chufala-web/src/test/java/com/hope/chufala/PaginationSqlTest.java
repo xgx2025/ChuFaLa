@@ -63,7 +63,7 @@ class PaginationSqlTest {
     }
 
     @Test
-    void attractionCountMatchesListCityAndCursorHasLimit() {
+    void attractionCursorSqlFiltersCityAndHasLimit() {
         Configuration configuration = mapper("AttractionMapper.xml");
         Map<String, Object> params = new HashMap<>();
         params.put("city", "上海");
@@ -71,10 +71,7 @@ class PaginationSqlTest {
         params.put("lastValue", 4.5);
         params.put("size", 13);
         String list = sql(configuration, "AttractionMapper.selectAttractionPage", params);
-        String count = sql(configuration, "AttractionMapper.selectAttractionCount", params);
         assertTrue(list.contains("a.city = ?"));
-        assertTrue(count.contains("city = ?"));
-        assertFalse(count.contains("city LIKE"));
         assertTrue(list.endsWith("LIMIT ?"));
         params.put("lastValue", null);
         assertTrue(sql(configuration, "AttractionMapper.selectAttractionPage", params).contains("a.rating IS NULL"));

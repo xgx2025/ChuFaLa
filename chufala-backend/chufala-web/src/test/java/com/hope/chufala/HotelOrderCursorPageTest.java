@@ -20,7 +20,7 @@ import static org.mockito.Mockito.*;
 
 class HotelOrderCursorPageTest {
     @Test
-    void ordersUseStableCursorAndCountOnlyFirstPage() {
+    void ordersUseStableCursorWithoutCountQuery() {
         HotelOrderMapper orderMapper = mock(HotelOrderMapper.class);
         HotelMapper hotelMapper = mock(HotelMapper.class);
         HotelOrderServiceImpl service = new HotelOrderServiceImpl();
@@ -34,22 +34,19 @@ class HotelOrderCursorPageTest {
         Hotel hotel = new Hotel();
         hotel.setId(9L);
         hotel.setName("测试酒店");
-        when(orderMapper.selectCount(any())).thenReturn(3L);
         when(orderMapper.selectList(any())).thenReturn(List.of(first, second, third), List.of(third));
         when(hotelMapper.selectBatchIds(any())).thenReturn(List.of(hotel));
 
         PageResult<HotelOrder> page1 = service.getHotelOrderByUserIdPage(7L, "all", 2, null);
         assertEquals(List.of(first, second), page1.getData());
-        assertEquals(3L, page1.getTotal());
         assertTrue(page1.getHasMore());
         assertNotNull(page1.getNextCursor());
         assertEquals("测试酒店", page1.getData().get(0).getHotelName());
 
         PageResult<HotelOrder> page2 = service.getHotelOrderByUserIdPage(7L, "all", 2, page1.getNextCursor());
         assertEquals(List.of(third), page2.getData());
-        assertNull(page2.getTotal());
         assertFalse(page2.getHasMore());
-        verify(orderMapper, times(1)).selectCount(any());
+        verify(orderMapper, never()).selectCount(any());
         ArgumentCaptor<QueryWrapper<HotelOrder>> queries = ArgumentCaptor.forClass(QueryWrapper.class);
         verify(orderMapper, times(2)).selectList(queries.capture());
         String secondSql = queries.getAllValues().get(1).getSqlSegment();

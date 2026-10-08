@@ -579,7 +579,6 @@ const isLoading = ref(false); // 加载锁（防止重复请求）
 let loadVersion = 0; // 筛选变化后丢弃旧请求结果
 const loadingStatus = ref('none'); // 加载状态：none/loading/error/no-more
 const loadedHotels = ref([]); // 已加载的酒店数据（分页追加）
-const totalCount = ref(0); // 后端返回的符合条件的总条数
 
 // 吸顶相关
 const filtersStuck = ref(false); // 筛选条是否已吸顶（用于补投影）
@@ -801,9 +800,7 @@ const fetchHotels = async (cursor, pageSizeNum) => {
     })()
   }));
   const hasMore = response.data.hasMore || false;
-  const total = Number(response.data.total) || 0;
-  return { data: currentHotels, hasMore, total: response.data.total == null ? null : total,
-    nextCursor: response.data.nextCursor || null };
+  return { data: currentHotels, hasMore, nextCursor: response.data.nextCursor || null };
 };
 
 
@@ -859,11 +856,10 @@ const filteredHotels = computed(() => {
   // 会和后端的顺序打架，滚动加载新数据时顺序会跳。
 });
 
-// 结果计数。
-// 「共 N 家」必须是一个真的总数，而不是"已经翻到第几页"。
-// 后端 total 和列表现在用的是同一套筛选语义（多选设施已统一为「且」），
-// 所以直接取 total 就行，不必再区分「共 N 家 / 已显示 N 家」。
-const resultCountText = computed(() => `共 ${totalCount.value} 家`);
+// 无限加载时只展示已加载数量；到达末页后才知道本次筛选的最终数量。
+const resultCountText = computed(() =>
+  hasMore.value ? `已加载 ${filteredHotels.value.length} 家` : `共 ${filteredHotels.value.length} 家`
+);
 
 // 筛选条件变化后把视口拉回列表顶部。
 // 不加这一步的话，用户在列表中部（此时筛选条已吸顶）点一下筛选，
@@ -953,8 +949,6 @@ const loadMore = async () => {
     loadedHotels.value = [...loadedHotels.value, ...result.data];
     // 更新"是否有下一页"状态
     hasMore.value = result.hasMore;
-    // 记录后端给出的符合条件的总数（「共 N 家」用）
-    if (result.total != null) totalCount.value = result.total;
     nextCursor.value = result.nextCursor;
     // 更新加载状态（有下一页则隐藏提示，否则显示"已加载全部"）
     loadingStatus.value = result.hasMore ? 'none' : 'no-more';
