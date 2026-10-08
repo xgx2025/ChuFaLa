@@ -204,15 +204,23 @@
             </div>
             <div class="sort-options">
               <span class="sort-label">排序方式</span>
-              <div class="sort-select-wrap">
-                <select class="sort-select" v-model="sortOption" aria-label="酒店排序方式">
-                  <option value="recommended">推荐</option>
-                  <option value="price-asc">价格从低到高</option>
-                  <option value="price-desc">价格从高到低</option>
-                  <option value="rating">评分最高</option>
-                  <option value="distance">距离最近</option>
-                </select>
-              </div>
+              <!-- 原来是原生 <select>：展开的选项列表由操作系统绘制，
+                   CSS 完全够不到，点开是系统菜单的样子（白底、系统字体、
+                   整行高亮），与站内 12px 圆角 + 主色浅底的浮层语言不一致。
+                   换成 el-select 后，展开面板自动套用 element-override.css 里
+                   已经统一好的面板样式（12px 圆角 / 36px 选项 / 选中对勾）。 -->
+              <el-select
+                v-model="sortOption"
+                class="sort-select"
+                aria-label="酒店排序方式"
+              >
+                <el-option
+                  v-for="opt in sortOptions"
+                  :key="opt.value"
+                  :label="opt.label"
+                  :value="opt.value"
+                />
+              </el-select>
             </div>
           </div>
           
@@ -639,6 +647,15 @@ const facilityFilters = ref({
   breakfast: false
 });
 const sortOption = ref('recommended');
+
+// 排序选项集中定义，模板渲染与请求参数共用一份文案。
+const sortOptions = [
+  { value: 'recommended', label: '推荐' },
+  { value: 'price-asc', label: '价格从低到高' },
+  { value: 'price-desc', label: '价格从高到低' },
+  { value: 'rating', label: '评分最高' },
+  { value: 'distance', label: '距离最近' }
+];
 
 // 选项集中定义：模板、请求参数映射、「已选条件」标签三处共用同一份文案，
 // 避免同一个筛选在三个地方各写一遍中文然后慢慢漂移。
@@ -1634,12 +1651,21 @@ onUnmounted(() => {
   border-radius: 4px;
 }
 
+/* ==================================================================
+ * 排序控件（热门酒店标题行右侧）
+ * ------------------------------------------------------------------
+ * 原实现是一枚原生 <select>：静止时完全透明，看不出「推荐」是个下拉，
+ * 只有鼠标划过才浮出一层几乎看不见的浅蓝；自绘的 chevron 又孤零零挂在
+ * 控件最右侧，和「推荐」两个字之间空出七十多像素，整块显得很空。
+ * 现在把下拉做成胶囊内的浅灰色块：静止时就有「这里可以点」的暗示，
+ * hover / 展开时底色与描边一起转主色，反馈落在真正的可点区域上。
+ * ================================================================== */
 .sort-options {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
   background: var(--c-bg);
-  padding: 0.35rem 0.35rem 0.35rem 1rem;
+  padding: 0.3rem 0.3rem 0.3rem 1rem;
   border-radius: var(--r-full);
   border: 1px solid var(--c-line);
   box-shadow: var(--sh-1);
@@ -1647,66 +1673,79 @@ onUnmounted(() => {
     box-shadow var(--dur-base) var(--ease-out);
 }
 
-.sort-options:hover,
+/* 「排序方式」是不可点的纯标签，鼠标划过它时整块变蓝会让人误以为标签也能点，
+   所以外框只在内部下拉真正获得焦点时才高亮，且只描一层淡主色 ——
+   深色描边留给内部触发器，避免出现"双框套娃"。 */
 .sort-options:focus-within {
-  border-color: var(--c-primary-300);
+  border-color: var(--c-primary-200);
   box-shadow: var(--sh-2);
 }
 
 .sort-label {
   color: var(--c-ink-3);
-  font-size: var(--fs-body);
+  font-size: var(--fs-caption);
+  font-weight: 500;
   white-space: nowrap;
 }
 
-/* 原生 select 外观不可控，用 appearance:none + 自绘箭头统一到设计系统 */
-.sort-select-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
+/* 宽度按最长选项「价格从低到高」定死：
+   不写死的话 el-select 会随当前选中项伸缩，切换排序时控件宽度来回跳。 */
+:deep(.sort-select) {
+  width: 8.75rem;
 }
 
-.sort-select-wrap::after {
-  content: '';
-  position: absolute;
-  right: 0.75rem;
-  top: 50%;
-  width: 0.4rem;
-  height: 0.4rem;
-  border-right: 2px solid var(--c-ink-3);
-  border-bottom: 2px solid var(--c-ink-3);
-  transform: translateY(-70%) rotate(45deg);
-  pointer-events: none;
-  transition: border-color var(--dur-base) var(--ease-out);
-}
-
-.sort-options:hover .sort-select-wrap::after,
-.sort-options:focus-within .sort-select-wrap::after {
-  border-color: var(--c-primary-600);
-}
-
-.sort-select {
-  appearance: none;
-  -webkit-appearance: none;
-  padding: 0.4rem 1.75rem 0.4rem 0.75rem;
-  border: none;
+/* 触发器：浅灰底块把「当前值」从标签里分离出来。
+   底色用 --c-bg-mute 而不是 --c-bg-sub —— 后者在白色胶囊上几乎看不出边界。 */
+:deep(.sort-select .el-select__wrapper) {
+  min-height: 32px;
+  padding: 0 var(--sp-2) 0 var(--sp-3);
   border-radius: var(--r-full);
-  background-color: transparent;
+  background-color: var(--c-bg-mute);
+  box-shadow: 0 0 0 1px var(--c-line) inset;
+  transition: background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+
+:deep(.sort-select .el-select__wrapper:hover) {
+  background-color: var(--c-primary-50);
+  box-shadow: 0 0 0 1px var(--c-primary-200) inset;
+}
+
+:deep(.sort-select .el-select__wrapper.is-focused) {
+  background-color: var(--c-primary-50);
+  box-shadow: 0 0 0 1px var(--c-primary-500) inset;
+}
+
+/* EP 用 absolute + z-index:-1 让 placeholder 与输入框叠放（为 filterable 服务）。
+   本站不需要该能力，而触发器自带浅灰底会把它压到背景之下，
+   这里改回普通流内元素，顺带让文字宽度参与布局。 */
+:deep(.sort-select .el-select__placeholder) {
+  position: static;
+  width: auto;
+  transform: none;
+  z-index: auto;
   color: var(--c-ink);
   font-size: var(--fs-body);
   font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  outline: none;
-  transition: background-color var(--dur-base) var(--ease-out);
+  transition: color var(--dur-base) var(--ease-out);
 }
 
-.sort-select:hover {
-  background-color: var(--c-primary-50);
+:deep(.sort-select .el-select__wrapper:hover .el-select__placeholder),
+:deep(.sort-select .el-select__wrapper.is-focused .el-select__placeholder) {
+  color: var(--c-primary-700);
 }
 
-.sort-select:focus-visible {
-  box-shadow: 0 0 0 3px var(--c-primary-100);
+/* 箭头沿用 EP 自带的 caret（展开时自动翻转 180°），只把颜色接到设计令牌上 */
+:deep(.sort-select .el-select__caret) {
+  color: var(--c-ink-3);
+  font-size: var(--fs-body);
+  transition: color var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+
+:deep(.sort-select .el-select__wrapper:hover .el-select__caret),
+:deep(.sort-select .el-select__wrapper.is-focused .el-select__caret) {
+  color: var(--c-primary-600);
 }
 
 /* 列表随页面流动：不再设 max-height / overflow，
