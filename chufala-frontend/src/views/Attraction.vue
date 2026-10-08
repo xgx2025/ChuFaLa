@@ -1,10 +1,5 @@
 <template>
-  <div 
-    class="attraction-result-page"
-    v-infinite-scroll="loadMore"
-    :infinite-scroll-disabled="disabled"
-    infinite-scroll-distance="100"
-  >
+  <div class="attraction-result-page">
     <!-- 页面标题：原来整页没有任何 h1，读屏软件无法定位主内容，SEO 也拿不到页面主题 -->
     <h1 class="page-title">景点门票</h1>
 
@@ -115,10 +110,10 @@
     <!-- 底部加载状态 -->
     <div class="loading-state">
       <p v-if="loading && !firstLoading">加载中...</p>
-      <p v-else-if="noMore">没有更多了 (共 {{ attractions.length }} 个结果)</p>
-      <p v-else-if="attractions.length > 0">
-        上滑加载更多 (已加载 {{ attractions.length }} 个)
-      </p>
+      <p v-else-if="noMore && attractions.length > 0">没有更多了 (共 {{ attractions.length }} 个结果)</p>
+      <el-button v-else-if="attractions.length > 0" type="primary" @click="loadMore">
+        {{ error ? '加载失败，点击重试' : `加载更多景点（已加载 ${attractions.length} 个）` }}
+      </el-button>
     </div>
 
     <!-- 空态 / 错误态
@@ -177,10 +172,10 @@ const options = [
 const geoStore = useGeoStore();
 
 // 状态
-const searchKeyword = ref('')
-const filterCity = ref('')
-const filterStars = ref('')
-const filterType = ref('')
+const searchKeyword = ref(typeof route.query.keyword === 'string' ? route.query.keyword : '')
+const filterCity = ref(typeof route.query.city === 'string' ? route.query.city : '')
+const filterStars = ref(typeof route.query.stars === 'string' ? route.query.stars : '')
+const filterType = ref(typeof route.query.type === 'string' ? route.query.type : '')
 const sortBy = ref('distance')
 const attractions = ref([])
 const loading = ref(false)
@@ -217,7 +212,6 @@ const cityOptions = [
 ]
 
 const noMore = computed(() => !hasMore.value)
-const disabled = computed(() => loading.value || noMore.value)
 
 // 核心数据加载函数
 const loadAttractionsData = async (append = false) => {
@@ -247,8 +241,8 @@ const loadAttractionsData = async (append = false) => {
     } else {
       attractions.value = res.data.data || []
     }
-    hasMore.value = Boolean(res.data.hasMore)
     nextCursor.value = res.data.nextCursor || null
+    hasMore.value = Boolean(res.data.hasMore && nextCursor.value)
   } catch (err) {
     if (version !== requestVersion) return
     console.error('获取景点数据失败', err)
@@ -279,7 +273,6 @@ const fetchAttractions = () => {
 
 // 加载更多 (追加列表)
 const loadMore = () => {
-  console.log('尝试触发加载更多...', { loading: loading.value, noMore: noMore.value, current: attractions.value.length })
   if (loading.value || noMore.value) return
   loadAttractionsData(true)
 }
@@ -294,12 +287,6 @@ watch([filterCity, filterStars, filterType, sortBy], handleFilterChange)
 
 // 初始化
 onMounted(() => {
-  // 从路由参数初始化筛选条件
-  if (route.query.keyword) searchKeyword.value = route.query.keyword
-  if (route.query.city) filterCity.value = route.query.city ? route.query.city : ''
-  if (route.query.type) filterType.value = route.query.type ? route.query.type : ''
-  if (route.query.stars) filterStars.value = route.query.stars ? route.query.stars : ''
-  
   fetchAttractions()
 })
 </script>

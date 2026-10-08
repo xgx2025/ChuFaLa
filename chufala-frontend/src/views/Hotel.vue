@@ -222,7 +222,7 @@
                1) 滚轮移到列表上后页面被"劫持"——页面 scrollY 纹丝不动，
                   内层却滚了 4000+px，用户以为页面卡住；
                2) 900px 只装得下 1 行卡片（卡片高 613px），第二行被拦腰截断。
-               现在改用文档流 + 列表底部哨兵触发加载更多。 -->
+               现在改用文档流，并由用户点击按钮加载下一页。 -->
           <div class="hotels-list">
             <!-- 首屏骨架屏（原实现首屏是空白，数据回来才"啪"地出现） -->
             <template v-if="firstLoading">
@@ -243,8 +243,9 @@
 
             <!-- 无结果（原实现完全没有空态，筛不出结果时是一片空白） -->
             <div v-else-if="filteredHotels.length === 0" class="hotels-empty">
-              <el-empty :image-size="100" description="没有找到符合条件的酒店">
-                <el-button @click="resetFilters">重置筛选条件</el-button>
+              <el-empty :image-size="100" :description="loadingStatus === 'error' ? '酒店加载失败' : '没有找到符合条件的酒店'">
+                <el-button v-if="loadingStatus === 'error'" @click="loadMore">重新加载</el-button>
+                <el-button v-else @click="resetFilters">重置筛选条件</el-button>
               </el-empty>
             </div>
 
@@ -310,17 +311,17 @@
             </template>
           </div>
 
-          <!-- 加载更多哨兵：进入视口即拉下一页 -->
-          <div ref="loadMoreRef" class="load-more-sentinel" aria-hidden="true"></div>
+          <div v-if="hasMore && !firstLoading && loadingStatus !== 'error'" class="load-more-actions">
+            <button type="button" class="load-more-button" :disabled="isLoading" @click="loadMore">
+              {{ isLoading ? '加载中...' : '加载更多酒店' }}
+            </button>
+          </div>
 
-          <!-- 2.加载状态提示
-               首屏由骨架屏承担，空结果由空态承担，这两种情况都不该再显示
-               "加载中 / 已加载全部酒店"，否则空态下面会挂一句自相矛盾的话 -->
+          <!-- 末页与加载失败提示；首屏由骨架屏承担，空结果由空态承担。 -->
           <div
             class="loading-status"
-            v-if="loadingStatus !== 'none' && !firstLoading && filteredHotels.length > 0"
+            v-if="(loadingStatus === 'error' || loadingStatus === 'no-more') && filteredHotels.length > 0"
           >
-            <span v-if="loadingStatus === 'loading'">加载中...</span>
             <span v-if="loadingStatus === 'no-more'">已加载全部酒店</span>
             <!-- 原实现靠 CSS 选择器 span[onclick] 上色，但 Vue 的 @click
                  并不会渲染出 onclick 属性，这条规则从未命中过 -->
@@ -528,7 +529,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { getHotelListService } from '@/api/hotel';
 import { useGeoStore } from '@/stores/geo';
@@ -566,11 +567,7 @@ const handleSearch = () => {
   searchCity.value = city; // 触发筛选签名变化 → 重载列表 + 回到列表顶部
 };
 
-// 1. 新增：滚动加载核心变量
-// 列表已改为随页面自然流动，内滚动容器的 ref 不再需要，
-// 改为监听列表底部的哨兵元素是否进入视口。
-const loadMoreRef = ref(null); // 列表底部哨兵
-let sentinelObserver = null; // IntersectionObserver 实例（卸载时要断开）
+// 游标分页状态；后续页由“加载更多”按钮触发。
 const nextCursor = ref(null); // 下一页游标
 // 每页 9 条：桌面端列表是 3 列栅格，原来每页 8 条会让最后一行永远缺一个角。
 const pageSize = ref(9);
@@ -799,8 +796,9 @@ const fetchHotels = async (cursor, pageSizeNum) => {
       return '一般';
     })()
   }));
-  const hasMore = response.data.hasMore || false;
-  return { data: currentHotels, hasMore, nextCursor: response.data.nextCursor || null };
+  const nextCursor = response.data.nextCursor || null;
+  const hasMore = Boolean(response.data.hasMore && nextCursor);
+  return { data: currentHotels, hasMore, nextCursor };
 };
 
 
@@ -903,38 +901,10 @@ const filterSignature = computed(() =>
 );
 watch(filterSignature, resetPagination);
 
-// 新增：哨兵进入视口即加载下一页
-// 原实现监听的是内层滚动容器的 scroll 事件，容器一旦被拆掉就完全失效；
-// 换成 IntersectionObserver 后，无论页面怎么布局都能正确触发。
-const setupSentinel = () => {
-  if (!loadMoreRef.value || sentinelObserver) return;
-  sentinelObserver = new IntersectionObserver(
-    (entries) => {
-      // 必须同时判断 hasMore：哨兵只要还在视口内就会持续相交，
-      // 少了这个条件会在数据取完后无限重复请求下一页
-      if (entries.some((entry) => entry.isIntersecting)) loadMore();
-    },
-    // 提前 300px 触发，滚动到底之前数据就已经在路上
-    { rootMargin: '300px 0px' }
-  );
-  sentinelObserver.observe(loadMoreRef.value);
-};
-
-// 重新观测一次哨兵。
-// IntersectionObserver 只在"相交状态发生变化"时回调：如果一次加载完成后
-// 哨兵仍然停在视口里（数据还没把页面撑够长），状态没变就不会再回调，
-// 加载会就此卡住。unobserve + observe 会立刻以当前状态重放一次回调。
-const refreshSentinel = async () => {
-  if (!sentinelObserver || !loadMoreRef.value) return;
-  await nextTick();
-  sentinelObserver.unobserve(loadMoreRef.value);
-  sentinelObserver.observe(loadMoreRef.value);
-};
-
 const initLoad = async () => {
   await loadMore();
 };
-// 新增：加载下一页数据（核心滚动加载逻辑）
+// 用户点击“加载更多”时查询下一页；到达末页后按钮隐藏。
 const loadMore = async () => {
   if (isLoading.value || !hasMore.value) return; // 加载锁 + 已到底就不再请求
   const version = ++loadVersion;
@@ -959,7 +929,6 @@ const loadMore = async () => {
   } finally {
     if (version === loadVersion) {
       isLoading.value = false; // 释放加载锁
-      await refreshSentinel(); // 让哨兵按新布局重新判定一次
     }
   }
 };
@@ -1102,14 +1071,11 @@ const setupStuckObserver = () => {
 onMounted(() => {
   startSlideInterval();
   initLoad();
-  setupSentinel();
   setupStuckObserver();
 });
 
 onUnmounted(() => {
   clearInterval(slideInterval);
-  sentinelObserver?.disconnect();
-  sentinelObserver = null;
   stuckObserver?.disconnect();
   stuckObserver = null;
 });
@@ -1752,11 +1718,23 @@ onUnmounted(() => {
   align-items: stretch;
 }
 
-/* 加载更多哨兵：本身不可见，只用于 IntersectionObserver 判定 */
-.load-more-sentinel {
-  height: 1px;
-  width: 100%;
-  margin-top: -1px;
+/* 显式加载下一页，避免短列表自动把后续页全部拉完。 */
+.load-more-actions {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 0 0;
+}
+.load-more-button {
+  border: 1px solid var(--c-primary-600);
+  border-radius: 8px;
+  background: var(--c-bg);
+  color: var(--c-primary-600);
+  padding: 0.65rem 1.5rem;
+  cursor: pointer;
+}
+.load-more-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 /* 加载状态提示样式 */
