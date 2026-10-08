@@ -62,29 +62,12 @@ public class HotelController {
     }
 
     /**
-     * 普通分页：查询全部酒店
+     * 按筛选条件和排序方式游标分页查询酒店。
      *
-     * @param page 页码，从 1 开始
-     * @param size 每页大小
-     * @return 分页结果
-     */
-    @GetMapping
-    public Result getAllHotels(
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "10") Integer size
-    ) {
-        PageResult<Hotel> pageResult = hotelService.queryAllHotels(page, size);
-        if (pageResult == null){
-            return Result.fail(ResultCode.UNKNOWN_ERROR);
-        }
-        return Result.ok(pageResult);
-    }
-
-    /**
-     * 普通分页：按评分排名查询
+     * <p>首次请求不传 cursor；后续请求沿用相同筛选和排序条件，传入上次返回的 nextCursor。
      *
-     * @param query 查询条件
-     * @return 分页结果
+     * @param query 筛选条件、排序方式、页大小、用户坐标及可选游标
+     * @return 酒店列表、是否有下一页及下一页游标；total 仅首页返回
      */
     @GetMapping("/list")
     public Result getHotelsByScoreRank(@ModelAttribute HotelPageQueryDTO query) {

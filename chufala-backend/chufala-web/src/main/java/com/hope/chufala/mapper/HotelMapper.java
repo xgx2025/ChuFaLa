@@ -7,7 +7,6 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * 酒店 Mapper。
@@ -21,26 +20,13 @@ import java.util.Map;
 @Mapper
 public interface HotelMapper extends BaseMapper<Hotel> {
 
-    // 普通分页：查询全部酒店（按ID排序）
     /**
-     * 分页查询全部酒店（按 ID 排序）。
+     * 按排序值和 ID 游标查询酒店，最多返回 size 条。
      *
-     * @param offset 偏移量
-     * @param size   页大小
-     * @return 酒店列表
-     */
-    List<Hotel> selectAllByPage(
-            @Param("offset") Integer offset,
-            @Param("size") Integer size
-    );
-
-    // 普通分页：查询按评分排序的酒店
-    // userLat / userLng 仅在 sort=distance 时参与 ORDER BY（Haversine），其余情况不生效
-    /**
-     * 按条件分页查询酒店（支持评分 / 价格 / 距离排序）。
+     * <p>评分、价格、距离排序由 sort 决定；lastId 为空时查询首页。距离排序使用
+     * Haversine 原始值，userLat/userLng 只在此排序下参与 SQL。
      *
-     * @param offset     偏移量
-     * @param size       页大小
+     * @param size       查询条数；服务层传入请求页大小加一，用于判断是否有下一页
      * @param stars      星级筛选
      * @param city       城市筛选
      * @param maxPrice   价格上限
@@ -49,10 +35,11 @@ public interface HotelMapper extends BaseMapper<Hotel> {
      * @param sort       排序方式
      * @param userLat    用户纬度（仅 distance 排序生效）
      * @param userLng    用户经度（仅 distance 排序生效）
-     * @return 酒店列表
+     * @param lastId     上一页最后一条酒店的 ID；首页为 null
+     * @param lastValue  上一页最后一条酒店的排序原值；评分为空时可为 null
+     * @return 按排序规则排列的酒店列表
      */
     List<Hotel> selectByScoreRankPage(
-            @Param("offset") Integer offset,
             @Param("size") Integer size,
             @Param("stars") Integer stars,
             @Param("city") String city,
@@ -61,15 +48,10 @@ public interface HotelMapper extends BaseMapper<Hotel> {
             @Param("facilities")List<String> facilities,
             @Param("sort") String sort,
             @Param("userLat") Double userLat,
-            @Param("userLng") Double userLng
+            @Param("userLng") Double userLng,
+            @Param("lastId") Long lastId,
+            @Param("lastValue") Double lastValue
     );
-
-    // 游标分页：按评分排序（基于上一页最后一条数据）
-//    List<Hotel> selectByScoreRankCursor(
-//            @Param("lastAvgScore") Double lastAvgScore,
-//            @Param("lastHotelId") Long lastHotelId,
-//            @Param("size") Integer size
-//    );
 
     // 更新酒店评分和评论数
     /**
@@ -85,16 +67,8 @@ public interface HotelMapper extends BaseMapper<Hotel> {
             @Param("newCommentCount") Integer newCommentCount
     );
 
-    // 查询全部酒店总数
     /**
-     * 查询全部酒店总数。
-     *
-     * @return 总数
-     */
-    Long countTotal();
-    // 查询符合条件的酒店总数
-    /**
-     * 按条件查询酒店总数（条件需与 selectByScoreRankPage 一致）。
+     * 按与列表相同的筛选条件统计酒店总数，不应用游标条件。
      *
      * @param stars      星级筛选
      * @param city       城市筛选
@@ -112,14 +86,6 @@ public interface HotelMapper extends BaseMapper<Hotel> {
      * @return 图片 URL 列表
      */
     List<String> findHotelImage(Long hotelId);
-
-    /**
-     * 查询酒店名称与地址。
-     *
-     * @param hotelId 酒店 ID
-     * @return 含 name / address 的 Map
-     */
-    Map<String,String>  findHotelNameAndAddress(Long hotelId);
 
     /**
      * 按城市查询酒店信息。

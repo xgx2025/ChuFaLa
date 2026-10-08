@@ -45,22 +45,35 @@ public class HotelOrderController {
     }
 
     /**
-     * 分页查询当前用户的酒店订单。
+     * 按下单时间和 ID 游标分页查询当前用户的酒店订单。
      *
-     * @param currentPage 当前页
-     * @param pageSize    每页大小
-     * @param orderStatus 订单状态筛选
-     * @return 分页结果
+     * @param size        每页大小，默认为 10，最大为 50
+     * @param cursor      上一页返回的 nextCursor；首页不传
+     * @param orderStatus 订单状态筛选；后续页需与首页一致
+     * @return 订单列表、是否有下一页及下一页游标；total 仅首页返回
      */
     @GetMapping
-    public Result getAllHotelOrder(@RequestParam Integer currentPage,@RequestParam Integer pageSize,@RequestParam String orderStatus) {
+    public Result getHotelOrderPage(@RequestParam(defaultValue = "10") Integer size,
+                                   @RequestParam(required = false) String cursor,
+                                   @RequestParam(defaultValue = "all") String orderStatus) {
         Claims claims =  ThreadLocalUtils.get();
         Long userId = claims.get("userId", Long.class);
-        PageResult<HotelOrder> pageResult = hotelOrderService.getHotelOrderByUserIdPage(userId, orderStatus, currentPage, pageSize);
-        if (pageResult == null){
-            return Result.fail(ResultCode.NOT_FOUND);
-        }
+        PageResult<HotelOrder> pageResult = hotelOrderService.getHotelOrderByUserIdPage(userId, orderStatus, size, cursor);
         return Result.ok(pageResult);
+    }
+
+    /**
+     * 按业务订单号查询当前用户未删除的订单详情。
+     *
+     * @param orderId 业务订单号
+     * @return 含酒店名称和地址的订单；不存在或不属于当前用户时返回 NOT_FOUND
+     */
+    @GetMapping("/{orderId}")
+    public Result getHotelOrderDetail(@PathVariable Long orderId) {
+        Claims claims = ThreadLocalUtils.get();
+        Long userId = claims.get("userId", Long.class);
+        HotelOrder order = hotelOrderService.getHotelOrderDetail(userId, orderId);
+        return order == null ? Result.fail(ResultCode.NOT_FOUND) : Result.ok(order);
     }
 
     /**

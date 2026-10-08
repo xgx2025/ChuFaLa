@@ -10,7 +10,7 @@
         <el-option label="待支付" value="待支付"></el-option>
         <el-option label="已支付" value="已支付"></el-option>
       </el-select>
-      <el-button type="primary"  size="small" @click="fetchHotelOrders">查询</el-button>
+      <el-button type="primary"  size="small" @click="fetchHotelOrders()">查询</el-button>
     </el-card>
 
     <!-- 订单列表（每个订单用卡片包裹） -->
@@ -51,17 +51,8 @@
       </div>
     </el-card>
 
-    <!-- 分页 -->
-    <el-pagination
-      @size-change="handleSizeChange"
-      @current-change="handleCurrentChange"
-      :current-page="currentPage"
-      :page-sizes="[5, 8, 10, 12]"
-      :page-size="pageSize"
-      layout="total, sizes, prev, pager, next, jumper"
-      :total="total"
-    >
-    </el-pagination>
+    <el-button v-if="hasMore" :loading="loading" @click="loadMoreOrders">加载更多订单</el-button>
+    <p v-else-if="orderList.length">已加载全部订单</p>
 
     <!-- 支付表单容器。必须放在根节点**内部**：
          与根 <div> 平级会让组件渲染成 Fragment 根，
@@ -82,40 +73,49 @@ import router from '@/router'
 
 // 订单类型筛选
 const orderStatus = ref("all")
-// 分页参数
-const currentPage = ref(1)
-const pageSize = ref(5)
-const total = ref(0) // 总订单数
+const pageSize = 10
+const nextCursor = ref(null)
+const hasMore = ref(true)
+const loading = ref(false)
+let requestVersion = 0
 
-// 模拟订单数据
-const orderList = ref(null)
+// 已加载的订单；后续页按游标追加
+const orderList = ref([])
 const payFormContainer = ref(null);
 onMounted(() => {
   payFormContainer.value = document.getElementById('alipay-form-container');
 });
-// 分页事件
-const handleSizeChange = (val) => {
-  pageSize.value = val
-  fetchHotelOrders()
+const fetchHotelOrders = async (append = false) => {
+  if (append && (loading.value || !hasMore.value)) return
+  const version = ++requestVersion
+  if (!append) {
+    nextCursor.value = null
+    hasMore.value = true
+    orderList.value = []
+  }
+  loading.value = true
+  try {
+    const result = await getHotelOrderListService({
+      size: pageSize,
+      cursor: append ? nextCursor.value : undefined,
+      orderStatus: orderStatus.value
+    })
+    if (version !== requestVersion) return
+    const rawOrders = result.data.data || []
+    const formattedOrders = rawOrders.map((order) => ({
+      ...order,
+      bookTime: order.bookTime ? dayjs(order.bookTime).format('YYYY-MM-DD HH:mm:ss') : ''
+    }))
+    orderList.value = append ? [...orderList.value, ...formattedOrders] : formattedOrders
+    nextCursor.value = result.data.nextCursor || null
+    hasMore.value = Boolean(result.data.hasMore)
+  } catch (error) {
+    if (version === requestVersion) ElMessage.error('订单加载失败，请重试')
+  } finally {
+    if (version === requestVersion) loading.value = false
+  }
 }
-const handleCurrentChange = (val) => {
-  currentPage.value = val
-  fetchHotelOrders()
-}
-const fetchHotelOrders = async() => { 
-  const result = await getHotelOrderListService({
-    currentPage: currentPage.value,
-    pageSize: pageSize.value,
-    orderStatus: orderStatus.value
-  })
-  const rawOrders = result.data.data || [];
-  const formattedOrders = rawOrders.map((order) => {
-    return {...order,bookTime: order.bookTime ? dayjs(order.bookTime).format("YYYY-MM-DD HH:mm:ss") : "", };
-  });
-
-  orderList.value = formattedOrders
-  total.value = result.data.total
-}
+const loadMoreOrders = () => fetchHotelOrders(true)
 fetchHotelOrders()
 
 const deleteOrder = (orderId) => {

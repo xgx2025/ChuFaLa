@@ -26,11 +26,11 @@ public interface IHotelOrderService {
     HotelOrder getByOrderId(Long bizId);
 
     /**
-     * 按业务订单号与用户 ID 查询订单（用于归属校验）。
+     * 按业务订单号与用户 ID 查询未删除的订单（用于归属校验）。
      *
      * @param orderId 业务订单 ID
      * @param userId  用户 ID
-     * @return 订单，不匹配返回 null
+     * @return 订单；不存在、不属于该用户或已删除时为 null
      */
     HotelOrder getByOrderIdAndUserId(Long orderId,Long userId);
 
@@ -51,15 +51,24 @@ public interface IHotelOrderService {
     void markOrderPaid(Long orderId);
 
     /**
-     * 分页查询用户的酒店订单。
+     * 按下单时间降序、ID 降序游标分页查询用户未删除的酒店订单。
      *
      * @param userId      用户 ID
-     * @param orderStatus 订单状态筛选，可为空
-     * @param currentPage 当前页
-     * @param pageSize    每页大小
-     * @return 分页结果
+     * @param orderStatus 订单状态筛选；null 或 all 表示全部
+     * @param size        每页大小，最大为 50
+     * @param cursor      上一页返回的 nextCursor；首页为空
+     * @return 分页结果；total 仅首页返回，nextCursor 仅有下一页时返回
      */
-    PageResult<HotelOrder> getHotelOrderByUserIdPage(Long userId, String orderStatus,Integer currentPage, Integer pageSize);
+    PageResult<HotelOrder> getHotelOrderByUserIdPage(Long userId, String orderStatus, Integer size, String cursor);
+
+    /**
+     * 按业务订单号查询用户未删除的订单，并补全酒店名称与地址。
+     *
+     * @param userId 用户 ID
+     * @param orderId 业务订单号
+     * @return 订单；不存在或不属于该用户时为 null
+     */
+    HotelOrder getHotelOrderDetail(Long userId, Long orderId);
 
     /**
      * 按条件查询用户的全部订单。

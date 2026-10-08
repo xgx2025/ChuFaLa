@@ -9,12 +9,14 @@ import com.hope.chufala.model.vo.AttractionInfoVO;
 import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.mapper.AttractionMapper;
 import com.hope.chufala.service.IAttractionService;
+import com.hope.chufala.util.CursorPaginationUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Random;
 
 /**
@@ -43,26 +45,31 @@ public class AttractionServiceImpl implements IAttractionService {
     }
 
     /**
-     * 查询景点列表
+     * 按评分降序、ID 降序游标分页查询景点，并计算本页景点距离。
      *
-     * <p>距离计算要求用户坐标存在，缺失时抛 LocationUnavailableException。
+     * <p>游标绑定关键词、星级、城市和标签条件；查询 size + 1 条判断是否还有下一页，
+     * 仅首页统计总数。缺少用户坐标时抛出 LocationUnavailableException。
      *
-     * @param query 景点经纬度信息采用GCJ-02坐标(高德地图)
-     * @return 分页结果
+     * @param query 筛选条件、页大小、用户坐标及可选游标
+     * @return 本页景点、hasMore 和可选 nextCursor；total 仅首页返回
      */
     @Override
     public PageResult<Attraction> queryAttraction(AttractionPageQueryDTO query) {
         log.info("开始查询景点列表----{}", query);
-        //TODO 目前未实现排序功能
-        List<Attraction> attractions = attractionMapper.selectAttractionPage(query.getOffset(), query.getSize(), query.getKeyword(), query.getStars(), query.getCity(), query.getTags());
-
-        if (attractions == null){
-            return null;
-        }
-        if(query.getUserLng() == null || query.getUserLat() == null){
+        int size = CursorPaginationUtils.size(query.getSize(), 12);
+        if (query.getUserLng() == null || query.getUserLat() == null) {
             throw new LocationUnavailableException("无法获取用户当前位置，请重试！");
         }
-        log.error("用户经度：{}, 用户纬度：{}", query.getUserLng(), query.getUserLat());
+        List<String> tags = query.getTags() == null ? List.of() : query.getTags().stream().sorted().toList();
+        String scope = CursorPaginationUtils.scope(query.getKeyword(), query.getStars(), query.getCity(), tags);
+        CursorPaginationUtils.Cursor cursor = query.getCursor() != null && !query.getCursor().isBlank()
+                ? CursorPaginationUtils.decode(query.getCursor(), "rating", scope) : null;
+        List<Attraction> rows = attractionMapper.selectAttractionPage(size + 1,
+                query.getKeyword(), query.getStars(), query.getCity(), query.getTags(),
+                cursor == null ? null : cursor.id(), cursor == null ? null : cursor.value());
+        boolean hasMore = rows.size() > size;
+        List<Attraction> attractions = new ArrayList<>(rows.subList(0, Math.min(size, rows.size())));
+
         //计算与用户的距离
         attractions.forEach(attraction -> {
             double distance = Gcj02DistanceCalculator.calculateDistance(
@@ -73,10 +80,19 @@ public class AttractionServiceImpl implements IAttractionService {
             attraction.setDistance(formattedDistance);
         });
 
-        long total = attractionMapper.selectAttractionCount(query.getKeyword(), query.getStars(), query.getCity(), query.getTags());
-        boolean hasMore = (query.getOffset() + query.getSize()) < total;
-        int totalPages = (int) Math.ceil((double) total / query.getSize());
-        return new PageResult<>(attractions, total,totalPages,query.getOffset(), query.getSize(), null, null,hasMore);
+        Long total = cursor == null
+                ? attractionMapper.selectAttractionCount(query.getKeyword(), query.getStars(), query.getCity(), query.getTags())
+                : null;
+        PageResult<Attraction> result = new PageResult<>();
+        result.setData(attractions);
+        result.setTotal(total);
+        result.setSize(size);
+        result.setHasMore(hasMore);
+        if (hasMore) {
+            Attraction last = attractions.get(attractions.size() - 1);
+            result.setNextCursor(CursorPaginationUtils.encode("rating", scope, last.getRating(), last.getId()));
+        }
+        return result;
     }
 
     /**
@@ -164,6 +180,6 @@ public class AttractionServiceImpl implements IAttractionService {
      */
     @Override
     public List<Attraction> searchAttractionsByKeyword(String keyword) {
-        return attractionMapper.selectAttractionPage(null, null, keyword,null, null, null);
+        return attractionMapper.selectAttractionPage(50, keyword, null, null, null, null, null);
     }
 }

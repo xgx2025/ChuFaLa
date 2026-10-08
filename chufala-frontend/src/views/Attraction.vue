@@ -185,7 +185,9 @@ const sortBy = ref('distance')
 const attractions = ref([])
 const loading = ref(false)
 const error = ref(false)
-const currentPage = ref(1)
+const nextCursor = ref(null)
+const hasMore = ref(true)
+let requestVersion = 0
 const pageSize = ref(12)
 const totalAttractions = ref(0)
 
@@ -215,11 +217,12 @@ const cityOptions = [
   { label: '张家界', value: '张家界' },
 ]
 
-const noMore = computed(() => attractions.value.length >= totalAttractions.value && totalAttractions.value > 0)
+const noMore = computed(() => !hasMore.value)
 const disabled = computed(() => loading.value || noMore.value)
 
 // 核心数据加载函数
 const loadAttractionsData = async (append = false) => {
+  const version = ++requestVersion
   loading.value = true
   error.value = false
   try {
@@ -233,25 +236,29 @@ const loadAttractionsData = async (append = false) => {
       stars: filterStars.value,
       tags: filterType.value,
       sort: sortBy.value,
-      offset: (currentPage.value - 1) * pageSize.value,
+      cursor: append ? nextCursor.value : undefined,
       size: pageSize.value,
       userLng: geoStore.lng,
       userLat: geoStore.lat
     })
     
+    if (version !== requestVersion) return
     if (append) {
       attractions.value.push(...(res.data.data || []))
     } else {
       attractions.value = res.data.data || []
     }
-    totalAttractions.value = res.data.total || 0
+    if (res.data.total != null) totalAttractions.value = res.data.total
+    hasMore.value = Boolean(res.data.hasMore)
+    nextCursor.value = res.data.nextCursor || null
   } catch (err) {
+    if (version !== requestVersion) return
     console.error('获取景点数据失败', err)
     // 标记为错误态，与「确实没有数据」区分开，避免给用户错误暗示
     error.value = true
     if (!append) attractions.value = []
   } finally {
-    loading.value = false
+    if (version === requestVersion) loading.value = false
   }
 }
 
@@ -267,7 +274,9 @@ const resetFilters = () => {
 
 // 搜索/重置 (替换列表)
 const fetchAttractions = () => {
-  currentPage.value = 1
+  nextCursor.value = null
+  hasMore.value = true
+  totalAttractions.value = 0
   loadAttractionsData(false)
 }
 
@@ -275,7 +284,6 @@ const fetchAttractions = () => {
 const loadMore = () => {
   console.log('尝试触发加载更多...', { loading: loading.value, noMore: noMore.value, current: attractions.value.length, total: totalAttractions.value })
   if (loading.value || noMore.value) return
-  currentPage.value++
   loadAttractionsData(true)
 }
 

@@ -25,10 +25,10 @@ public interface IAttractionService {
     boolean addAttraction(Attraction attraction);
 
     /**
-     * 分页查询景点。
+     * 按评分和 ID 游标分页查询景点。
      *
-     * @param query 查询条件
-     * @return 分页结果
+     * @param query 筛选条件、页大小、用户坐标及可选游标
+     * @return 分页结果；total 仅首页返回，nextCursor 仅有下一页时返回
      */
     PageResult<Attraction> queryAttraction(AttractionPageQueryDTO query);
 

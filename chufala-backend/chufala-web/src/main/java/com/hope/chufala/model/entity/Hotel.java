@@ -2,6 +2,7 @@ package com.hope.chufala.model.entity;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -69,6 +70,10 @@ public class Hotel {
     /** 与用户的距离（公里），非持久化字段，按坐标实时计算 */
     @TableField(exist = false)
     private Double distance; // 与用户的距离（公里）
+    /** SQL 距离排序原值，仅供生成游标；展示距离经过四舍五入。 */
+    @TableField(exist = false)
+    @JsonIgnore
+    private Double cursorSortValue;
 
 
 }

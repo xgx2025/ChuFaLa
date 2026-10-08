@@ -571,11 +571,12 @@ const handleSearch = () => {
 // 改为监听列表底部的哨兵元素是否进入视口。
 const loadMoreRef = ref(null); // 列表底部哨兵
 let sentinelObserver = null; // IntersectionObserver 实例（卸载时要断开）
-const page = ref(1); // 当前页码（初始第1页）
+const nextCursor = ref(null); // 下一页游标
 // 每页 9 条：桌面端列表是 3 列栅格，原来每页 8 条会让最后一行永远缺一个角。
 const pageSize = ref(9);
 const hasMore = ref(true); // 是否有下一页数据
 const isLoading = ref(false); // 加载锁（防止重复请求）
+let loadVersion = 0; // 筛选变化后丢弃旧请求结果
 const loadingStatus = ref('none'); // 加载状态：none/loading/error/no-more
 const loadedHotels = ref([]); // 已加载的酒店数据（分页追加）
 const totalCount = ref(0); // 后端返回的符合条件的总条数
@@ -732,7 +733,7 @@ const activeFacilityNames = computed(() =>
   facilityOptions.filter((opt) => facilityFilters.value[opt.key]).map((opt) => opt.label)
 );
 
-const fetchHotels = async (pageNum, pageSizeNum) => {
+const fetchHotels = async (cursor, pageSizeNum) => {
   // 检查地理信息是否存在，若不存在则重新获取
   if (!geoStore.lat || !geoStore.lng) {
     await geoStore.getCityByBrowser();
@@ -740,7 +741,7 @@ const fetchHotels = async (pageNum, pageSizeNum) => {
   
   // 1. 构造后端需要的查询参数（核心：映射筛选条件）
   const params = {
-    page: pageNum,
+    cursor: cursor || undefined,
     size: pageSizeNum,
     // 星级参数映射
     stars: starFilter.value === 'all' ? undefined 
@@ -769,7 +770,7 @@ const fetchHotels = async (pageNum, pageSizeNum) => {
   if (activeFacilityNames.value.length > 0) {
     params.facilities = activeFacilityNames.value;
   }
-  // 2. 调用分页查询接口
+  // 2. 按游标查询一页酒店
   const response = await getHotelListService(params);
   const rawHotels = Array.isArray(response.data.data) ? response.data.data : [];
   
@@ -801,7 +802,8 @@ const fetchHotels = async (pageNum, pageSizeNum) => {
   }));
   const hasMore = response.data.hasMore || false;
   const total = Number(response.data.total) || 0;
-  return { data: currentHotels, hasMore, total };
+  return { data: currentHotels, hasMore, total: response.data.total == null ? null : total,
+    nextCursor: response.data.nextCursor || null };
 };
 
 
@@ -878,9 +880,11 @@ const scrollToListTop = () => {
   window.scrollTo({ top: Math.max(0, top - headerH - filtersH - 8), behavior: 'smooth' });
 };
 
-// 筛选/排序变化时，重置分页状态（核心！避免旧数据残留）
+// 筛选或排序变化时清空列表和游标，下一次请求从首页开始
 const resetPagination = () => {
-  page.value = 1; // 重置页码为1
+  loadVersion += 1;
+  isLoading.value = false;
+  nextCursor.value = null;
   loadedHotels.value = []; // 清空已加载数据
   hasMore.value = true; // 重置hasMore
   loadingStatus.value = 'none'; // 重置加载状态
@@ -937,28 +941,32 @@ const initLoad = async () => {
 // 新增：加载下一页数据（核心滚动加载逻辑）
 const loadMore = async () => {
   if (isLoading.value || !hasMore.value) return; // 加载锁 + 已到底就不再请求
+  const version = ++loadVersion;
   isLoading.value = true;
   loadingStatus.value = 'loading';
 
   try {
     // 调用fetchHotels获取当前页数据
-    const result = await fetchHotels(page.value, pageSize.value);
+    const result = await fetchHotels(nextCursor.value, pageSize.value);
+    if (version !== loadVersion) return;
     // 追加新数据到已加载列表
     loadedHotels.value = [...loadedHotels.value, ...result.data];
     // 更新"是否有下一页"状态
     hasMore.value = result.hasMore;
     // 记录后端给出的符合条件的总数（「共 N 家」用）
-    totalCount.value = result.total;
-    // 页码+1，为下次加载做准备
-    page.value += 1;
+    if (result.total != null) totalCount.value = result.total;
+    nextCursor.value = result.nextCursor;
     // 更新加载状态（有下一页则隐藏提示，否则显示"已加载全部"）
     loadingStatus.value = result.hasMore ? 'none' : 'no-more';
   } catch (error) {
+    if (version !== loadVersion) return;
     console.error('酒店数据加载失败：', error);
     loadingStatus.value = 'error'; // 加载失败，提示重试
   } finally {
-    isLoading.value = false; // 释放加载锁
-    await refreshSentinel(); // 让哨兵按新布局重新判定一次
+    if (version === loadVersion) {
+      isLoading.value = false; // 释放加载锁
+      await refreshSentinel(); // 让哨兵按新布局重新判定一次
+    }
   }
 };
 

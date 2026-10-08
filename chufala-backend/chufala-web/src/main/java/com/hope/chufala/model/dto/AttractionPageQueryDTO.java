@@ -19,13 +19,13 @@ import java.util.List;
 public class AttractionPageQueryDTO {
     /** 搜索关键词 */
     private String keyword;
-    /** 查询偏移量，对应 SQL LIMIT 的 offset */
-    private Integer offset;
     /** 每页大小 */
     private Integer size;
+    /** 下一页游标；第一页不传 */
+    private String cursor;
     /** 景点星级筛选 */
     private Integer stars;
-    /** 排序方式 */
+    /** 预留排序参数；当前列表固定按评分降序、ID 降序查询 */
     private String sortBy;
     /** 城市名称 */
     private String city;

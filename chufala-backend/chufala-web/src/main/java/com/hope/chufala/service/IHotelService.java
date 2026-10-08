@@ -12,8 +12,7 @@ import java.util.List;
 /**
  * 酒店服务。
  *
- * <p>提供酒店查询与评价提交；列表查询带 Redis 缓存，缓存 Key 不含用户坐标，
- * 因此 distance 排序会跳过缓存（见 HotelServiceImpl#queryHotelsByScoreRank）。
+ * <p>提供酒店游标列表、详情查询与评价提交。
  *
  * @author 谢光湘
  */
@@ -26,22 +25,11 @@ public interface IHotelService {
      */
     boolean addHotel(Hotel hotel);
 
-    // 普通分页：查询全部酒店
     /**
-     * 分页查询全部酒店。
+     * 按条件和排序方式游标分页查询酒店。
      *
-     * @param page 页码，从 1 开始
-     * @param size 每页大小
-     * @return 分页结果
-     */
-    PageResult<Hotel> queryAllHotels(Integer page, Integer size);
-
-    // 普通分页：按评分排名查询酒店
-    /**
-     * 按条件分页查询酒店（支持评分、价格与距离排序）。
-     *
-     * @param query 查询条件
-     * @return 分页结果
+     * @param query 筛选条件、排序方式、页大小、用户坐标及可选游标
+     * @return 分页结果；total 仅首页返回，nextCursor 仅有下一页时返回
      */
     PageResult<Hotel> queryHotelsByScoreRank(HotelPageQueryDTO  query);
 

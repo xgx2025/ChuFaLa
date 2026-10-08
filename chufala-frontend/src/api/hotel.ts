@@ -3,6 +3,7 @@ import qs from 'qs';
 export const addHotelService =(hotel:any)=> { 
     return request.post('/hotels',hotel);
 }
+/** 酒店列表游标分页：首次不传 cursor，后续传回 nextCursor。 */
 export const getHotelListService =(hotelPageQueryDTO:any)=> { 
     return request.get('/hotels/list',{params:hotelPageQueryDTO,paramsSerializer: (params) => {
     // qs.stringify 处理参数，arrayFormat: 'repeat' 表示数组用多个相同参数名传递
@@ -40,8 +41,13 @@ export const payOrderService = (params:any): Promise<string> => {
     return request.get<string, string>('/alipay/pay',{params:params,responseType: 'text' })
 }
 
+/** 当前用户订单游标分页；筛选状态变化时需从首页重新请求。 */
 export const getHotelOrderListService = (params:any)=> { 
     return request.get('/hotelOrders',{params:params})
+}
+/** 按业务订单号查询当前用户未删除的订单。 */
+export const getHotelOrderDetailService = (orderId:string) => {
+    return request.get(`/hotelOrders/${orderId}`)
 }
 
 export const deleteHotelOrderService = (id:string)=> { 

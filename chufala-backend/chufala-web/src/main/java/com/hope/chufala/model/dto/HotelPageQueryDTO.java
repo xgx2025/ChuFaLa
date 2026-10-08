@@ -17,10 +17,10 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class HotelPageQueryDTO {
-    /** 页码，从 1 开始 */
-    private Integer page;
     /** 每页大小 */
     private Integer size;
+    /** 下一页游标；第一页不传 */
+    private String cursor;
     /** 星级筛选 */
     private Integer stars;
     /** 城市筛选 */
@@ -31,9 +31,9 @@ public class HotelPageQueryDTO {
     private Double minPrice;
     /** 设施筛选列表，多选时按 AND 语义匹配 */
     private List<String> facilities;
-    /** 用户纬度（仅用于距离计算，不进入缓存 Key） */
+    /** 用户纬度（用于距离计算及距离排序游标） */
     private Double userLat;
-    /** 用户经度（仅用于距离计算，不进入缓存 Key） */
+    /** 用户经度（用于距离计算及距离排序游标） */
     private Double userLng;
     /**
      * 排序方式。取值：recommended（默认，按评分）/ price-asc / price-desc / rating / distance。

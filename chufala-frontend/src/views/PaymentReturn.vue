@@ -83,7 +83,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Check, Close, Loading } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
-import { getHotelOrderListService } from '@/api/hotel'
+import { getHotelOrderDetailService } from '@/api/hotel'
 import { getUserInfoService } from '@/api/user'
 import { formatAmount, readPendingPayment, type PaymentDetail } from '@/utils/paymentReturn'
 
@@ -169,7 +169,7 @@ const receiptRows = computed<PaymentDetail[]>(() => {
   return rows
 })
 
-/** 用订单列表里的真实数据补齐回执，比暂存快照更准。 */
+/** 用按订单号查询到的详情补齐支付回执。 */
 function applyHotelOrder(order: Record<string, any>): void {
   const rows: PaymentDetail[] = []
   if (order.roomType) rows.push({ label: '房型', value: String(order.roomType) })
@@ -211,21 +211,14 @@ async function refreshOrderState(): Promise<void> {
       const res: any = await getUserInfoService()
       if (Number(res?.data?.vip) === 1) orderState.value = 'paid'
     } else {
-      const res: any = await getHotelOrderListService({
-        currentPage: 1,
-        pageSize: 20,
-        orderStatus: 'all',
-      })
-      const list = res?.data?.data
-      if (Array.isArray(list)) {
-        const hit = list.find((item: any) => String(item?.orderId) === orderNo.value)
-        if (hit) {
-          const status = String(hit.orderStatus ?? '')
-          if (status.includes('已取消')) orderState.value = 'cancelled'
-          else if (status.includes('已支付')) orderState.value = 'paid'
-          else orderState.value = 'confirming'
-          applyHotelOrder(hit)
-        }
+      const res: any = await getHotelOrderDetailService(orderNo.value)
+      const order = res?.data
+      if (order) {
+        const status = String(order.orderStatus ?? '')
+        if (status.includes('已取消')) orderState.value = 'cancelled'
+        else if (status.includes('已支付')) orderState.value = 'paid'
+        else orderState.value = 'confirming'
+        applyHotelOrder(order)
       }
     }
   } catch {

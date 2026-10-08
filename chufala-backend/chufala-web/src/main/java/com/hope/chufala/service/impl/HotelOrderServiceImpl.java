@@ -2,8 +2,7 @@ package com.hope.chufala.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.hope.chufala.util.CursorPaginationUtils;
 import com.hope.chufala.common.exception.InvalidSignatureException;
 import com.hope.chufala.common.exception.ResourceNotFoundException;
 import com.hope.chufala.common.util.DelayMessageProcessor;
@@ -14,6 +13,7 @@ import com.hope.chufala.constant.HotelOrderStatus;
 import com.hope.chufala.exception.OrderAlreadyCancelledException;
 import com.hope.chufala.model.dto.HotelOrderDTO;
 import com.hope.chufala.model.entity.HotelOrder;
+import com.hope.chufala.model.entity.Hotel;
 import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.mapper.HotelMapper;
 import com.hope.chufala.mapper.HotelOrderMapper;
@@ -38,6 +38,8 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 /**
  * 酒店订单服务实现。
@@ -88,16 +90,16 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
     }
 
     /**
-     * 按业务订单号与用户 ID 查询订单（用于归属校验）。
+     * 按业务订单号与用户 ID 查询未删除的订单（用于归属校验）。
      *
      * @param orderId 业务订单 ID
      * @param userId  用户 ID
-     * @return 订单，不匹配返回 null
+     * @return 订单；不存在、不属于该用户或已删除时为 null
      */
     @Override
     public HotelOrder getByOrderIdAndUserId(Long orderId,Long userId) {
         QueryWrapper<HotelOrder> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("order_id", orderId).eq("user_id", userId);
+        queryWrapper.eq("order_id", orderId).eq("user_id", userId).eq("is_deleted", 0);
         return hotelOrderMapper.selectOne(queryWrapper);
     }
 
@@ -215,35 +217,81 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
     }
 
     /**
-     * 分页查询用户的酒店订单，并补全酒店名称与地址。
+     * 按下单时间降序、ID 降序游标分页查询用户未删除的酒店订单。
+     *
+     * <p>游标绑定用户和订单状态；查询 size + 1 条判断是否还有下一页，仅首页统计总数。
+     * 本页订单的酒店名称与地址通过批量查询补全。
      *
      * @param userId      用户 ID
      * @param orderStatus 订单状态筛选，"all" 或 null 表示不过滤
-     * @param currentPage 当前页
-     * @param pageSize    每页大小
-     * @return 分页结果
+     * @param size        每页大小，最大为 50
+     * @param cursorToken 上一页返回的 nextCursor；首页为空
+     * @return 本页订单、hasMore 和可选 nextCursor；total 仅首页返回
      */
     @Override
-    public PageResult<HotelOrder> getHotelOrderByUserIdPage(Long userId,String orderStatus,Integer currentPage, Integer pageSize){
+    public PageResult<HotelOrder> getHotelOrderByUserIdPage(Long userId, String orderStatus,
+                                                              Integer size, String cursorToken) {
+        int safeSize = CursorPaginationUtils.size(size, 10);
+        String status = orderStatus == null || "all".equals(orderStatus)
+                ? "all" : HotelOrderStatus.normalizeFilter(orderStatus);
+        String scope = CursorPaginationUtils.scope(userId, status);
+        CursorPaginationUtils.OrderCursor cursor = cursorToken == null || cursorToken.isBlank()
+                ? null : CursorPaginationUtils.decodeOrder(cursorToken, scope);
         QueryWrapper<HotelOrder> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_id", userId).eq("is_deleted",0);
-        if (orderStatus != null && !"all".equals(orderStatus)){
-            queryWrapper.eq("order_status", HotelOrderStatus.normalizeFilter(orderStatus));
+        if (!"all".equals(status)) {
+            queryWrapper.eq("order_status", status);
         }
-        queryWrapper.orderByDesc("book_time");
-        IPage<HotelOrder> page = new Page<>(currentPage, pageSize);
-        IPage<HotelOrder> hotelOrderIPage = hotelOrderMapper.selectPage(page, queryWrapper);
+        Long total = cursor == null ? hotelOrderMapper.selectCount(queryWrapper) : null;
+        if (cursor != null) {
+            queryWrapper.and(condition -> condition.lt("book_time", cursor.bookTime())
+                    .or(tie -> tie.eq("book_time", cursor.bookTime()).lt("id", cursor.id())));
+        }
+        queryWrapper.orderByDesc("book_time", "id").last("LIMIT " + (safeSize + 1));
+        List<HotelOrder> rows = hotelOrderMapper.selectList(queryWrapper);
+        boolean hasMore = rows.size() > safeSize;
+        List<HotelOrder> hotelOrderList = new ArrayList<>(rows.subList(0, Math.min(safeSize, rows.size())));
+        populateHotels(hotelOrderList);
         PageResult<HotelOrder> pageResult = new PageResult<>();
-        List<HotelOrder> hotelOrderList = hotelOrderIPage.getRecords();
-        pageResult.setTotal(hotelOrderIPage.getTotal());
-        pageResult.setTotalPage((int)hotelOrderIPage.getPages());
-        for (HotelOrder hotelOrder : hotelOrderList) {
-            Map<String, String> map = hotelMapper.findHotelNameAndAddress(hotelOrder.getHotelId());
-            hotelOrder.setHotelName(map.get("name"));
-            hotelOrder.setAddress(map.get("address"));
-        }
         pageResult.setData(hotelOrderList);
+        pageResult.setTotal(total);
+        pageResult.setSize(safeSize);
+        pageResult.setHasMore(hasMore);
+        if (hasMore) {
+            HotelOrder last = hotelOrderList.get(hotelOrderList.size() - 1);
+            pageResult.setNextCursor(CursorPaginationUtils.encodeOrder(scope, last.getBookTime(), last.getId()));
+        }
         return pageResult;
+    }
+
+    /**
+     * 按业务订单号查询用户未删除的订单，并补全酒店名称与地址。
+     *
+     * @param userId 用户 ID
+     * @param orderId 业务订单号
+     * @return 订单；不存在或不属于该用户时为 null
+     */
+    @Override
+    public HotelOrder getHotelOrderDetail(Long userId, Long orderId) {
+        HotelOrder order = getByOrderIdAndUserId(orderId, userId);
+        if (order == null) return null;
+        populateHotels(List.of(order));
+        return order;
+    }
+
+    /** 批量查询酒店，补全订单列表中的酒店名称与地址。 */
+    private void populateHotels(List<HotelOrder> orders) {
+        if (orders.isEmpty()) return;
+        List<Long> ids = orders.stream().map(HotelOrder::getHotelId).distinct().toList();
+        Map<Long, Hotel> hotelById = hotelMapper.selectBatchIds(ids).stream()
+                .collect(Collectors.toMap(Hotel::getId, hotel -> hotel));
+        for (HotelOrder order : orders) {
+            Hotel hotel = hotelById.get(order.getHotelId());
+            if (hotel != null) {
+                order.setHotelName(hotel.getName());
+                order.setAddress(hotel.getAddress());
+            }
+        }
     }
 
     /**

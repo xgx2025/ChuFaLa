@@ -5,8 +5,8 @@ import com.hope.chufala.model.entity.Attraction;
 import com.hope.chufala.model.vo.PointVO;
 import com.hope.chufala.model.vo.AttractionInfoVO;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
-import javax.annotation.Nullable;
 import java.util.List;
 
 /**
@@ -21,26 +21,33 @@ import java.util.List;
 public interface AttractionMapper extends BaseMapper<Attraction> {
 
     /**
-     * 分页查询景点
-     * @param offset 偏移量
-     * @param size   页大小
+     * 按评分降序、ID 降序游标查询景点，最多返回 size 条。
+     *
+     * @param size 查询条数；服务层传入请求页大小加一，用于判断是否有下一页
      * @param keyword 关键词
      * @param stars 星级
      * @param city 城市
      * @param tags 标签
-     * @return 景点列表
+     * @param lastId 上一页最后一条景点的 ID；首页为 null
+     * @param lastValue 上一页最后一条景点的评分；评分为空时可为 null
+     * @return 按评分和 ID 排列的景点列表
      */
-    List<Attraction> selectAttractionPage(@Nullable Integer offset, @Nullable Integer size, @Nullable String keyword, @Nullable Integer stars, @Nullable String city, @Nullable List<String> tags);
+    List<Attraction> selectAttractionPage(@Param("size") Integer size,
+                                         @Param("keyword") String keyword, @Param("stars") Integer stars,
+                                         @Param("city") String city, @Param("tags") List<String> tags,
+                                         @Param("lastId") Long lastId,
+                                         @Param("lastValue") Double lastValue);
 
     /**
-     * 查询景点总数
+     * 按与列表相同的筛选条件统计景点总数，不应用游标条件。
      * @param keyword 关键词
      * @param stars 星级
      * @param city 城市
      * @param tags 标签
      * @return 景点总数
      */
-    Long selectAttractionCount(@Nullable String keyword, @Nullable Integer stars, @Nullable String city, @Nullable List<String> tags);
+    Long selectAttractionCount(@Param("keyword") String keyword, @Param("stars") Integer stars,
+                               @Param("city") String city, @Param("tags") List<String> tags);
 
     /**
      * 按城市查询景点（含图片等完整信息）。
