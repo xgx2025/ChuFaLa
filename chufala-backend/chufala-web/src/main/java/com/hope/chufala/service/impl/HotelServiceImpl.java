@@ -10,6 +10,7 @@ import com.hope.chufala.model.entity.Room;
 import com.hope.chufala.model.vo.HotelInfoVO;
 import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.mapper.HotelMapper;
+import com.hope.chufala.infra.HotelListCache;
 
 import com.hope.chufala.mapper.HotelReviewMapper;
 import com.hope.chufala.mapper.RoomMapper;
@@ -27,7 +28,8 @@ import org.slf4j.Logger;
 /**
  * 酒店服务实现。
  *
- * <p>酒店列表统一使用游标分页，距离排序按用户坐标实时计算。
+ * <p>酒店列表使用游标分页；评分和价格排序的首页优先读取 Redis，
+ * 距离排序按用户坐标实时查询。
  * 距离计算统一走 {@link #calculateDistances}，注意其参数顺序为 (经度, 纬度)。
  *
  * @author 谢光湘
@@ -40,6 +42,8 @@ public class HotelServiceImpl implements IHotelService {
     private RoomMapper roomMapper;
     @Autowired
     private HotelReviewMapper commentMapper;
+    @Autowired
+    private HotelListCache hotelListCache;
 
     private static final Logger log = LoggerFactory.getLogger(HotelServiceImpl.class);
 
@@ -50,15 +54,19 @@ public class HotelServiceImpl implements IHotelService {
      * @return 是否成功
      */
     @Override
+    @Transactional
     public boolean addHotel(Hotel hotel) {
-        return hotelMapper.insert(hotel) > 0;
+        boolean inserted = hotelMapper.insert(hotel) > 0;
+        if (inserted) hotelListCache.invalidateAfterCommit();
+        return inserted;
     }
 
     /**
      * 按筛选条件和排序方式游标分页查询酒店，并计算本页酒店距离。
      *
-     * <p>游标绑定筛选条件、排序方式及距离排序所用坐标。查询 size + 1 条判断是否还有
-     * 下一页。距离游标保存 SQL 排序原值，避免展示值四舍五入后漏页。
+     * <p>游标绑定筛选条件、排序方式及距离排序所用坐标。评分和价格排序的首页
+     * 优先读取不含用户距离的缓存，命中后重算展示距离。缓存未命中时查询 size + 1 条。
+     * 距离排序实时查库，游标保存 SQL 排序原值，避免展示值四舍五入后漏页。
      *
      * @param query 筛选条件、排序方式、页大小、用户坐标及可选游标
      * @return 本页酒店、hasMore 和可选 nextCursor
@@ -81,13 +89,19 @@ public class HotelServiceImpl implements IHotelService {
                 "distance".equals(cursorSort) ? point.getLongitude() : null);
         CursorPaginationUtils.Cursor cursor = query.getCursor() == null || query.getCursor().isBlank()
                 ? null : CursorPaginationUtils.decode(query.getCursor(), cursorSort, scope);
+        String cacheKey = cursor == null && !"distance".equals(cursorSort)
+                ? hotelListCache.firstPageKey(cursorSort, scope, size) : null;
+        PageResult<Hotel> cached = cacheKey == null ? null : hotelListCache.get(cacheKey);
+        if (cached != null) {
+            calculateDistances(cached.getData(), point.getLatitude(), point.getLongitude());
+            return cached;
+        }
         List<Hotel> rows = hotelMapper.selectByScoreRankPage(size + 1, query.getStars(), query.getCity(),
                 query.getMaxPrice(), query.getMinPrice(), query.getFacilities(), sort,
                 point.getLatitude(), point.getLongitude(),
                 cursor == null ? null : cursor.id(), cursor == null ? null : cursor.value());
         boolean hasMore = rows.size() > size;
         List<Hotel> hotels = new ArrayList<>(rows.subList(0, Math.min(size, rows.size())));
-        calculateDistances(hotels, point.getLatitude(), point.getLongitude());
         PageResult<Hotel> result = new PageResult<>();
         result.setData(hotels);
         result.setSize(size);
@@ -106,6 +120,8 @@ public class HotelServiceImpl implements IHotelService {
             }
             result.setNextCursor(CursorPaginationUtils.encode(cursorSort, scope, value, last.getId()));
         }
+        if (cacheKey != null) hotelListCache.put(cacheKey, result);
+        calculateDistances(hotels, point.getLatitude(), point.getLongitude());
         return result;
     }
 
@@ -159,6 +175,7 @@ public class HotelServiceImpl implements IHotelService {
 
         // 3. 更新酒店表的冗余字段
         hotelMapper.updateScoreAndCount(review.getHotelId(), newAvgScore, newCommentCount);
+        hotelListCache.invalidateAfterCommit();
         log.info("酒店评分更新成功，hotelId={}, 新评分={}", review.getHotelId(), newAvgScore);
 
     }
