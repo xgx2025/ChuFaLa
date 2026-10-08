@@ -12,8 +12,10 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,18 +29,17 @@ class PaginationSqlTest {
     void cursorAndPageSizeAreValidated() {
         assertThrows(IllegalArgumentException.class, () -> CursorPaginationUtils.size(51, 10));
         String scope = CursorPaginationUtils.scope("上海", List.of("停车场"));
-        String token = CursorPaginationUtils.encode("rating", scope, 4.6, 42L);
+        String token = CursorPaginationUtils.encode("rating", scope, 4.6, 42L, 2);
         assertEquals(42L, CursorPaginationUtils.decode(token, "rating", scope).id());
-        assertEquals(0, CursorPaginationUtils.decode(token, "rating", scope).page());
-        String hotPageToken = CursorPaginationUtils.encode("rating", scope, 4.6, 42L, 2);
-        assertEquals(2, CursorPaginationUtils.decode(hotPageToken, "rating", scope).page());
-        assertThrows(IllegalArgumentException.class,
-                () -> CursorPaginationUtils.decode(hotPageToken, "price-asc", scope));
+        assertEquals(2, CursorPaginationUtils.decode(token, "rating", scope).page());
         assertNull(CursorPaginationUtils.decode(
-                CursorPaginationUtils.encode("rating", scope, null, 43L), "rating", scope).value());
+                CursorPaginationUtils.encode("rating", scope, null, 43L, 3), "rating", scope).value());
         assertThrows(IllegalArgumentException.class, () -> CursorPaginationUtils.decode(token, "price-asc", scope));
         assertThrows(IllegalArgumentException.class,
                 () -> CursorPaginationUtils.decode(token, "rating", CursorPaginationUtils.scope("北京")));
+        String oldToken = Base64.getUrlEncoder().withoutPadding().encodeToString(
+                ("rating:" + scope + ":4.6:42").getBytes(StandardCharsets.UTF_8));
+        assertThrows(IllegalArgumentException.class, () -> CursorPaginationUtils.decode(oldToken, "rating", scope));
         LocalDateTime bookTime = LocalDateTime.of(2026, 10, 8, 12, 30);
         String orderToken = CursorPaginationUtils.encodeOrder(scope, bookTime, 7L);
         assertEquals(bookTime, CursorPaginationUtils.decodeOrder(orderToken, scope).bookTime());

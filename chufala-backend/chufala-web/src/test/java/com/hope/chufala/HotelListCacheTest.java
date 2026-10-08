@@ -69,8 +69,6 @@ class HotelListCacheTest {
                 new CursorPaginationUtils.Cursor(4.8, 42L, 3)));
         assertNull(cache.pageKey("rating", "filters", 10,
                 new CursorPaginationUtils.Cursor(4.8, 42L, 4)));
-        assertNull(cache.pageKey("rating", "filters", 10,
-                new CursorPaginationUtils.Cursor(4.8, 42L, 0)));
     }
 
     @Test

@@ -55,7 +55,7 @@ public class AttractionServiceImpl implements IAttractionService {
      * 按评分降序、ID 降序游标分页查询景点，并计算本页景点距离。
      *
      * <p>游标绑定关键词、星级、城市和标签条件。前 3 页优先读取不含用户距离的缓存，
-     * 命中后按当前用户位置重算距离；旧版游标和深页直接查库。
+     * 命中后按当前用户位置重算距离；深页直接查库。
      * 缓存未命中时查询 size + 1 条判断是否还有下一页，
      * 缺少用户坐标时抛出 LocationUnavailableException。
      *
@@ -91,9 +91,7 @@ public class AttractionServiceImpl implements IAttractionService {
         result.setHasMore(hasMore);
         if (hasMore) {
             Attraction last = attractions.get(attractions.size() - 1);
-            result.setNextCursor(cursor != null && cursor.page() == 0
-                    ? CursorPaginationUtils.encode("rating", scope, last.getRating(), last.getId())
-                    : CursorPaginationUtils.encode("rating", scope, last.getRating(), last.getId(),
+            result.setNextCursor(CursorPaginationUtils.encode("rating", scope, last.getRating(), last.getId(),
                     cursor == null ? 2 : Math.min(4, cursor.page() + 1)));
         }
         if (cacheKey != null) attractionListCache.put(cacheKey, result);

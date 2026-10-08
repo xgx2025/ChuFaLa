@@ -245,6 +245,10 @@ const loadAttractionsData = async (append = false) => {
     hasMore.value = Boolean(res.data.hasMore && nextCursor.value)
   } catch (err) {
     if (version !== requestVersion) return
+    if (append && nextCursor.value && err?.code === 4000 && err?.message === '无效的分页游标') {
+      fetchAttractions() // 部署后旧页面持有失效游标时，从首页获取新游标
+      return
+    }
     console.error('获取景点数据失败', err)
     // 标记为错误态，与「确实没有数据」区分开，避免给用户错误暗示
     error.value = true

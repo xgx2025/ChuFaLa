@@ -31,7 +31,7 @@ public abstract class CursorListCache<T> {
         this.objectMapper = objectMapper;
     }
 
-    /** 只为首页及新版游标标明的第 2～3 页生成键；旧游标和深页直接回源。 */
+    /** 只为首页及游标标明的第 2～3 页生成键；深页直接回源。 */
     public String pageKey(String sort, String scope, int size, CursorPaginationUtils.Cursor cursor) {
         int page = cursor == null ? 1 : cursor.page();
         if (page < 1 || page > 3) return null;

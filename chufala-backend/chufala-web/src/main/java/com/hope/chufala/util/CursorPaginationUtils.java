@@ -55,20 +55,6 @@ public final class CursorPaginationUtils {
         }
     }
 
-    /**
-     * 将列表排序值与 ID 编码为旧版游标，用于兼容旧客户端的后续翻页。
-     *
-     * @param sort 排序方式
-     * @param scope 筛选条件摘要
-     * @param value 本页最后一条记录的排序原值，可为空
-     * @param id 本页最后一条记录的 ID
-     * @return URL 安全的游标
-     */
-    public static String encode(String sort, String scope, Double value, long id) {
-        String raw = sort + ":" + scope + ":" + (value == null ? "null" : Double.toString(value)) + ":" + id;
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
-    }
-
     /** 编码列表下一页游标；深度 4 表示第 4 页及以后，只用于热点页缓存判断。 */
     public static String encode(String sort, String scope, Double value, long id, int nextPage) {
         if (nextPage < 2 || nextPage > 4) throw new IllegalArgumentException("无效的分页深度");
@@ -78,7 +64,7 @@ public final class CursorPaginationUtils {
     }
 
     /**
-     * 解码新旧版列表游标，并校验排序方式和筛选条件与当前请求一致。
+     * 解码列表游标，并校验排序方式和筛选条件与当前请求一致。
      *
      * @param token 客户端传回的游标
      * @param expectedSort 当前请求的排序方式
@@ -93,18 +79,14 @@ public final class CursorPaginationUtils {
         try {
             String raw = new String(Base64.getUrlDecoder().decode(token), StandardCharsets.UTF_8);
             String[] parts = raw.split(":", -1);
-            boolean current = parts.length == 6 && "v2".equals(parts[0]);
-            boolean legacy = parts.length == 4;
-            int offset = current ? 1 : 0;
-            if ((!current && !legacy) || !expectedSort.equals(parts[offset])
-                    || !expectedScope.equals(parts[offset + 1])) {
+            if (parts.length != 6 || !"v2".equals(parts[0])
+                    || !expectedSort.equals(parts[1]) || !expectedScope.equals(parts[2])) {
                 throw new IllegalArgumentException("分页游标与排序条件不匹配");
             }
-            Double value = "null".equals(parts[offset + 2]) ? null : Double.parseDouble(parts[offset + 2]);
-            long id = Long.parseLong(parts[offset + 3]);
-            int page = current ? Integer.parseInt(parts[5]) : 0;
-            if ((value != null && !Double.isFinite(value)) || id < 1
-                    || (current && (page < 2 || page > 4))) {
+            Double value = "null".equals(parts[3]) ? null : Double.parseDouble(parts[3]);
+            long id = Long.parseLong(parts[4]);
+            int page = Integer.parseInt(parts[5]);
+            if ((value != null && !Double.isFinite(value)) || id < 1 || page < 2 || page > 4) {
                 throw new IllegalArgumentException("无效的分页游标");
             }
             return new Cursor(value, id, page);
@@ -113,7 +95,7 @@ public final class CursorPaginationUtils {
         }
     }
 
-    /** page 为 0 表示旧版游标，4 表示第 4 页及以后。 */
+    /** page 为 4 表示第 4 页及以后。 */
     public record Cursor(Double value, long id, int page) { }
 
     /**

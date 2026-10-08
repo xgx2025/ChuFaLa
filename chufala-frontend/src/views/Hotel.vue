@@ -959,6 +959,10 @@ const loadMore = async () => {
     loadingStatus.value = result.hasMore ? 'none' : 'no-more';
   } catch (error) {
     if (version !== loadVersion) return;
+    if (nextCursor.value && error?.code === 4000 && error?.message === '无效的分页游标') {
+      resetPagination(); // 部署后旧页面持有失效游标时，从首页获取新游标
+      return;
+    }
     console.error('酒店数据加载失败：', error);
     loadingStatus.value = 'error'; // 加载失败，提示重试
   } finally {
