@@ -26,7 +26,7 @@ public interface IHotelService {
     boolean addHotel(Hotel hotel);
 
     /**
-     * 按条件和排序方式游标分页查询酒店；评分和价格排序的首页优先读取 Redis。
+     * 按条件和排序方式游标分页查询酒店；评分和价格排序的前 3 页优先读取 Redis。
      *
      * @param query 筛选条件、排序方式、页大小、用户坐标及可选游标
      * @return 分页结果；nextCursor 仅有下一页时返回

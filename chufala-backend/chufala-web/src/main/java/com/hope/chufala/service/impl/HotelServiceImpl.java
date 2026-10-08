@@ -28,7 +28,7 @@ import org.slf4j.Logger;
 /**
  * 酒店服务实现。
  *
- * <p>酒店列表使用游标分页；评分和价格排序的首页优先读取 Redis，
+ * <p>酒店列表使用游标分页；评分和价格排序的前 3 页优先读取 Redis，
  * 距离排序按用户坐标实时查询。
  * 距离计算统一走 {@link #calculateDistances}，注意其参数顺序为 (经度, 纬度)。
  *
@@ -64,8 +64,9 @@ public class HotelServiceImpl implements IHotelService {
     /**
      * 按筛选条件和排序方式游标分页查询酒店，并计算本页酒店距离。
      *
-     * <p>游标绑定筛选条件、排序方式及距离排序所用坐标。评分和价格排序的首页
-     * 优先读取不含用户距离的缓存，命中后重算展示距离。缓存未命中时查询 size + 1 条。
+     * <p>游标绑定筛选条件、排序方式及距离排序所用坐标。评分和价格排序的前 3 页
+     * 优先读取不含用户距离的缓存，命中后重算展示距离。旧版游标和深页直接查库。
+     * 缓存未命中时查询 size + 1 条。
      * 距离排序实时查库，游标保存 SQL 排序原值，避免展示值四舍五入后漏页。
      *
      * @param query 筛选条件、排序方式、页大小、用户坐标及可选游标
@@ -89,8 +90,8 @@ public class HotelServiceImpl implements IHotelService {
                 "distance".equals(cursorSort) ? point.getLongitude() : null);
         CursorPaginationUtils.Cursor cursor = query.getCursor() == null || query.getCursor().isBlank()
                 ? null : CursorPaginationUtils.decode(query.getCursor(), cursorSort, scope);
-        String cacheKey = cursor == null && !"distance".equals(cursorSort)
-                ? hotelListCache.firstPageKey(cursorSort, scope, size) : null;
+        String cacheKey = !"distance".equals(cursorSort)
+                ? hotelListCache.pageKey(cursorSort, scope, size, cursor) : null;
         PageResult<Hotel> cached = cacheKey == null ? null : hotelListCache.get(cacheKey);
         if (cached != null) {
             calculateDistances(cached.getData(), point.getLatitude(), point.getLongitude());
@@ -118,7 +119,10 @@ public class HotelServiceImpl implements IHotelService {
             } else {
                 value = last.getOverallRating();
             }
-            result.setNextCursor(CursorPaginationUtils.encode(cursorSort, scope, value, last.getId()));
+            result.setNextCursor(cursor != null && cursor.page() == 0
+                    ? CursorPaginationUtils.encode(cursorSort, scope, value, last.getId())
+                    : CursorPaginationUtils.encode(cursorSort, scope, value, last.getId(),
+                    cursor == null ? 2 : Math.min(4, cursor.page() + 1)));
         }
         if (cacheKey != null) hotelListCache.put(cacheKey, result);
         calculateDistances(hotels, point.getLatitude(), point.getLongitude());

@@ -29,6 +29,11 @@ class PaginationSqlTest {
         String scope = CursorPaginationUtils.scope("上海", List.of("停车场"));
         String token = CursorPaginationUtils.encode("rating", scope, 4.6, 42L);
         assertEquals(42L, CursorPaginationUtils.decode(token, "rating", scope).id());
+        assertEquals(0, CursorPaginationUtils.decode(token, "rating", scope).page());
+        String hotPageToken = CursorPaginationUtils.encode("rating", scope, 4.6, 42L, 2);
+        assertEquals(2, CursorPaginationUtils.decode(hotPageToken, "rating", scope).page());
+        assertThrows(IllegalArgumentException.class,
+                () -> CursorPaginationUtils.decode(hotPageToken, "price-asc", scope));
         assertNull(CursorPaginationUtils.decode(
                 CursorPaginationUtils.encode("rating", scope, null, 43L), "rating", scope).value());
         assertThrows(IllegalArgumentException.class, () -> CursorPaginationUtils.decode(token, "price-asc", scope));

@@ -8,11 +8,13 @@ import com.hope.chufala.model.vo.PointVO;
 import com.hope.chufala.model.vo.AttractionInfoVO;
 import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.mapper.AttractionMapper;
+import com.hope.chufala.infra.AttractionListCache;
 import com.hope.chufala.service.IAttractionService;
 import com.hope.chufala.util.CursorPaginationUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 
 import java.util.List;
@@ -22,7 +24,7 @@ import java.util.Random;
 /**
  * 景点服务实现。
  *
- * <p>列表查询按用户坐标实时计算距离（GCJ-02）；详情接口的评论数是随机数占位
+ * <p>列表前 3 页优先读取 Redis，并按用户坐标实时计算距离（GCJ-02）；详情接口的评论数是随机数占位
  * （景点侧暂无真实评论数据）。
  *
  * @author 谢光湘
@@ -33,6 +35,8 @@ public class AttractionServiceImpl implements IAttractionService {
 
     @Autowired
     private AttractionMapper attractionMapper;
+    @Autowired
+    private AttractionListCache attractionListCache;
     /**
      * 新增景点。
      *
@@ -40,14 +44,19 @@ public class AttractionServiceImpl implements IAttractionService {
      * @return 是否成功
      */
     @Override
+    @Transactional
     public boolean addAttraction(Attraction attraction) {
-        return attractionMapper.insert(attraction)>0;
+        boolean inserted = attractionMapper.insert(attraction) > 0;
+        if (inserted) attractionListCache.invalidateAfterCommit();
+        return inserted;
     }
 
     /**
      * 按评分降序、ID 降序游标分页查询景点，并计算本页景点距离。
      *
-     * <p>游标绑定关键词、星级、城市和标签条件；查询 size + 1 条判断是否还有下一页，
+     * <p>游标绑定关键词、星级、城市和标签条件。前 3 页优先读取不含用户距离的缓存，
+     * 命中后按当前用户位置重算距离；旧版游标和深页直接查库。
+     * 缓存未命中时查询 size + 1 条判断是否还有下一页，
      * 缺少用户坐标时抛出 LocationUnavailableException。
      *
      * @param query 筛选条件、页大小、用户坐标及可选游标
@@ -64,21 +73,17 @@ public class AttractionServiceImpl implements IAttractionService {
         String scope = CursorPaginationUtils.scope(query.getKeyword(), query.getStars(), query.getCity(), tags);
         CursorPaginationUtils.Cursor cursor = query.getCursor() != null && !query.getCursor().isBlank()
                 ? CursorPaginationUtils.decode(query.getCursor(), "rating", scope) : null;
+        String cacheKey = attractionListCache.pageKey("rating", scope, size, cursor);
+        PageResult<Attraction> cached = cacheKey == null ? null : attractionListCache.get(cacheKey);
+        if (cached != null) {
+            calculateDistances(cached.getData(), query.getUserLng(), query.getUserLat());
+            return cached;
+        }
         List<Attraction> rows = attractionMapper.selectAttractionPage(size + 1,
                 query.getKeyword(), query.getStars(), query.getCity(), query.getTags(),
                 cursor == null ? null : cursor.id(), cursor == null ? null : cursor.value());
         boolean hasMore = rows.size() > size;
         List<Attraction> attractions = new ArrayList<>(rows.subList(0, Math.min(size, rows.size())));
-
-        //计算与用户的距离
-        attractions.forEach(attraction -> {
-            double distance = Gcj02DistanceCalculator.calculateDistance(
-                    query.getUserLng(), query.getUserLat(),
-                    attraction.getLongitude(),attraction.getLatitude()
-            );
-            double formattedDistance = Math.round(distance * 10) / 10.0;    //保留一位小数
-            attraction.setDistance(formattedDistance);
-        });
 
         PageResult<Attraction> result = new PageResult<>();
         result.setData(attractions);
@@ -86,9 +91,23 @@ public class AttractionServiceImpl implements IAttractionService {
         result.setHasMore(hasMore);
         if (hasMore) {
             Attraction last = attractions.get(attractions.size() - 1);
-            result.setNextCursor(CursorPaginationUtils.encode("rating", scope, last.getRating(), last.getId()));
+            result.setNextCursor(cursor != null && cursor.page() == 0
+                    ? CursorPaginationUtils.encode("rating", scope, last.getRating(), last.getId())
+                    : CursorPaginationUtils.encode("rating", scope, last.getRating(), last.getId(),
+                    cursor == null ? 2 : Math.min(4, cursor.page() + 1)));
         }
+        if (cacheKey != null) attractionListCache.put(cacheKey, result);
+        calculateDistances(attractions, query.getUserLng(), query.getUserLat());
         return result;
+    }
+
+    /** 按当前请求的用户坐标计算展示距离，避免共享缓存包含其他用户的距离。 */
+    private void calculateDistances(List<Attraction> attractions, Double userLng, Double userLat) {
+        attractions.forEach(attraction -> {
+            double distance = Gcj02DistanceCalculator.calculateDistance(
+                    userLng, userLat, attraction.getLongitude(), attraction.getLatitude());
+            attraction.setDistance(Math.round(distance * 10) / 10.0);
+        });
     }
 
     /**

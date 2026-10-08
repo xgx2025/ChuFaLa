@@ -6,6 +6,7 @@ import com.hope.chufala.mapper.HotelMapper;
 import com.hope.chufala.model.dto.HotelPageQueryDTO;
 import com.hope.chufala.model.entity.Hotel;
 import com.hope.chufala.service.impl.HotelServiceImpl;
+import com.hope.chufala.util.CursorPaginationUtils;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -23,7 +24,7 @@ class HotelListCacheFlowTest {
         HotelServiceImpl service = service(mapper, cache);
         Hotel hotel = hotel();
         PageResult<Hotel> cached = page(hotel);
-        when(cache.firstPageKey(eq("rating"), anyString(), eq(10))).thenReturn("page-key");
+        when(cache.pageKey(eq("rating"), anyString(), eq(10), isNull())).thenReturn("page-key");
         when(cache.get("page-key")).thenReturn(cached);
 
         PageResult<Hotel> result = service.queryHotelsByScoreRank(query("rating"));
@@ -40,7 +41,7 @@ class HotelListCacheFlowTest {
         HotelListCache cache = mock(HotelListCache.class);
         HotelServiceImpl service = service(mapper, cache);
         Hotel hotel = hotel();
-        when(cache.firstPageKey(eq("rating"), anyString(), eq(10))).thenReturn("page-key");
+        when(cache.pageKey(eq("rating"), anyString(), eq(10), isNull())).thenReturn("page-key");
         when(mapper.selectByScoreRankPage(anyInt(), any(), any(), any(), any(), any(), any(),
                 anyDouble(), anyDouble(), any(), any())).thenReturn(List.of(hotel));
         doAnswer(invocation -> {
@@ -70,6 +71,58 @@ class HotelListCacheFlowTest {
         verifyNoInteractions(cache);
         verify(mapper).selectByScoreRankPage(eq(11), any(), any(), any(), any(), any(),
                 eq("distance"), anyDouble(), anyDouble(), any(), any());
+    }
+
+    @Test
+    void secondPageUsesCacheAndFourthPageQueriesDatabase() {
+        HotelMapper mapper = mock(HotelMapper.class);
+        HotelListCache cache = mock(HotelListCache.class);
+        HotelServiceImpl service = service(mapper, cache);
+        HotelPageQueryDTO second = query("rating");
+        String scope = CursorPaginationUtils.scope(null, null, null, null, List.of(), null, null);
+        second.setCursor(CursorPaginationUtils.encode("rating", scope, 4.9, 9L, 2));
+        when(cache.pageKey(eq("rating"), eq(scope), eq(10),
+                eq(new CursorPaginationUtils.Cursor(4.9, 9L, 2)))).thenReturn("page-2");
+        when(cache.get("page-2")).thenReturn(page(hotel()));
+
+        service.queryHotelsByScoreRank(second);
+        verifyNoInteractions(mapper);
+
+        HotelPageQueryDTO fourth = query("rating");
+        fourth.setCursor(CursorPaginationUtils.encode("rating", scope, 4.5, 20L, 4));
+        when(mapper.selectByScoreRankPage(anyInt(), any(), any(), any(), any(), any(), any(),
+                anyDouble(), anyDouble(), any(), any())).thenReturn(List.of(hotel()));
+        service.queryHotelsByScoreRank(fourth);
+        verify(cache).pageKey(eq("rating"), eq(scope), eq(10),
+                eq(new CursorPaginationUtils.Cursor(4.5, 20L, 4)));
+        verify(cache, never()).get(null);
+        verify(mapper).selectByScoreRankPage(eq(11), any(), any(), any(), any(), any(), any(),
+                anyDouble(), anyDouble(), eq(20L), eq(4.5));
+    }
+
+    @Test
+    void thirdPageCursorMovesToUncachedDepthAndStaysThere() {
+        HotelMapper mapper = mock(HotelMapper.class);
+        HotelListCache cache = mock(HotelListCache.class);
+        HotelServiceImpl service = service(mapper, cache);
+        String scope = CursorPaginationUtils.scope(null, null, null, null, List.of(), null, null);
+        HotelPageQueryDTO query = query("rating");
+        query.setSize(1);
+        query.setCursor(CursorPaginationUtils.encode("rating", scope, 4.9, 9L, 3));
+        Hotel first = hotel();
+        first.setId(8L);
+        first.setOverallRating(4.8);
+        Hotel second = hotel();
+        second.setId(7L);
+        second.setOverallRating(4.7);
+        when(mapper.selectByScoreRankPage(anyInt(), any(), any(), any(), any(), any(), any(),
+                anyDouble(), anyDouble(), any(), any())).thenReturn(List.of(first, second));
+
+        PageResult<Hotel> third = service.queryHotelsByScoreRank(query);
+        assertEquals(4, CursorPaginationUtils.decode(third.getNextCursor(), "rating", scope).page());
+        query.setCursor(third.getNextCursor());
+        PageResult<Hotel> fourth = service.queryHotelsByScoreRank(query);
+        assertEquals(4, CursorPaginationUtils.decode(fourth.getNextCursor(), "rating", scope).page());
     }
 
     private HotelServiceImpl service(HotelMapper mapper, HotelListCache cache) {

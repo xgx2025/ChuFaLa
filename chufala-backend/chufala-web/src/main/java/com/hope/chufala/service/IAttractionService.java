@@ -25,7 +25,7 @@ public interface IAttractionService {
     boolean addAttraction(Attraction attraction);
 
     /**
-     * 按评分和 ID 游标分页查询景点。
+     * 按评分和 ID 游标分页查询景点；前 3 页优先读取 Redis。
      *
      * @param query 筛选条件、页大小、用户坐标及可选游标
      * @return 分页结果；nextCursor 仅有下一页时返回
