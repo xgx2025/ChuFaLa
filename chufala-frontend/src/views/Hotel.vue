@@ -288,8 +288,17 @@
               
               <div class="hotel-card__content">
                 <div class="hotel-card__header">
-                    <h3 class="hotel-card__name">{{ hotel.name }}</h3>
-                      <el-rate class="hotel-card__star" v-model="hotel.stars" disabled fill-icon="StarFilled" void-icon="Star" />
+                  <h3 class="hotel-card__name">{{ hotel.name }}</h3>
+                  <!-- 星级：原来用 el-rate 渲染一排五角星，和图片上「4.8 超棒」的
+                       评分徽标撞车 —— 五角星在中文语境里几乎等同于「评分」，
+                       两者并排用户会以为是同一件事；stars=0（未评级）时还会
+                       渲染出一排几乎看不见的空星。改成文字标签后与评分在形态上
+                       彻底区分，未评级也给出了明确交代。 -->
+                  <span
+                    class="hotel-card__star"
+                    :class="{ 'hotel-card__star--unrated': !hotel.stars }"
+                    :title="hotel.stars ? `${starLabel(hotel.stars)}酒店` : '该酒店未参与星级评定'"
+                  >{{ starLabel(hotel.stars) }}</span>
                 </div>
                 
                 <div class="hotel-card__location">
@@ -674,6 +683,15 @@ const starOptions = [
   { value: '3', label: '三星级' },
   { value: 'unrated', label: '未评级' }
 ];
+
+// 卡片上的星级文案。用中文数字，与筛选区「五星级 / 四星级 / 三星级 / 未评级」
+// 的写法保持一致 —— 不能只靠 starOptions 查表，那里面只有 3~5 星，
+// 一/二星级会掉进兜底分支拼出「2星级」这种阿拉伯数字混排。
+const STAR_CN = ['', '一', '二', '三', '四', '五'];
+const starLabel = (stars) => {
+  const n = Math.max(0, Math.min(5, Math.round(Number(stars) || 0)));
+  return n ? `${STAR_CN[n]}星级` : '未评级';
+};
 
 const facilityOptions = [
   { key: 'pool', label: '游泳池' },
@@ -1966,9 +1984,37 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+/* 星级标签。
+   原来这里是一排 el-rate 五角星 —— 五角星在中文语境里几乎等同于「评分」，
+   而同一张卡片图片上已经有一个「4.8 超棒」的评分徽标，两个都是星形相关，
+   用户会以为在说同一件事。改成文字标签后，形态上与评分彻底区分：
+   评分是「数字 + 档位词」的深色胶囊，星级是「几星级」的琥珀色小标签。 */
 .hotel-card__star {
-   margin-left: 0;
-   flex-shrink: 0;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  /* 与标题首行行框等高（--fs-h3 × 1.4，同 .hotel-card__name 的 line-height），
+     文字因此与标题第一行垂直居中对齐 */
+  height: calc(var(--fs-h3) * 1.4);
+  /* base.css 刻意不做 `* { margin: 0 }`，h3 带着浏览器默认的 1em 上边距，
+     标题首行整体下移了 1em。标签要跟着下移同样的距离才对齐。 */
+  margin-top: var(--fs-h3);
+  padding: 0 var(--sp-2);
+  border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
+  border-radius: var(--r-sm);
+  background-color: var(--c-accent-soft);
+  color: var(--c-accent-strong);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* 未参与星级评定：中性灰，不抢眼，但明确交代「这里不是漏了」 */
+.hotel-card__star--unrated {
+  border-color: var(--c-line);
+  background-color: var(--c-bg-mute);
+  color: var(--c-ink-4);
+  font-weight: 500;
 }
 
 .hotel-card:hover .hotel-card__name {
