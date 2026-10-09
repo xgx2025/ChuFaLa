@@ -2,37 +2,38 @@
   <div class="travel-planner">
     <div class="planner-header">
       <div class="header-content">
-        <span class="header-eyebrow">CHUFALA · AI TRAVEL STUDIO</span>
+        <span class="header-eyebrow">CHUFALA / TRAVEL STUDIO</span>
         <h1 class="main-title">
           把想去的地方，排成刚好的旅程
         </h1>
         <p class="subtitle">告诉我们目的地、时间和喜好，剩下的路线交给智能规划。</p>
       </div>
-      
-      <!-- 模式切换器 -->
-      <div class="mode-switcher">
-        <button type="button"
-          class="mode-item" 
-          :class="{ active: currentMode === 'planning' }"
-          @click="currentMode = 'planning'"
-        >
-          <el-icon><MapLocation /></el-icon>
-          <span>行程定制</span>
-        </button>
-        <button type="button"
-          class="mode-item" 
-          :class="{ active: currentMode === 'chat' }"
-          @click="currentMode = 'chat'"
-        >
-          <el-icon><ChatDotRound /></el-icon>
-          <span>AI 旅行顾问</span>
+      <div class="header-actions">
+        <div class="mode-switcher" aria-label="规划模式">
+          <button type="button"
+            class="mode-item"
+            :class="{ active: currentMode === 'planning' }"
+            :aria-pressed="currentMode === 'planning'"
+            @click="currentMode = 'planning'"
+          >
+            <el-icon><MapLocation /></el-icon>
+            <span>行程定制</span>
+          </button>
+          <button type="button"
+            class="mode-item"
+            :class="{ active: currentMode === 'chat' }"
+            :aria-pressed="currentMode === 'chat'"
+            @click="currentMode = 'chat'"
+          >
+            <el-icon><ChatDotRound /></el-icon>
+            <span>AI 旅行顾问</span>
+          </button>
+        </div>
+        <button type="button" class="history-btn" @click="showHistory = true">
+          <el-icon><Clock /></el-icon>
+          <span>规划历史</span>
         </button>
       </div>
-
-      <el-button class="history-btn" @click="showHistory = true">
-        <el-icon><Clock /></el-icon>
-        规划历史
-      </el-button>
     </div>
 
     <!-- 历史记录抽屉 -->
@@ -107,6 +108,7 @@
             
             <el-form-item label="同行总预算（元）">
               <el-slider v-model="travelForm.budget" :step="100" :min="0" :max="20000" show-input />
+              <p class="form-field-hint">按 {{ travelForm.people }} 人同行估算，可在生成后查看费用构成。</p>
             </el-form-item>
             
             <el-form-item>
@@ -138,20 +140,47 @@
           </template>
           
           <div v-if="!itinerary.length && !isGenerating" class="empty-state">
-            <div class="empty-state__graphic"><el-icon class="empty-state__icon"><Suitcase /></el-icon></div>
+            <div class="empty-state__route" aria-hidden="true">
+              <span class="route-stamp">出发<br>啦</span>
+              <span class="route-line"></span>
+              <span class="route-point route-point--start"></span>
+              <span class="route-point route-point--end"></span>
+              <span class="route-label route-label--start">出发</span>
+              <span class="route-label route-label--end">抵达心动的地方</span>
+            </div>
             <span class="empty-state__eyebrow">下一站，由你决定</span>
-            <h2>一段好旅程，从一个想法开始</h2>
-            <p>调整左侧的目的地、日期与预算，点击「生成我的行程」。路线、景点与花费会在这里呈现。</p>
+            <h2>先选一个方向，再慢慢丰富旅程</h2>
+            <p>填写左侧需求，生成包含每日路线、景点与预算的旅行提案。也可以从一份灵感开始。</p>
+            <div class="inspiration-list" aria-label="旅行灵感示例">
+              <button v-for="idea in tripIdeas" :key="idea.destination" type="button" class="inspiration-card" @click="applyTripIdea(idea)">
+                <span class="inspiration-card__meta">{{ idea.kind }} / {{ idea.days }} DAYS</span>
+                <strong>{{ idea.destination }}</strong>
+                <small>{{ idea.caption }}</small>
+                <el-icon><ArrowRight /></el-icon>
+              </button>
+            </div>
           </div>
           
           <div v-else-if="isGenerating" class="loading-state">
-            <div class="loading-spinner"></div>
+            <div class="loading-state__eyebrow"><span class="loading-state__pulse"></span> 正在规划 {{ planDestination }} 的旅程</div>
             <h2>正在串联你的旅行灵感</h2>
-            <p>{{ planningProgress }}</p>
+            <p aria-live="polite">{{ planningProgress }}</p>
+            <ol class="planning-steps" aria-label="规划进度">
+              <li v-for="(step, index) in planningSteps" :key="step" :class="{ 'is-active': planningStage === index, 'is-complete': planningStage > index }">
+                <span>{{ String(index + 1).padStart(2, '0') }}</span>{{ step }}
+              </li>
+            </ol>
+            <div class="loading-preview" aria-hidden="true">
+              <div class="loading-preview__day"><span>DAY 01</span><i></i></div>
+              <div class="loading-preview__stop"><b></b><span><i></i><i></i></span></div>
+              <div class="loading-preview__stop"><b></b><span><i></i><i></i></span></div>
+              <div class="loading-preview__stop"><b></b><span><i></i><i></i></span></div>
+            </div>
+            <small class="loading-state__note">完成后会自动显示每日路线和费用概览</small>
           </div>
           
           <el-timeline v-else>
-            <el-timeline-item v-for="(day, index) in itinerary" :key="index" :timestamp="`DAY ${day.day}`" placement="top" :hollow="true" class="custom-timeline-item">
+            <el-timeline-item v-for="(day, index) in itinerary" :id="`itinerary-day-${index}`" :key="index" :timestamp="`DAY ${day.day}`" placement="top" :hollow="true" class="custom-timeline-item">
               <div class="day-weather">
                 <img :src="`/weather/${day.weather}.png`" :alt="day.weather" />
                 <span>{{ day.temperature }} · {{ day.weather }}</span>
@@ -164,7 +193,7 @@
                       <div class="activity-header">
                         <h3><span class="activity-time">{{ item.time }}</span>{{ item.name }}</h3>
                         <el-button text @click.stop="navigateToDestination(item)" class="nav-btn">
-                          📍导航
+                          <el-icon><Location /></el-icon>导航
                         </el-button>
                       </div>
                       <p class="activity-desc">{{ item.description }}</p>
@@ -172,16 +201,16 @@
                         <el-tag v-for="(tag,i) in item.tags" :key="tag" :type="types[i%types.length]" size="small">{{ tag }}</el-tag>
                       </div>
                       <div class="activity-footer">
-                        <p class="activity-tip" v-if="item.tip">📝 {{ item.tip }}</p>
+                        <p class="activity-tip" v-if="item.tip"><el-icon><Document /></el-icon>{{ item.tip }}</p>
                         <el-button class="activity-price" type="primary" size="small" @click.stop="router.push(`/attraction/detail/${item.id}`)">¥{{ item.price }} · 查看景点</el-button>
                       </div>
                     </div>
                   </div>
                   <div class="distance-car-time" v-if="itemIndex < day.activities.length - 1">
                     <span class="distance-car-time__line"></span>
-                    <img src="/icon/distance.png" alt="距离" />
+                    <el-icon aria-label="距离"><Location /></el-icon>
                     <span>{{ item.distance }}</span>
-                    <img src="/icon/car.png" alt="车程" />
+                    <el-icon aria-label="车程"><Van /></el-icon>
                     <span>{{ item.drivingTime }}</span>
                   </div>
                 </div>
@@ -194,8 +223,8 @@
                     <img :src="`${hotel.image}`" :alt="hotel.name" class="hotel-image">
                     <div class="hotel-info">
                       <h4>{{ hotel.name }}</h4>
-                      <div class="rating">⭐{{ hotel.rating }}</div>
-                      <p class="location">📍 距离市中心{{hotel.downtownDistance}}</p>
+                      <div class="rating"><el-icon><StarFilled /></el-icon>{{ hotel.rating }}</div>
+                      <p class="location"><el-icon><Location /></el-icon>距离市中心{{hotel.downtownDistance}}</p>
                       <p class="price">¥{{hotel.price}}/晚</p>
                       <button class="select-btn"  @click="router.push(`/hotel/detail/${hotel.id}`)">选择此酒店</button>
                     </div>
@@ -210,12 +239,19 @@
       <!-- 地图和预算概览 -->
        <div class="map-panel" v-show="itinerary.length > 0 && !isGenerating">
         <div class="result-banner">
-          <div>
+          <div class="result-banner__main">
             <span class="result-banner__eyebrow">YOUR ITINERARY</span>
             <h2>{{ planDestination }} · {{ itinerary.length }} 天的旅行提案</h2>
-            <p>{{ planPeople }} 人同行 · 按每日路线探索，也可以在地图上查看位置</p>
+            <p>{{ planPeople }} 人同行 <span class="result-banner__divider"></span> {{ mapActivityCount }} 处行程站点 <span class="result-banner__divider"></span> {{ planBudget.toLocaleString() }} 元预算</p>
+            <div class="result-banner__days" aria-label="跳转到每日行程">
+              <button v-for="(day, index) in itinerary" :key="day.day ?? index" type="button" @click="scrollToDay(index)">第 {{ day.day }} 天 <el-icon><ArrowRight /></el-icon></button>
+            </div>
           </div>
-          <div class="result-banner__seal">出发<br>啦</div>
+          <button type="button" class="result-banner__chat" :disabled="isGenerating" @click="continueWithAdvisor">
+            <el-icon><ChatDotRound /></el-icon>
+            和旅行顾问聊聊这份行程
+            <el-icon><ArrowRight /></el-icon>
+          </button>
         </div>
         <el-card class="map-card" shadow="never">
           <template #header>
@@ -326,17 +362,26 @@
                </div>
             </div>
             
-            <!-- 上下文摘要 -->
-            <div class="context-card" v-if="currentHistoryId">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="margin: 0;">当前规划</h4>
-                <el-icon class="close-context-btn" @click="currentHistoryId = null" style="cursor: pointer; color: #909399;"><CircleClose /></el-icon>
+            <!-- 当前问答所引用的行程快照 -->
+            <div class="context-card" v-if="currentHistoryId && itinerary.length">
+              <div class="context-card__top">
+                <span class="context-card__eyebrow"><el-icon><Link /></el-icon> 已引用行程</span>
+                <button type="button" class="context-card__remove" title="取消引用行程" aria-label="取消引用行程" @click="currentHistoryId = null">
+                  <el-icon><Close /></el-icon>
+                </button>
               </div>
-              <p>{{ travelForm.destination }} {{ travelForm.days }}日游</p>
-              <div class="context-tags">
-                <span class="tag">{{ travelForm.people }}人</span>
-                <span class="tag">¥{{ travelForm.budget }}</span>
+              <div class="context-card__title">
+                <strong :title="planDestination">{{ planDestination }}</strong>
+                <span>{{ itinerary.length }} 天</span>
               </div>
+              <p class="context-card__hint">顾问会参考这份路线回答你的问题</p>
+              <div class="context-card__facts">
+                <div><small>同行人数</small><strong>{{ planPeople }} 人</strong></div>
+                <div><small>同行预算</small><strong>¥{{ Number(planBudget).toLocaleString() }}</strong></div>
+              </div>
+              <button type="button" class="context-card__view" @click="openReferencedItinerary">
+                查看完整行程 <el-icon><ArrowRight /></el-icon>
+              </button>
             </div>
           </div>
 
@@ -358,10 +403,11 @@
                   升级解锁
                 </el-button>
              </div>
-             <div v-if="currentHistoryId" class="plan-reference-tag" style="font-size: 12px; color: #67c23a; display: flex; align-items: center; gap: 4px;">
-                <el-icon><Link /></el-icon> 已引用当前行程
-                <el-icon class="close-reference-btn" @click="currentHistoryId = null" style="cursor: pointer; margin-left: 4px;"><CircleClose /></el-icon>
-             </div>
+             <button v-if="currentHistoryId && itinerary.length" type="button" class="plan-reference-tag" @click="openReferencedItinerary" :title="`查看已引用的${planDestination}行程`">
+               <span class="plan-reference-tag__dot"></span>
+               正参考 {{ planDestination }} · {{ itinerary.length }} 天行程
+               <el-icon><ArrowRight /></el-icon>
+             </button>
           </div>
           <div class="chat-body">
             <div v-if="chatMessages.length === 1 && !currentSessionId" class="chat-welcome">
@@ -464,11 +510,11 @@
 defineOptions({
   name: 'Guide'
 })
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { ref, shallowRef, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { ElMessage, ElNotification } from 'element-plus';
 import * as echarts from 'echarts';
 import { loadAMap } from '@/utils/amap-loader';
-import { Clock, Delete, ChatDotRound, MapLocation, Promotion, Food, Ticket, Lock, Plus, Download, Link, Picture, House, Loading, CircleClose, MagicStick, Suitcase, Location } from '@element-plus/icons-vue'
+import { Clock, Delete, ChatDotRound, MapLocation, Promotion, Food, Ticket, Lock, Plus, Download, Link, Picture, House, Loading, MagicStick, Location, ArrowRight, Document, Van, StarFilled, Close } from '@element-plus/icons-vue'
 import router from '@/router'
 import request from '@/utils/request';
 import { getTripPlanService,getPlanHistoryService,getHistoricalItineraryService, sendChatStream, getChatHistoryService, getChatMessagesService, deleteConversationService, uploadChatImageService } from '@/api/agent';
@@ -874,8 +920,27 @@ const travelForm = ref({
   budget: 5000,
 });
 
+const tripIdeas = [
+  { destination: '张家界', days: 3, budget: 5000, preferences: ['自然风光'], kind: '山野', caption: '在山间留一点慢下来的时间' },
+  { destination: '杭州', days: 2, budget: 3500, preferences: ['历史文化', '美食探索'], kind: '城市', caption: '湖边散步，顺路尝尝当地味道' },
+  { destination: '大理', days: 4, budget: 7000, preferences: ['自然风光', '休闲度假'], kind: '度假', caption: '把日程留给洱海和午后阳光' }
+];
+
+const applyTripIdea = (idea) => {
+  travelForm.value = {
+    ...travelForm.value,
+    destination: idea.destination,
+    days: idea.days,
+    budget: idea.budget,
+    preferences: [...idea.preferences]
+  };
+  document.querySelector('.input-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
 const isGenerating = ref(false);
 const planningProgress = ref('正在准备你的行程，请稍候。');
+const planningSteps = ['收集旅行线索', '编排每日路线', '核对花费预算'];
+const planningStage = ref(0);
 const itinerary = ref([]);
 const mapActivityCount = computed(() => itinerary.value.reduce((count, day) => count + (day.activities?.length || 0), 0));
 const activeActivity = ref(null);
@@ -883,8 +948,26 @@ const planDestination = ref('张家界');
 const planBudget = ref(5000);
 const planPeople = ref(2);
 const currentHistoryId = ref(null);
-const map = ref(null); // 存储地图实例
-const markers = ref([]); // 存储所有标记点
+const scrollToDay = (index) => {
+  document.getElementById(`itinerary-day-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+const openReferencedItinerary = () => {
+  currentMode.value = 'planning';
+  nextTick(() => document.querySelector('.result-banner')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+};
+const continueWithAdvisor = () => {
+  startNewChat();
+  const routeSummary = itinerary.value.slice(0, 3)
+    .map(day => `第${day.day}天：${(day.activities || []).map(activity => activity.name).join('、')}`)
+    .join('；');
+  chatInput.value = currentHistoryId.value
+    ? `关于我的${planDestination.value}${itinerary.value.length}天行程，我想调整一下安排：`
+    : `请参考我的${planDestination.value}${itinerary.value.length}天行程（${routeSummary}），我想调整一下安排：`;
+  currentMode.value = 'chat';
+  nextTick(() => document.querySelector('.chat-input input.el-input__inner')?.focus());
+};
+const map = shallowRef(null); // 保留高德地图原生实例，避免被 Vue 代理
+const markers = shallowRef([]); // 保留原生 Marker 对象供地图使用
 const markerDetails = new WeakMap(); // 行程景点与地图标记、说明窗的对应关系
 let activeInfoWindow = null;
 const budgetChart = ref(null); // ECharts 容器的引用
@@ -1000,13 +1083,13 @@ const disabledBeforeNow = (date) => {
 // 2. 修正进度条颜色映射（按后端中文分类匹配颜色）
 const getProgressColor = (category) => {
   const colors = {
-    '门票费用': '#E6A23C', // 橙色-门票
-    '住宿费用': '#67C23A', // 绿色-住宿
-    '餐饮费用': '#F56C6C', // 红色-餐饮
-    '交通费用': '#81D4FA', // 蓝色-交通
-    '其他费用': '#909399'  // 灰色-其他
+    '门票费用': '#D9A061',
+    '住宿费用': '#4B9485',
+    '餐饮费用': '#D17D6D',
+    '交通费用': '#6EA4BD',
+    '其他费用': '#9DAEB5'
   };
-  return colors[category] || '#2563eb'; // 默认蓝色（与设计令牌主色 #2563eb 保持一致）
+  return colors[category] || '#397C93';
 };
 
 // 渲染 ECharts 饼图
@@ -1039,7 +1122,9 @@ const renderBudgetChart = () => {
       {
         name: '预算分配',
         type: 'pie',
-        radius: '50%',
+        radius: ['46%', '68%'],
+        label: { show: false },
+        itemStyle: { borderColor: '#fff', borderWidth: 2 },
         data: pieData,
         emphasis: {
           itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' }
@@ -1082,6 +1167,7 @@ const generateItinerary = async () => {
 
   isGenerating.value = true;
   planningProgress.value = '正在准备你的行程，请稍候。';
+  planningStage.value = 0;
   planBudget.value = travelForm.value.budget;
   planPeople.value = travelForm.value.people;
   planDestination.value = travelForm.value.destination.trim();
@@ -1101,6 +1187,8 @@ const generateItinerary = async () => {
         if (event === 'progress') {
           const data = JSON.parse(message);
           planningProgress.value = data.message || '正在安排每日路线、景点和预算。';
+          if (data.node === 'PlanItineraryNode' || data.node === 'RecommendHotelNode') planningStage.value = Math.max(planningStage.value, 1);
+          if (data.node === 'CalculateBudgetNode') planningStage.value = 2;
           return;
         }
         if (event === 'failed') {
@@ -1114,6 +1202,7 @@ const generateItinerary = async () => {
         eventSource.close();
         try {
           const data = JSON.parse(message);
+          currentHistoryId.value = null;
           itinerary.value = data.dailySchedules;
           budgetSummary.value = data.budgetSummary;
           itinerary.value.forEach(day => {
@@ -1906,15 +1995,31 @@ onUnmounted(() => window.removeEventListener('resize', resizeBudgetChart));
 
 .context-card {
   margin-top: auto;
-  background: linear-gradient(135deg, var(--c-violet-500) 0%, var(--c-violet-700) 100%);
-  color: white;
-  padding: 1rem;
-  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  padding: 15px;
+  border: 1px solid #d4e8e4;
+  border-radius: 12px;
+  background: radial-gradient(circle at 100% 0%, rgba(178, 219, 209, .32), transparent 45%), #f3f9f7;
+  color: #173e4c;
 }
-.context-card h4 { margin: 0 0 8px 0; }
-.context-card p { margin: 0 0 8px 0; font-size: var(--fs-body); opacity: 0.9; }
-.context-tags { display: flex; gap: 8px; }
-.context-tags .tag { background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px; font-size: var(--fs-caption); }
+.context-card::before { content: ''; position: absolute; top: 0; left: 15px; right: 15px; height: 2px; border-radius: 0 0 2px 2px; background: #64a99a; }
+.context-card__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.context-card__eyebrow { display: inline-flex; align-items: center; gap: 5px; color: #36796f; font-size: 11px; font-weight: 700; letter-spacing: .03em; }
+.context-card__eyebrow .el-icon { font-size: 13px; }
+.context-card__remove { display: grid; place-items: center; flex: 0 0 26px; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #7e9b97; font-size: 14px; cursor: pointer; }
+.context-card__remove:hover { background: #e1efea; color: #255f59; }
+.context-card__title { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.context-card__title strong { overflow: hidden; color: #143b49; font-size: 19px; font-weight: 700; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.context-card__title span { flex: 0 0 auto; color: #4c817d; font-size: 12px; font-weight: 600; }
+.context-card__hint { margin: 5px 0 12px; color: #718e8c; font-size: 11px; line-height: 1.5; }
+.context-card__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 11px 0 12px; border-top: 1px solid #dcebe7; border-bottom: 1px solid #dcebe7; }
+.context-card__facts div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.context-card__facts small { color: #839995; font-size: 10px; }
+.context-card__facts strong { overflow: hidden; color: #214e55; font: 700 13px var(--font-num); text-overflow: ellipsis; white-space: nowrap; }
+.context-card__view { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 10px; padding: 2px 0; border: 0; background: transparent; color: #287667; font: inherit; font-size: 11px; font-weight: 700; text-align: left; cursor: pointer; }
+.context-card__view:hover { color: #16594e; }
+.context-card__remove:focus-visible, .context-card__view:focus-visible, .plan-reference-tag:focus-visible { outline: 2px solid #2d877c; outline-offset: 2px; }
 
 .chat-main {
   flex: 1;
@@ -2605,6 +2710,174 @@ onUnmounted(() => window.removeEventListener('resize', resizeBudgetChart));
 .chat-footer { padding: 18px 24px; }
 .message-row.ai .message-bubble { box-shadow: none; }
 .message-row.user .message-bubble { background: #1d6389; }
+
+/* Compact planning masthead */
+.planner-header {
+  min-height: 126px;
+  align-items: center;
+  gap: 32px;
+  padding-top: 20px;
+  padding-bottom: 20px;
+  background: radial-gradient(circle at 83% -145%, rgba(145, 211, 224, .32), transparent 46%),
+    linear-gradient(112deg, #112f46 0%, #174963 64%, #1e6076 100%);
+}
+.planner-header::after { width: 280px; height: 280px; bottom: -242px; right: 17%; }
+.header-content { min-width: 0; }
+.header-eyebrow { margin-bottom: 7px; font-size: 10px; letter-spacing: .19em; color: #a8d3d8; }
+.header-content .main-title { margin-bottom: 5px; font-size: clamp(25px, 2vw, 32px); line-height: 1.25; }
+.subtitle { font-size: 12px; color: #c2dae3; }
+.header-actions { z-index: 1; display: flex; align-items: center; gap: 13px; justify-self: end; }
+.mode-switcher { flex: 0 0 auto; padding: 4px; gap: 2px; margin: 0; }
+.mode-item { min-height: 34px; padding: 6px 13px; gap: 6px; font-size: 12px; }
+.history-btn {
+  position: static;
+  transform: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  height: 35px;
+  padding: 0 12px;
+  border: 1px solid rgba(215, 239, 244, .34);
+  border-radius: var(--r-full);
+  background: rgba(255, 255, 255, .07);
+  color: #e8f4f7;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color .2s ease, border-color .2s ease;
+}
+.history-btn:hover { background: rgba(255, 255, 255, .15); border-color: rgba(255, 255, 255, .58); }
+.mode-item:focus-visible, .history-btn:focus-visible, .inspiration-card:focus-visible,
+.result-banner__days button:focus-visible, .result-banner__chat:focus-visible {
+  outline: 2px solid #e6ba78;
+  outline-offset: 3px;
+}
+.planner-container { padding-top: 22px; }
+.input-panel { top: 82px; }
+.form-field-hint { margin: 4px 0 0; color: #8394a0; font-size: 11px; line-height: 1.5; }
+
+/* A small route sketch gives the planning blank state a clear travel identity. */
+.empty-state { min-height: 520px; padding: 28px 22px 35px; }
+.empty-state__route {
+  position: relative;
+  width: min(100%, 650px);
+  height: 150px;
+  margin-bottom: 21px;
+  overflow: hidden;
+  border: 1px solid #dae9e9;
+  border-radius: 15px;
+  background: radial-gradient(circle at 16% 88%, rgba(251, 223, 173, .56), transparent 35%),
+    repeating-radial-gradient(circle at 85% 80%, transparent 0 24px, rgba(72, 131, 143, .075) 25px 26px),
+    #f1f7f5;
+}
+.route-stamp {
+  position: absolute;
+  top: 22px;
+  right: 28px;
+  display: grid;
+  place-items: center;
+  width: 66px;
+  height: 66px;
+  border: 1px solid rgba(31, 107, 128, .35);
+  border-radius: 50%;
+  color: #276b81;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.1;
+  transform: rotate(12deg);
+}
+.route-line {
+  position: absolute;
+  left: 17%;
+  top: 62px;
+  width: 52%;
+  height: 47px;
+  border-top: 2px dashed #6ca4aa;
+  border-radius: 55% 55% 0 0;
+  transform: rotate(-5deg);
+}
+.route-point { position: absolute; width: 13px; height: 13px; border: 3px solid #fff; border-radius: 50%; box-shadow: 0 0 0 2px #4b90a2; background: #4b90a2; }
+.route-point--start { left: 16%; top: 71px; }
+.route-point--end { left: 68%; top: 55px; background: #d39855; box-shadow: 0 0 0 2px #d39855; }
+.route-label { position: absolute; color: #476979; font-size: 12px; font-weight: 600; }
+.route-label--start { left: 13%; top: 95px; }
+.route-label--end { left: 61%; top: 79px; }
+.empty-state__eyebrow { color: #347a8d; font-size: 11px; }
+.empty-state h2 { margin: 10px 0 6px; font-size: 23px; }
+.empty-state p { max-width: 540px; font-size: 13px; }
+.inspiration-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: min(100%, 650px); margin-top: 24px; }
+.inspiration-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 112px;
+  padding: 15px 15px 14px;
+  border: 1px solid #e0e9e9;
+  border-radius: 12px;
+  background: #fff;
+  color: #23475b;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .2s ease, background-color .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+.inspiration-card:hover { transform: translateY(-2px); border-color: #9bc8cd; background: #fbfefd; box-shadow: 0 10px 24px -17px rgba(28, 82, 98, .4); }
+.inspiration-card__meta { color: #a47345; font-size: 10px; font-weight: 700; letter-spacing: .09em; }
+.inspiration-card strong { font-size: 17px; line-height: 1.3; }
+.inspiration-card small { padding-right: 12px; color: #7c8e98; font-size: 11px; line-height: 1.45; }
+.inspiration-card .el-icon { position: absolute; right: 13px; top: 16px; color: #418c9e; font-size: 14px; }
+
+.loading-state { min-height: 520px; padding: 34px 24px; }
+.loading-state__eyebrow { display: inline-flex; align-items: center; gap: 8px; color: #287d8b; font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+.loading-state__pulse { width: 8px; height: 8px; border-radius: 50%; background: #4a9ca5; box-shadow: 0 0 0 5px rgba(74, 156, 165, .13); }
+.loading-state h2 { margin-top: 15px; }
+.loading-state p { max-width: 540px; font-size: 13px; }
+.planning-steps { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; width: min(100%, 510px); margin: 24px auto 0; padding: 0; list-style: none; }
+.planning-steps li { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid #e2eaea; border-radius: var(--r-full); color: #95a4a9; background: #f9fbfa; font-size: 11px; }
+.planning-steps li span { font: 700 10px var(--font-num); }
+.planning-steps li.is-active { border-color: #a9cdd0; background: #eaf5f4; color: #226f80; font-weight: 700; }
+.planning-steps li.is-complete { border-color: #c8e3dc; color: #4a8c7d; }
+.loading-preview { width: min(100%, 510px); margin: 28px auto 12px; padding: 18px 22px; border: 1px solid #e3ecec; border-radius: 13px; background: #fbfdfc; text-align: left; }
+.loading-preview__day { display: flex; align-items: center; gap: 12px; margin-bottom: 17px; color: #4a8291; font: 700 12px var(--font-num); letter-spacing: .08em; }
+.loading-preview__day i, .loading-preview__stop i { display: block; height: 10px; margin-bottom: 0; font-size: inherit; border-radius: 6px; background: linear-gradient(90deg, #e8f0ef 15%, #f6f9f8 45%, #e8f0ef 75%); background-size: 200% 100%; animation: guide-shimmer 1.7s linear infinite; }
+.loading-preview__day i { width: 95px; }
+.loading-preview__stop { display: flex; align-items: center; gap: 15px; margin: 0 0 14px; }
+.loading-preview__stop:last-child { margin-bottom: 0; }
+.loading-preview__stop b { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 8px; background: #e8f0ef; }
+.loading-preview__stop span { display: flex; flex-direction: column; gap: 8px; width: 62%; }
+.loading-preview__stop i:first-child { width: 78%; }
+.loading-preview__stop i:last-child { width: 52%; height: 8px; }
+.loading-state__note { color: #8697a0; font-size: 11px; }
+@keyframes guide-shimmer { to { background-position-x: -200%; } }
+
+.result-banner { align-items: center; gap: 20px; padding: 19px 24px; background: linear-gradient(110deg, #eaf5f4, #edf4f8); border-color: #d7e9e9; scroll-margin-top: 84px; }
+.result-banner__main { min-width: 0; }
+.result-banner__eyebrow { margin-bottom: 5px; color: #44889a; font-size: 10px; }
+.result-banner h2 { margin-bottom: 4px; font-size: 21px; }
+.result-banner p { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+.result-banner__divider { width: 3px; height: 3px; border-radius: 50%; background: #91afb6; }
+.result-banner__days { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.result-banner__days button { display: inline-flex; align-items: center; gap: 3px; min-height: 26px; padding: 3px 9px; border: 1px solid #cbdfe2; border-radius: var(--r-full); background: rgba(255, 255, 255, .72); color: #276a7c; font: inherit; font-size: 11px; cursor: pointer; }
+.result-banner__days button:hover { border-color: #80aeb8; background: #fff; }
+.result-banner__chat { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 0 0 auto; min-height: 39px; padding: 0 14px; border: 1px solid #1e687e; border-radius: 9px; background: #1e687e; color: #fff; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: transform .2s ease, background-color .2s ease; }
+.result-banner__chat:hover { transform: translateY(-1px); background: #17566a; }
+.custom-timeline-item { scroll-margin-top: 84px; }
+.nav-btn { display: inline-flex; align-items: center; gap: 4px; }
+.activity-tip, .rating, .hotel-info .location { display: inline-flex; align-items: center; gap: 5px; }
+.activity-tip .el-icon, .hotel-info .location .el-icon { flex: 0 0 auto; color: #6793a1; }
+.rating .el-icon { color: #c4914f; }
+.distance-car-time .el-icon { color: #6c9db0; font-size: 15px; }
+.chat-mode-container { height: calc(100vh - 212px); padding-top: 22px; }
+.plan-reference-tag { display: inline-flex; align-items: center; gap: 7px; flex: 0 1 auto; min-width: 0; min-height: 29px; padding: 5px 9px; border: 1px solid #cde5df; border-radius: var(--r-full); background: #f1faf6; color: #34776b; font: inherit; font-size: 11px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.plan-reference-tag:hover { border-color: #a5cec4; background: #e9f6f1; }
+.plan-reference-tag__dot { flex: 0 0 6px; width: 6px; height: 6px; border-radius: 50%; background: #5da88d; }
+.plan-reference-tag .el-icon { margin-left: 1px; font-size: 12px; }
+@media (prefers-reduced-motion: reduce) {
+  .loading-preview__day i, .loading-preview__stop i { animation: none; }
+  .inspiration-card, .result-banner__chat { transition: none; }
+}
 
 @media (max-width: 1320px) {
   .planner-container--has-result .map-panel { grid-template-columns: minmax(0, 1fr) minmax(290px, .9fr); }
