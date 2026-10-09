@@ -1,40 +1,45 @@
 <template>
   <div class="login-container">
-    <!-- 左侧品牌展示区（增强视觉层次） -->
+    <!-- 品牌展示区 -->
     <div class="brand-section">
-      <!-- Logo区域（优化图标协调性） -->
       <div class="logo">
-        <img src="../assets/logo.png" alt="logo" style="width: 100px; height: 100px"></img>
-        <h1 class="brand-name">出发啦</h1>
+        <img src="../assets/logo2.png" alt="" class="logo-icon">
+        <span class="brand-name">出发啦</span>
       </div>
-      
-      <!-- 品牌标语和装饰元素（新增太阳装饰） -->
+
       <div class="brand-content">
-        <h2>探索世界，从这里开始</h2>
-        <p>轻松规划，即刻出发，让每一次旅行都完美无缺</p>
-        
-        <div class="decorative-elements">
-          <!-- 新增太阳装饰增强场景感 -->
-          <div class="sun"></div>
-          <div class="cloud cloud-1"></div>
-          <div class="cloud cloud-2"></div>
-          <div class="mountain mountain-1"></div>
-          <div class="mountain mountain-2"></div>
+        <span class="brand-eyebrow">YOUR NEXT JOURNEY</span>
+        <h1>下一程，<br><span>从这里出发。</span></h1>
+        <p>收藏沿途的风景，开启属于你的旅程。</p>
+
+        <div class="journey-visual" aria-hidden="true">
+          <svg class="journey-route" viewBox="0 0 520 260" fill="none" preserveAspectRatio="xMidYMid meet">
+            <path d="M28 207C91 206 120 92 220 146C315 197 341 40 490 47" />
+            <circle cx="30" cy="207" r="7" />
+            <circle cx="489" cy="47" r="7" />
+          </svg>
+          <span class="route-label route-label--start">此刻 · 起点</span>
+          <div class="destination-ticket">
+            <span>下一站 / NEXT STOP</span>
+            <strong>向往的远方</strong>
+            <small>准备好，随时出发</small>
+          </div>
         </div>
       </div>
+      <div class="brand-footer"><span>TRAVEL BEGINS HERE</span><span>01 / 02</span></div>
     </div>
     
     <!-- 右侧登录表单区（增加入场动画） -->
     <div class="login-section" v-show="!showRegisterForm">
       <div class="login-card animate-page-enter">
+        <span class="form-eyebrow">账户登录</span>
         <h2 class="login-title">欢迎回来</h2>
-        <p class="login-subtitle">请登录您的账号继续探索</p>
+        <p class="login-subtitle">登录账号，继续规划你的下一程。</p>
         
         <!-- 登录表单 -->
         <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" class="login-form" label-width="0">
           <el-form-item prop="email">
-            <!-- 视觉隐藏label，屏幕阅读器可识别 -->
-            <label for="email-input" class="sr-only">邮箱</label>
+            <label for="email-input" class="field-label">邮箱地址</label>
             <el-input 
               id="email-input"
               v-model="loginForm.email" 
@@ -49,7 +54,7 @@
           </el-form-item>
           
           <el-form-item prop="password">
-            <label for="password-input" class="sr-only">密码</label>
+            <label for="password-input" class="field-label">登录密码</label>
             <el-input 
               id="password-input"
               v-model="loginForm.password" 
@@ -425,12 +430,14 @@ const showForgotPasswordTip = () => {
   overflow: hidden; /* 防止装饰元素溢出导致滚动 */
 }
 
-/* 品牌展示区（增强视觉层次和动画） */
+/* 深蓝航线与纸飞机标识呼应，紫色只保留在品牌图形中。 */
 .brand-section {
-  flex: 1;
-  background: linear-gradient(135deg, var(--c-violet-500) 0%, var(--c-violet-700) 50%, var(--c-violet-400) 100%);
-  color: white;
-  padding: 2.5rem;
+  flex: 0 0 46%;
+  background:
+    radial-gradient(circle at 87% 14%, rgba(77, 150, 255, 0.23), transparent 34%),
+    linear-gradient(145deg, #0b2142 0%, #123a73 58%, #1755a8 100%);
+  color: #fff;
+  padding: clamp(32px, 4vw, 64px);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -438,235 +445,257 @@ const showForgotPasswordTip = () => {
   overflow: hidden;
 }
 
+.brand-section::before {
+  content: '';
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  top: -320px;
+  right: -210px;
+  box-shadow: 0 0 0 85px rgba(255, 255, 255, 0.025),
+    0 0 0 170px rgba(255, 255, 255, 0.018);
+  pointer-events: none;
+}
+
 .logo {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  z-index: 1; /* 确保logo在装饰元素之上 */
-}
-
-.logo-icon {
-  width: 52px;
-  height: 52px;
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); /* 优化动画曲线 */
-}
-
-.logo:hover .logo-icon {
-  transform: scale(1.12) rotate(6deg);
-}
-
-.brand-name {
-  font-size: 2.1rem;
-  font-weight: 700;
-  margin: 0;
-  letter-spacing: 0.5px; /* 优化文字间距 */
-}
-
-.brand-content {
-  max-width: 550px;
-  margin: 0 auto;
-  text-align: center;
-  padding: 2rem 0;
+  gap: 14px;
+  position: relative;
   z-index: 1;
 }
 
-.brand-content h2 {
-  font-size: 2.6rem;
-  margin-bottom: 1.2rem;
+.logo-icon {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+}
+
+.brand-name {
+  font-size: 25px;
   font-weight: 600;
-  animation: fadeInUp 1s ease;
+  letter-spacing: 0.06em;
+}
+
+.brand-content {
+  width: 100%;
+  max-width: 560px;
+  margin: auto;
+  padding: 48px 0 18px;
+  position: relative;
+  z-index: 1;
+}
+
+.brand-eyebrow,
+.brand-footer {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: #a9cef9;
+}
+
+.brand-content h1 {
+  margin: 20px 0 18px;
+  font-size: clamp(36px, 4vw, 58px);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.035em;
+}
+
+.brand-content h1 span {
+  color: #9bd9ff;
 }
 
 .brand-content p {
-  font-size: var(--fs-h3);
-  opacity: 0.92;
-  line-height: 1.6;
-  animation: fadeInUp 1s ease 0.3s forwards;
-  opacity: 0;
+  margin: 0;
+  color: #d0e2f8;
+  font-size: 16px;
+  line-height: 1.8;
 }
 
-/* 装饰元素优化（增加层次和动画差异） */
-.decorative-elements {
+.journey-visual {
+  height: 280px;
   position: relative;
-  height: 220px;
-  margin-top: 3rem;
+  margin-top: 34px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-/* 太阳装饰 */
-.sun {
+.journey-route {
   position: absolute;
-  top: 30px;
-  right: 80px;
-  width: 60px;
-  height: 60px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 50%;
-  box-shadow: 0 0 30px rgba(255, 255, 255, 0.8);
-  animation: sunPulse 4s ease-in-out infinite;
+  inset: 12px 0 auto;
+  width: 100%;
+  height: 240px;
+  overflow: visible;
 }
 
-/* 云朵装饰（差异化动画） */
-.cloud {
+.journey-route path {
+  stroke: #95caff;
+  stroke-width: 2;
+  stroke-dasharray: 5 8;
+}
+
+.journey-route circle {
+  fill: #dff3ff;
+  stroke: #2572cf;
+  stroke-width: 6;
+}
+
+.route-label {
   position: absolute;
-  width: 140px;
-  height: 55px;
-  background: rgba(255, 255, 255, 0.22);
-  border-radius: 50%;
-  box-shadow: 
-    90px 25px 0 8px rgba(255, 255, 255, 0.22),
-    -15px 18px 0 15px rgba(255, 255, 255, 0.22);
+  bottom: 16px;
+  left: 4px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #c3ddfa;
 }
 
-.cloud-1 {
-  top: 60px;
-  left: 40px;
-  animation: float 9s ease-in-out infinite;
-}
-
-.cloud-2 {
-  top: 90px;
-  right: 60px;
-  animation: float 11s ease-in-out infinite 1.5s; /* 延迟动画，增加层次感 */
-  transform: scale(0.85);
-}
-
-/* 山峰装饰（差异化大小和位置） */
-.mountain {
+.destination-ticket {
   position: absolute;
-  bottom: 0;
-  width: 0;
-  height: 0;
-  border-left: 100px solid transparent;
-  border-right: 100px solid transparent;
-  border-bottom: 150px solid rgba(255, 255, 255, 0.18);
-  animation: fadeIn 2s ease forwards;
-  opacity: 0;
+  top: 66px;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  width: 210px;
+  padding: 20px 22px;
+  color: var(--c-ink);
+  background: #f6fbff;
+  border-radius: 16px;
+  box-shadow: 0 18px 45px rgba(0, 14, 42, 0.24);
+  transform: rotate(4deg);
 }
 
-.mountain-1 {
-  left: 30%;
-  transform: translateX(-50%);
-  animation-delay: 0.6s;
+.destination-ticket > span {
+  color: var(--c-primary-600);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
-.mountain-2 {
-  left: 70%;
-  transform: translateX(-50%);
-  border-left: 80px solid transparent;
-  border-right: 80px solid transparent;
-  border-bottom: 120px solid rgba(255, 255, 255, 0.15);
-  animation-delay: 0.9s;
+.destination-ticket strong {
+  margin: 13px 0 17px;
+  font-size: 23px;
+  font-weight: 600;
 }
 
-.mountain::after {
-  content: '';
-  position: absolute;
-  top: 30px;
-  left: -120px;
-  width: 0;
-  height: 0;
-  border-left: 120px solid transparent;
-  border-right: 120px solid transparent;
-  border-bottom: 180px solid rgba(255, 255, 255, 0.12);
+.destination-ticket small {
+  padding-top: 12px;
+  border-top: 1px dashed #bfd5eb;
+  color: var(--c-ink-3);
+  font-size: 11px;
 }
 
-.mountain-2::after {
-  left: -90px;
-  border-left: 90px solid transparent;
-  border-right: 90px solid transparent;
-  border-bottom: 140px solid rgba(255, 255, 255, 0.1);
+.brand-footer {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  z-index: 1;
 }
 
-/* 登录表单区（优化卡片质感） */
+/* 表单区保持安静，让注意力落在输入与主操作上。 */
 .login-section,.register-section {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
-  background-color: var(--c-bg-sub); /* 优化背景色，更柔和 */
+  padding: 48px clamp(32px, 6vw, 96px);
+  background: #fff;
 }
-
 
 .login-card,.register-card {
   width: 100%;
-  max-width: 420px;
-  background: white;
-  padding: 2.8rem;
-  border-radius: 16px; /* 增大圆角，更现代 */
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.09);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  max-width: 430px;
+  padding: 0;
   position: relative;
 }
 
-
-/* 登录卡入场动画 */
 .animate-page-enter{
   animation: cardEnter 0.6s ease-out forwards;
   opacity: 0;
-  transform: translateY(20px);
 }
 
-.login-card:hover,.register-card:hover{
-  transform: translateY(-6px);
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.13);
+.form-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--c-primary-600);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}
+
+.form-eyebrow::before {
+  content: '';
+  width: 18px;
+  height: 2px;
+  background: currentColor;
 }
 
 .login-title,.register-title {
-  font-size: 1.9rem;
+  font-size: 36px;
   font-weight: 600;
-  margin-bottom: 0.6rem;
+  line-height: 1.25;
+  margin: 20px 0 8px;
   color: var(--c-ink);
-  letter-spacing: 0.3px;
+  letter-spacing: -0.025em;
 }
 
 .login-subtitle,.register-subtitle{
   color: var(--c-ink-3);
-  margin-bottom: 2.2rem;
+  margin: 0 0 36px;
   font-size: var(--fs-body-lg);
-  line-height: 1.5;
+  line-height: 1.65;
 }
 
 .login-form,.register-form{
-  margin-bottom: 1.8rem;
+  margin-bottom: 24px;
 }
 
-/* 输入框优化（增强焦点反馈） */
+.field-label {
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+  color: var(--c-ink-2);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.login-form :deep(.el-form-item) {
+  margin-bottom: 20px;
+}
+
 .el-input {
   height: 52px;
-  border-radius: 10px; /* 增大圆角 */
-  margin-bottom: 1.2rem;
-  transition: box-shadow 0.3s ease, border-color 0.3s ease;
-  border-color: var(--c-line);
+  border-radius: var(--r-sm);
 }
 
-.el-input__inner {
-  border-radius: 10px !important; /* 覆盖Element默认样式 */
-  font-size: var(--fs-body-lg);
-  padding: 0 16px;
+.el-input :deep(.el-input__wrapper) {
+  border-radius: var(--r-sm);
+  box-shadow: 0 0 0 1px var(--c-line) inset;
 }
 
-.el-input.input-focus {
-  transform: translateY(-2px); /* 焦点时轻微上浮 */
+.el-input :deep(.el-input__inner) {
+  font-size: 15px;
 }
 
-.el-input.input-focus .el-input__inner {
-  border-color: var(--c-violet-600);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); /* 增强焦点阴影 */
+.el-input.input-focus :deep(.el-input__wrapper) {
+  box-shadow: 0 0 0 1px var(--c-primary-600) inset,
+    0 0 0 3px var(--c-primary-100);
 }
 
-.el-input__prefix {
+.el-input :deep(.el-input__prefix) {
   color: var(--c-ink-4);
   font-size: var(--fs-body-lg);
 }
 
-/* 密码显示图标优化 */
-.el-input__icon {
+.el-input :deep(.el-input__icon) {
   transition: color 0.2s ease;
 }
 
-.el-input__icon:hover {
-  color: var(--c-violet-600); /*  hover时变色，提示可点击 */
+.el-input :deep(.el-input__icon:hover) {
+  color: var(--c-primary-600);
 }
 
 /* 表单选项优化（对齐和间距） */
@@ -691,12 +720,12 @@ const showForgotPasswordTip = () => {
 }
 
 .el-checkbox__input.is-checked .el-checkbox__inner {
-  background-color: var(--c-violet-600);
-  border-color: var(--c-violet-600);
+  background-color: var(--c-primary-600);
+  border-color: var(--c-primary-600);
 }
 
 .forgot-password {
-  color: var(--c-violet-600);
+  color: var(--c-primary-600);
   font-size: var(--fs-body);
   text-decoration: none;
   transition: color 0.2s ease;
@@ -704,28 +733,26 @@ const showForgotPasswordTip = () => {
 }
 
 .forgot-password:hover {
-  color: var(--c-violet-800);
+  color: var(--c-primary-700);
   text-decoration: underline;
-  transform: translateY(-1px);
 }
 
-/* 登录按钮优化（增强质感） */
+/* 单一主色承接页面的主要操作。 */
 .login-button,.register-button {
   width: 100%;
   height: 54px;
   font-size: var(--fs-body-lg);
-  font-weight: 500;
-  background: linear-gradient(90deg, var(--c-violet-500) 0%, var(--c-violet-700) 50%, var(--c-violet-400) 100%);
+  font-weight: 600;
+  background: var(--c-primary-600);
   border: none;
-  border-radius: 10px;
-  transition: box-shadow 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  letter-spacing: 0.5px;
+  border-radius: var(--r-sm);
+  transition: background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
 }
 
-.login-button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 18px rgba(156, 39, 176, 0.35);
-  background: linear-gradient(90deg, var(--c-primary-600) 0%, var(--c-violet-900) 50%, var(--c-violet-400) 100%);
+.login-button:hover,.register-button:hover {
+  background: var(--c-primary-700);
+  box-shadow: var(--sh-primary);
 }
 
 .login-button.is-loading .el-loading-spinner {
@@ -736,28 +763,27 @@ const showForgotPasswordTip = () => {
 .register-prompt {
   text-align: center;
   color: var(--c-ink-3);
-  margin: 2rem 0;
+  margin: 20px 0;
   font-size: var(--fs-body);
   line-height: 1.5;
 }
 
 .register-link {
-  color: var(--c-violet-600);
-  font-weight: 500;
+  color: var(--c-primary-600);
+  font-weight: 600;
   text-decoration: none;
   margin-left: 0.3rem;
   transition: color 0.2s ease;
 }
 
 .register-link:hover {
-  color: var(--c-violet-800);
+  color: var(--c-primary-700);
   text-decoration: underline;
-  transform: translateY(-1px);
 }
 
 /* 其他登录方式优化 */
 .other-login-methods {
-  margin-top: 2.5rem;
+  margin-top: 28px;
 }
 
 .divider {
@@ -834,7 +860,6 @@ const showForgotPasswordTip = () => {
   color: white;
 }
 
-/* 新增动画（丰富视觉体验） */
 @keyframes cardEnter {
   from {
     opacity: 0;
@@ -846,63 +871,23 @@ const showForgotPasswordTip = () => {
   }
 }
 
-@keyframes sunPulse {
-  0%, 100% {
-    box-shadow: 0 0 30px rgba(255, 255, 255, 0.8);
-  }
-  50% {
-    box-shadow: 0 0 45px rgba(255, 255, 255, 0.95);
-  }
-}
-
-/* 原有动画优化 */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(25px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes float {
-  0% {
-    transform: translateY(0) translateX(0);
-  }
-  50% {
-    transform: translateY(-18px) translateX(18px);
-  }
-  100% {
-    transform: translateY(0) translateX(0);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) scale(0.85);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) scale(1);
-  }
-}
-
-/* 响应式优化（更精细的适配） */
+/* 保持原有断点可用；完整的移动端布局调整留待下一阶段。 */
 @media (max-width: 992px) {
   .brand-section {
-    padding: 2rem;
+    padding: 32px;
   }
-  
-  .brand-content h2 {
-    font-size: 2.3rem;
+
+  .brand-content h1 {
+    font-size: 40px;
   }
-  
-  .login-card {
-    padding: 2.5rem;
-    max-width: 380px;
+
+  .destination-ticket {
+    right: 4px;
+    width: 190px;
+  }
+
+  .login-section,.register-section {
+    padding: 40px;
   }
 }
 
@@ -910,77 +895,70 @@ const showForgotPasswordTip = () => {
   .login-container {
     flex-direction: column;
   }
-  
+
   .brand-section {
-    padding: 1.8rem;
-    min-height: 280px; /* 优化小屏高度 */
+    flex: none;
+    min-height: 290px;
+    padding: 28px;
   }
-  
+
   .brand-content {
-    padding: 1.5rem 0;
+    margin: 0;
+    padding: 24px 0 10px;
   }
-  
-  .brand-content h2 {
-    font-size: var(--fs-h1);
-    margin-bottom: 1rem;
+
+  .brand-content h1 {
+    margin: 10px 0 8px;
+    font-size: 32px;
   }
-  
+
   .brand-content p {
-    font-size: 1.15rem;
+    font-size: 14px;
   }
-  
-  .decorative-elements {
-    height: 180px;
-    margin-top: 2rem;
+
+  .journey-visual {
+    display: none;
   }
-  
-  .login-section {
-    padding: 1.5rem;
-    padding-top: 0;
+
+  .login-section,.register-section {
+    padding: 36px 28px;
   }
-  
-  .login-card {
-    padding: 2rem;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.07);
+
+  .login-card,.register-card {
     max-width: 100%;
-    margin-top: -30px; /* 向上偏移，与品牌区衔接更自然 */
-    z-index: 2;
-    background: rgba(255, 255, 255, 0.98);
-    backdrop-filter: blur(4px); /* 增加毛玻璃效果 */
   }
-  
-  .login-title {
-    font-size: 1.7rem;
+
+  .login-title,.register-title {
+    font-size: 30px;
   }
-  
+
   .social-login {
-    gap: 1.5rem;
+    gap: 24px;
   }
 }
 
 @media (max-width: 480px) {
   .brand-section {
-    min-height: 250px;
+    min-height: 270px;
+    padding: 24px;
   }
-  
-  .logo-icon {
-    width: 48px;
-    height: 48px;
+
+  .brand-footer {
+    font-size: 9px;
   }
-  
+
   .brand-name {
-    font-size: 1.9rem;
+    font-size: 22px;
   }
-  
-  .login-card {
-    padding: 1.8rem;
-    margin-top: -20px;
+
+  .login-section,.register-section {
+    padding: 32px 24px;
   }
-  
+
   .el-input {
     height: 50px;
   }
-  
+
   .login-button {
     height: 52px;
   }
