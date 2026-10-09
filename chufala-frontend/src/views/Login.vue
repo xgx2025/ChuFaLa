@@ -14,7 +14,8 @@
 
         <div class="journey-visual" aria-hidden="true">
           <svg class="journey-route" viewBox="0 0 520 260" fill="none" preserveAspectRatio="xMidYMid meet">
-            <path d="M28 207C91 206 120 92 220 146C315 197 341 40 490 47" />
+            <path class="route-guide" d="M28 207C91 206 120 92 220 146C315 197 341 40 490 47" />
+            <path class="route-trace" d="M28 207C91 206 120 92 220 146C315 197 341 40 490 47" />
             <circle cx="30" cy="207" r="7" />
             <circle cx="489" cy="47" r="7" />
           </svg>
@@ -29,8 +30,8 @@
       <div class="brand-footer"><span>TRAVEL BEGINS HERE</span><span>01 / 02</span></div>
     </div>
     
-    <!-- 右侧登录表单区（增加入场动画） -->
-    <div class="login-section" v-show="!showRegisterForm">
+    <!-- 右侧登录表单区 -->
+    <div class="login-section" v-if="!showRegisterForm">
       <div class="login-card animate-page-enter">
         <span class="form-eyebrow">账户登录</span>
         <h2 class="login-title">欢迎回来</h2>
@@ -100,7 +101,7 @@
         </el-form>
         
         <div class="register-prompt"> 还没有账号？
-          <span class="register-link" aria-label="前往注册新账号" @click="switchToRegister">立即注册</span>
+          <button type="button" class="register-link" aria-label="前往注册新账号" @click="switchToRegister">立即注册</button>
         </div>
         
         <!-- 其他登录方式（优化按钮交互） -->
@@ -133,7 +134,7 @@
     </div>
 
     <!-- 注册表单 -->
-    <div class="register-section" v-show="showRegisterForm"> 
+    <div class="register-section" v-else>
       <div class="register-card animate-page-enter"> 
         <h2 class="register-title">欢迎注册</h2>
         <p class="register-subtitle">请填写以下信息以注册账号</p>
@@ -231,7 +232,7 @@
           </el-form-item>   
             <div class="register-prompt"> 
               已有账号？
-                <span class="register-link" @click="switchToLogin">立即登录</span>
+                <button type="button" class="register-link" @click="switchToLogin">立即登录</button>
             </div>
         </el-form>
       </div>
@@ -459,6 +460,17 @@ const showForgotPasswordTip = () => {
   pointer-events: none;
 }
 
+.logo, .brand-eyebrow, .brand-content h1, .brand-content > p,
+.journey-visual, .brand-footer {
+  animation: authRise var(--dur-slower) var(--ease-out) both;
+}
+
+.brand-eyebrow { animation-delay: 70ms; }
+.brand-content h1 { animation-delay: 130ms; }
+.brand-content > p { animation-delay: 210ms; }
+.journey-visual { animation-delay: 290ms; }
+.brand-footer { animation-delay: 360ms; }
+
 .logo {
   display: flex;
   align-items: center;
@@ -530,10 +542,23 @@ const showForgotPasswordTip = () => {
   overflow: visible;
 }
 
-.journey-route path {
+.journey-route .route-guide,
+.journey-route .route-trace {
   stroke: #95caff;
   stroke-width: 2;
+}
+
+.journey-route .route-guide {
   stroke-dasharray: 5 8;
+  opacity: 0.48;
+}
+
+.journey-route .route-trace {
+  stroke: #d7efff;
+  stroke-linecap: round;
+  stroke-dasharray: 650;
+  stroke-dashoffset: 650;
+  animation: drawRoute 1.35s 450ms var(--ease-out) both;
 }
 
 .journey-route circle {
@@ -564,6 +589,13 @@ const showForgotPasswordTip = () => {
   border-radius: 16px;
   box-shadow: 0 18px 45px rgba(0, 14, 42, 0.24);
   transform: rotate(4deg);
+  transition: transform var(--dur-slow) var(--ease-out),
+    box-shadow var(--dur-slow) var(--ease-out);
+}
+
+.destination-ticket:hover {
+  transform: translateY(-5px) rotate(2deg);
+  box-shadow: 0 24px 50px rgba(0, 14, 42, 0.3);
 }
 
 .destination-ticket > span {
@@ -610,10 +642,19 @@ const showForgotPasswordTip = () => {
   position: relative;
 }
 
-.animate-page-enter{
-  animation: cardEnter 0.6s ease-out forwards;
-  opacity: 0;
+.animate-page-enter {
+  animation: cardEnter var(--dur-slower) var(--ease-out) both;
 }
+
+.animate-page-enter > :is(.form-eyebrow, .login-title, .register-title, .login-subtitle, .register-subtitle, .login-form, .register-form, .register-prompt, .other-login-methods) {
+  animation: authRise var(--dur-slow) var(--ease-out) both;
+}
+
+.animate-page-enter > :is(.login-title, .register-title) { animation-delay: 70ms; }
+.animate-page-enter > :is(.login-subtitle, .register-subtitle) { animation-delay: 120ms; }
+.animate-page-enter > :is(.login-form, .register-form) { animation-delay: 170ms; }
+.animate-page-enter > .register-prompt { animation-delay: 220ms; }
+.animate-page-enter > .other-login-methods { animation-delay: 270ms; }
 
 .form-eyebrow {
   display: inline-flex;
@@ -674,6 +715,12 @@ const showForgotPasswordTip = () => {
 .el-input :deep(.el-input__wrapper) {
   border-radius: var(--r-sm);
   box-shadow: 0 0 0 1px var(--c-line) inset;
+  transition: box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+
+.el-input:hover :deep(.el-input__wrapper) {
+  box-shadow: 0 0 0 1px var(--c-primary-300) inset;
 }
 
 .el-input :deep(.el-input__inner) {
@@ -683,11 +730,23 @@ const showForgotPasswordTip = () => {
 .el-input.input-focus :deep(.el-input__wrapper) {
   box-shadow: 0 0 0 1px var(--c-primary-600) inset,
     0 0 0 3px var(--c-primary-100);
+  transform: translateY(-1px);
+}
+
+.el-form-item.is-error .el-input :deep(.el-input__wrapper) {
+  box-shadow: 0 0 0 1px var(--c-danger) inset;
 }
 
 .el-input :deep(.el-input__prefix) {
   color: var(--c-ink-4);
   font-size: var(--fs-body-lg);
+  transition: color var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+
+.el-input.input-focus :deep(.el-input__prefix) {
+  color: var(--c-primary-600);
+  transform: translateX(2px);
 }
 
 .el-input :deep(.el-input__icon) {
@@ -746,13 +805,35 @@ const showForgotPasswordTip = () => {
   background: var(--c-primary-600);
   border: none;
   border-radius: var(--r-sm);
+  position: relative;
+  overflow: hidden;
   transition: background-color var(--dur-base) var(--ease-out),
-    box-shadow var(--dur-base) var(--ease-out);
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.login-button::before,.register-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.2) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 550ms var(--ease-out);
 }
 
 .login-button:hover,.register-button:hover {
   background: var(--c-primary-700);
   box-shadow: var(--sh-primary);
+  transform: translateY(-2px);
+}
+
+.login-button:hover::before,.register-button:hover::before {
+  transform: translateX(120%);
+}
+
+.login-button:active,.register-button:active {
+  transform: translateY(0) scale(0.985);
+  box-shadow: none;
 }
 
 .login-button.is-loading .el-loading-spinner {
@@ -773,12 +854,28 @@ const showForgotPasswordTip = () => {
   font-weight: 600;
   text-decoration: none;
   margin-left: 0.3rem;
-  transition: color 0.2s ease;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  transition: color var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
 }
 
 .register-link:hover {
   color: var(--c-primary-700);
   text-decoration: underline;
+  transform: translateX(2px);
+}
+
+.register-link:focus-visible,
+.forgot-password:focus-visible,
+.social-btn:focus-visible,
+.login-button:focus-visible,
+.register-button:focus-visible {
+  outline: 3px solid var(--c-primary-300);
+  outline-offset: 3px;
 }
 
 /* 其他登录方式优化 */
@@ -830,6 +927,10 @@ const showForgotPasswordTip = () => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+.social-btn:active {
+  transform: scale(0.94);
+}
+
 .qq-btn {
   color: var(--c-brand-qq);
   border-color: var(--c-brand-qq);
@@ -868,6 +969,33 @@ const showForgotPasswordTip = () => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes authRise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes drawRoute {
+  from { stroke-dashoffset: 650; }
+  to { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo, .brand-eyebrow, .brand-content h1, .brand-content > p,
+  .journey-visual, .brand-footer, .animate-page-enter,
+  .animate-page-enter > *, .journey-route .route-trace {
+    animation: none !important;
+  }
+
+  .journey-route .route-trace { stroke-dashoffset: 0; }
+
+  .destination-ticket, .el-input :deep(.el-input__wrapper),
+  .el-input :deep(.el-input__prefix), .login-button, .register-button,
+  .login-button::before, .register-button::before,
+  .register-link, .social-btn {
+    transition: none !important;
   }
 }
 
