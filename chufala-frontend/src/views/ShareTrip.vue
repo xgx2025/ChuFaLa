@@ -26,7 +26,9 @@
       <!-- 行程标题区 -->
       <div class="trip-header">
         <div class="header-content">
+          <span v-if="travelForm.days" class="trip-eyebrow">YOUR JOURNEY · {{ travelForm.days }} DAYS</span>
           <h1 class="trip-title">{{ travelForm.destination || '精彩' }} · {{ travelForm.days }}日探索之旅</h1>
+          <div class="trip-route-mark" aria-hidden="true"><span></span><span></span><span></span></div>
           <div class="trip-meta">
             <div class="meta-item">
               <el-icon><User /></el-icon>
@@ -361,7 +363,7 @@ body {
 
 .card-decoration {
   height: 8px;
-  background: linear-gradient(90deg, var(--c-violet-500) 0%, var(--c-primary-300) 100%);
+  background: linear-gradient(90deg, var(--c-travel-blue-deep) 0%, var(--c-travel-blue) 68%, var(--c-travel-sun) 100%);
   width: 100%;
 }
 
@@ -372,7 +374,7 @@ body {
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid rgba(0,0,0,0.05);
-  background: linear-gradient(90deg, var(--c-violet-500) 0%, var(--c-primary-300) 100%);
+  background: linear-gradient(90deg, #f4faf9 0%, #fff9ed 100%);
 }
 
 .brand-left {
@@ -444,16 +446,47 @@ body {
 .trip-header {
   padding: 50px 50px 30px;
   text-align: center;
-  background: linear-gradient(180deg, var(--c-primary-200) 0%, var(--c-primary-50) 100%);
+  background: radial-gradient(circle at 84% 10%, rgba(247, 200, 117, .34), transparent 32%),
+    linear-gradient(180deg, #eaf5f6 0%, #f8fbf7 100%);
+}
+
+.trip-eyebrow {
+  display: block;
+  margin-bottom: 14px;
+  color: var(--c-travel-blue-deep);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: .2em;
 }
 
 .trip-title {
   font-size: 42px;
   color: var(--c-ink);
-  margin-bottom: 24px;
+  margin-bottom: 18px;
   font-weight: 800;
   letter-spacing: -1px;
 }
+
+.trip-route-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 164px;
+  margin: 0 auto 24px;
+}
+
+.trip-route-mark span:first-child,
+.trip-route-mark span:last-child {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--c-travel-blue);
+  box-shadow: 0 0 0 4px rgba(38, 119, 155, .12);
+}
+
+.trip-route-mark span:nth-child(2) { flex: 1; border-top: 2px dashed #86b4bf; }
+.trip-route-mark span:last-child { background: #c58c41; box-shadow: 0 0 0 4px rgba(247, 200, 117, .26); }
 
 .trip-meta {
   display: inline-flex;
@@ -498,7 +531,7 @@ body {
   display: flex;
   padding: 40px 50px 60px;
   gap: 50px;
-  background: var(--c-primary-50);
+  background: #f8fbf9;
 }
 
 .left-column {

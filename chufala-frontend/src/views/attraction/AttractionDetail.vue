@@ -22,16 +22,17 @@
         </div>
 
         <div class="gallery-grid">
-          <div class="gallery-main" @click="handlePreview(0)">
-            <img :src="allImages[0]" class="gallery-img" alt="主图" />
-          </div>
+          <button type="button" class="gallery-main" :aria-label="`查看${attraction.name}的照片，共${allImages.length}张`" @click="handlePreview(0)">
+            <img :src="allImages[0]" class="gallery-img" :alt="`${attraction.name}主图`" />
+            <span v-if="allImages.length" class="gallery-counter">查看全部 · {{ allImages.length }} 张照片</span>
+          </button>
           <div class="gallery-sub">
-            <div v-for="(img, index) in allImages.slice(1, 5)" :key="index" class="gallery-sub-item" @click="handlePreview(index + 1)">
-              <img :src="img" class="gallery-img" />
+            <button v-for="(img, index) in allImages.slice(1, 5)" :key="index" type="button" class="gallery-sub-item" :aria-label="`查看第${index + 2}张照片`" @click="handlePreview(index + 1)">
+              <img :src="img" class="gallery-img" :alt="`${attraction.name}照片${index + 2}`" />
               <div v-if="index === 3 && allImages.length > 5" class="more-overlay">
                 +{{ allImages.length - 5 }} 张
               </div>
-            </div>
+            </button>
           </div>
         </div>
       </section>
@@ -249,7 +250,7 @@ onMounted(() => {
   fetchAttractionDetail(attractionId)
 })
 
-const allImages = computed(() => attraction.value.allImages || [])
+const allImages = computed(() => (attraction.value.allImages || []).filter(Boolean))
 
 // 模拟门票数据
 const tickets = ref([
@@ -365,6 +366,27 @@ const handleBuyNow = () => {
 
 .gallery-main {
   height: 100%;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: #edf4f7;
+  cursor: pointer;
+}
+
+.gallery-counter {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, .5);
+  border-radius: var(--r-full);
+  background: rgba(15, 38, 59, .68);
+  color: #fff;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  backdrop-filter: blur(6px);
 }
 
 .gallery-sub {
@@ -388,7 +410,13 @@ const handleBuyNow = () => {
 .gallery-sub-item {
   position: relative;
   overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: #edf4f7;
+  cursor: pointer;
 }
+
+.gallery-main:focus-visible, .gallery-sub-item:focus-visible { outline: 3px solid var(--c-travel-sun); outline-offset: -3px; }
 
 .more-overlay {
   position: absolute;

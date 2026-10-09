@@ -236,7 +236,7 @@ onMounted(() => {
 .package-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--sh-hover);
-  border-color: transparent;
+  border-color: #c8dce2;
 }
 
 .package-card__image-container {
@@ -260,6 +260,9 @@ onMounted(() => {
   position: absolute;
   top: var(--sp-3);
   right: var(--sp-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   background-color: rgba(255, 255, 255, 0.92);
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
@@ -270,8 +273,18 @@ onMounted(() => {
   border-radius: var(--r-full);
 }
 
+.package-card__days-tag::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c-travel-sun);
+  box-shadow: 0 0 0 3px rgba(247, 200, 117, .18);
+}
+
 .package-card__content {
   padding: var(--sp-4);
+  background: linear-gradient(180deg, #fff 0%, #fffdf8 100%);
 }
 
 .package-card__header {
@@ -343,7 +356,27 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   gap: var(--sp-3);
+  position: relative;
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px dashed #c9dbe1;
 }
+
+.package-card__price-area::before,
+.package-card__price-area::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #d7e2e5;
+  border-radius: 50%;
+  background: var(--c-bg);
+}
+
+.package-card__price-area::before { left: -26px; }
+.package-card__price-area::after { right: -26px; }
+.package-card:hover .package-card__price-area { border-color: #9dc6d0; }
 
 .package-card__price {
   color: var(--c-danger);

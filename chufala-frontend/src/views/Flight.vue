@@ -28,7 +28,7 @@
               </el-form-item>
               
               <div class="exchange-icon">
-                <el-button circle icon="Switch" @click="swapLocations" />
+                <el-button circle :icon="Switch" class="exchange-icon__button" :class="{ 'is-reversed': routeReversed }" aria-label="交换出发地和目的地" @click="swapLocations" />
               </div>
               
               <el-form-item label="目的地" class="flex-item">
@@ -88,19 +88,21 @@
     <div class="section-container">
       <h2 class="section-title">热门航线特惠</h2>
       <div class="routes-grid">
-        <el-card v-for="route in popularRoutes" :key="route.id" class="route-card" :body-style="{ padding: '0px' }">
+        <button v-for="route in popularRoutes" :key="route.id" type="button" class="route-card" :aria-label="`选择${route.from}到${route.to}的航线`" @click="selectPopularRoute(route)">
           <img v-lazy-img loading="lazy" :src="route.image" :alt="`${route.from} 到 ${route.to} 航线`" class="route-image">
           <div class="route-info">
             <div class="route-header">
-              <!-- 原为 <i class="el-icon-right">：el-icon-* 是 Element UI v2 的类名写法，
-                   Element Plus 里图标是组件，这样写渲染为空 -->
-              <span class="route-cities">{{ route.from }} <el-icon class="route-arrow"><Right /></el-icon> {{ route.to }}</span>
+              <span class="route-cities">
+                <span>{{ route.from }}</span>
+                <span class="route-path" aria-hidden="true"><el-icon><Plane /></el-icon></span>
+                <span>{{ route.to }}</span>
+              </span>
               <span class="route-price">¥{{ route.price }}起</span>
             </div>
             <p class="route-date">{{ route.date }}</p>
             <el-tag size="small" effect="plain">{{ route.tag }}</el-tag>
           </div>
-        </el-card>
+        </button>
       </div>
     </div>
 
@@ -133,10 +135,11 @@
 <script setup lang="ts">
 import BackToTop from '@/components/BackToTop.vue'
 import { ref, computed } from 'vue'
-import { Location, Switch, User, Timer, Service, Right } from '@element-plus/icons-vue'
+import { Location, Switch, User, Timer, Service } from '@element-plus/icons-vue'
 import { Plane } from '@/components/Icon.vue'
 
 const activeTab = ref('one-way')
+const routeReversed = ref(false)
 
 const slides = [
   { image: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2074&auto=format&fit=crop' },
@@ -169,6 +172,16 @@ const swapLocations = () => {
   const temp = searchForm.value.from
   searchForm.value.from = searchForm.value.to
   searchForm.value.to = temp
+  routeReversed.value = !routeReversed.value
+}
+
+const selectPopularRoute = (route: { from: string; to: string }) => {
+  searchForm.value.from = route.from
+  searchForm.value.to = route.to
+  document.querySelector('.search-card')?.scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+    block: 'center'
+  })
 }
 
 const handleSearch = () => {
@@ -297,7 +310,31 @@ const popularRoutes = [
 
 .exchange-icon {
   padding-top: 20px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  z-index: 1;
 }
+
+.exchange-icon::before,
+.exchange-icon::after {
+  content: '';
+  position: absolute;
+  top: calc(50% + 10px);
+  width: 20px;
+  border-top: 1px dashed #9fbdca;
+}
+
+.exchange-icon::before { right: 100%; }
+.exchange-icon::after { left: 100%; }
+
+.exchange-icon__button {
+  transition: transform 280ms var(--ease-out), box-shadow 280ms var(--ease-out);
+  box-shadow: 0 3px 10px rgba(31, 82, 122, .12);
+}
+
+.exchange-icon__button.is-reversed { transform: rotate(180deg); }
+.exchange-icon__button:hover { box-shadow: 0 5px 16px rgba(31, 82, 122, .22); }
 
 .search-btn {
   width: 100%;
@@ -359,6 +396,10 @@ const popularRoutes = [
     box-shadow var(--dur-base) var(--ease-out);
   cursor: pointer;
   border: none;
+  padding: 0;
+  width: 100%;
+  background: #fff;
+  text-align: left;
   overflow: hidden;
   border-radius: var(--r-md);
   box-shadow: var(--sh-1);
@@ -369,6 +410,11 @@ const popularRoutes = [
 .route-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--sh-hover);
+}
+
+.route-card:focus-visible {
+  outline: 3px solid var(--c-primary-300);
+  outline-offset: 3px;
 }
 
 .route-image {
@@ -402,9 +448,29 @@ const popularRoutes = [
   color: var(--c-ink);
 }
 
-.route-arrow {
-  color: var(--c-ink-4);
-  font-size: var(--fs-body);
+.route-path {
+  position: relative;
+  display: inline-flex;
+  align-items: flex-start;
+  width: 40px;
+  height: 18px;
+  border-bottom: 1px dashed #9fbdca;
+  color: var(--c-travel-blue);
+}
+
+.route-path .el-icon {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  font-size: 13px;
+  transition: transform 300ms var(--ease-out);
+}
+
+.route-card:hover .route-path .el-icon,
+.route-card:focus-visible .route-path .el-icon { transform: translateX(25px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .exchange-icon__button, .route-path .el-icon { transition: none; }
 }
 
 .route-price {

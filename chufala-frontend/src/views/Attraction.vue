@@ -15,7 +15,7 @@
         />
         <el-button type="primary" @click="fetchAttractions">搜索</el-button>
 
-        <el-select v-model="filterCity" placeholder="城市" style="width: 120px; margin-left: 10px">
+        <el-select v-model="filterCity" placeholder="城市" style="width: 120px; margin-left: 10px" @change="fetchAttractions">
           <el-option
             v-for="item in cityOptions"
             :key="item.value"
@@ -24,14 +24,14 @@
           />
         </el-select>
 
-        <el-select v-model="filterStars" placeholder="等级" style="width: 120px; margin-left: 10px">
+        <el-select v-model="filterStars" placeholder="等级" style="width: 120px; margin-left: 10px" @change="fetchAttractions">
           <el-option label="不限" value="" />
           <el-option label="5 A级" value="5" />
           <el-option label="4 A级" value="4" />
           <el-option label="3 A级" value="3" />
         </el-select>
 
-        <el-select v-model="filterType" placeholder="类型" style="width: 120px; margin-left: 10px">
+        <el-select v-model="filterType" placeholder="类型" style="width: 120px; margin-left: 10px" @change="fetchAttractions">
           <el-option
             v-for="item in options"
             :key="item.value"
@@ -40,13 +40,23 @@
           />
         </el-select>
 
-        <el-select v-model="sortBy" placeholder="排序" style="width: 120px; margin-left: 10px">
+        <el-select v-model="sortBy" placeholder="排序" style="width: 120px; margin-left: 10px" @change="fetchAttractions">
           <el-option label="距离最近" value="distance" />
           <el-option label="评分最高" value="rating" />
           <el-option label="热度优先" value="popularity" />
         </el-select>
       </div>
     </el-card>
+
+    <div v-if="!firstLoading" class="results-toolbar">
+      <p class="results-count" aria-live="polite">已展示 <strong>{{ attractions.length }}</strong> 个景点<span v-if="attractions.length && !noMore"> · 还有更多</span></p>
+      <div v-if="activeFilterChips.length" class="active-filters" aria-label="当前筛选条件">
+        <button v-for="chip in activeFilterChips" :key="chip.key" type="button" class="filter-chip" :aria-label="`移除${chip.label}条件`" @click="removeFilter(chip.key)">
+          {{ chip.label }} <span aria-hidden="true">×</span>
+        </button>
+        <button type="button" class="clear-filters" @click="resetFilters">清空条件</button>
+      </div>
+    </div>
 
     <!-- 首次加载：骨架屏（原实现首屏是纯白，数据回来才"啪"地出现） -->
     <div v-if="firstLoading" class="attraction-list">
@@ -134,7 +144,7 @@
 
 <script setup>
 import BackToTop from '@/components/BackToTop.vue'
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { Location } from '@element-plus/icons-vue'
 import { getAttractionList } from '@/api/attraction'
 import { useGeoStore } from '@/stores/geo'
@@ -178,6 +188,7 @@ const filterCity = ref(typeof route.query.city === 'string' ? route.query.city :
 const filterStars = ref(typeof route.query.stars === 'string' ? route.query.stars : '')
 const filterType = ref(typeof route.query.type === 'string' ? route.query.type : '')
 const sortBy = ref('distance')
+const appliedKeyword = ref(searchKeyword.value.trim())
 const attractions = ref([])
 const loading = ref(false)
 const error = ref(false)
@@ -213,6 +224,18 @@ const cityOptions = [
 ]
 
 const noMore = computed(() => !hasMore.value)
+const activeFilterChips = computed(() => {
+  const chips = []
+  if (appliedKeyword.value) chips.push({ key: 'keyword', label: `关键词：${appliedKeyword.value}` })
+  if (filterCity.value) chips.push({ key: 'city', label: filterCity.value })
+  if (filterStars.value) chips.push({ key: 'stars', label: `${filterStars.value}A级景区` })
+  if (filterType.value) chips.push({ key: 'type', label: filterType.value })
+  if (sortBy.value !== 'distance') {
+    const sortLabels = { rating: '评分最高', popularity: '热度优先' }
+    chips.push({ key: 'sort', label: sortLabels[sortBy.value] || '排序' })
+  }
+  return chips
+})
 
 // 核心数据加载函数
 const loadAttractionsData = async (append = false) => {
@@ -269,8 +292,18 @@ const resetFilters = () => {
   fetchAttractions()
 }
 
+const removeFilter = (key) => {
+  if (key === 'keyword') searchKeyword.value = ''
+  if (key === 'city') filterCity.value = ''
+  if (key === 'stars') filterStars.value = ''
+  if (key === 'type') filterType.value = ''
+  if (key === 'sort') sortBy.value = 'distance'
+  fetchAttractions()
+}
+
 // 搜索/重置 (替换列表)
 const fetchAttractions = () => {
+  appliedKeyword.value = searchKeyword.value.trim()
   nextCursor.value = null
   hasMore.value = true
   loadAttractionsData(false)
@@ -281,14 +314,6 @@ const loadMore = () => {
   if (loading.value || noMore.value) return
   loadAttractionsData(true)
 }
-
-// 筛选变化
-const handleFilterChange = () => {
-  fetchAttractions()
-}
-
-// 监听筛选条件变化
-watch([filterCity, filterStars, filterType, sortBy], handleFilterChange)
 
 // 初始化
 onMounted(() => {
@@ -315,6 +340,52 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: var(--sp-3);
 }
+
+.results-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-5);
+  min-height: 34px;
+  margin: 0 0 var(--sp-5);
+}
+
+.results-count {
+  margin: 0;
+  color: var(--c-ink-3);
+  font-size: var(--fs-body);
+}
+
+.results-count strong {
+  color: var(--c-travel-blue-deep);
+  font-family: var(--font-num);
+  font-size: var(--fs-body-lg);
+}
+
+.active-filters { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); }
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid #c9e0e7;
+  border-radius: var(--r-full);
+  background: #f2faf9;
+  color: var(--c-travel-blue-deep);
+  font: inherit;
+  font-size: var(--fs-caption);
+  cursor: pointer;
+  transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+}
+
+.filter-chip:hover { border-color: #94c4d0; background: #e6f4f4; }
+.filter-chip span { color: var(--c-travel-blue); font-size: 16px; line-height: 1; }
+.clear-filters { border: 0; background: transparent; color: var(--c-ink-3); font: inherit; font-size: var(--fs-caption); cursor: pointer; }
+.clear-filters:hover { color: var(--c-primary-700); text-decoration: underline; }
+.filter-chip:focus-visible, .clear-filters:focus-visible { outline: 2px solid var(--c-primary-500); outline-offset: 2px; }
 
 .attraction-list {
   display: grid;
