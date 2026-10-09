@@ -128,11 +128,12 @@
       </el-empty>
     </div>
 
-    <el-backtop :right="100" :bottom="100" />
+    <BackToTop />
   </div>
 </template>
 
 <script setup>
+import BackToTop from '@/components/BackToTop.vue'
 import { ref, onMounted, watch, computed } from 'vue'
 import { Location } from '@element-plus/icons-vue'
 import { getAttractionList } from '@/api/attraction'

@@ -127,10 +127,11 @@
       </div>
     </div>
     
-    <el-backtop :right="100" :bottom="100" />
+    <BackToTop />
   </div>
 </template>
 <script setup lang="ts">
+import BackToTop from '@/components/BackToTop.vue'
 import { ref, computed } from 'vue'
 import { Location, Switch, User, Timer, Service, Right } from '@element-plus/icons-vue'
 import { Plane } from '@/components/Icon.vue'
@@ -475,4 +476,4 @@ const popularRoutes = [
     grid-template-columns: 1fr;
   }
 }
-</style> 
+</style>

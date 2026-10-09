@@ -320,14 +320,49 @@
 }
 
 /* ==================================================================
- * 回到顶部
- * 原来在 Home.vue 里用内联 style 写成 rgb(82,233,200)（薄荷绿，
- * 与主色系冲突），此处统一走主色。
+ * 回到顶部：与右下角助手的白色悬浮按钮组成一组。
  * ================================================================== */
-.el-backtop {
-  --el-backtop-bg-color: var(--c-primary-600);
-  --el-backtop-text-color: #ffffff;
-  --el-backtop-hover-bg-color: var(--c-primary-700);
+.el-backtop.site-backtop {
+  width: 48px;
+  height: 48px;
+  background: var(--c-bg);
+  color: var(--c-primary-600);
+  border: 1px solid var(--c-primary-100);
+  box-shadow: var(--sh-2);
+  transition: opacity var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+
+.el-backtop.site-backtop:hover {
+  background: var(--c-primary-50);
+  border-color: var(--c-primary-200);
+  box-shadow: var(--sh-3);
+  transform: translateY(-2px);
+}
+
+.el-backtop.site-backtop:active {
+  transform: scale(0.96);
+  box-shadow: var(--sh-1);
+}
+
+.el-backtop.site-backtop:focus-visible {
+  outline: 2px solid var(--c-primary-500);
+  outline-offset: 3px;
+  border-radius: var(--r-full);
+}
+
+.site-backtop__arrow {
+  width: 22px;
+  height: 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .el-backtop.site-backtop {
+    transition: none;
+  }
 }
 
 /* ==================================================================

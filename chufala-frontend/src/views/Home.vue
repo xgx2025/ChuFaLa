@@ -494,11 +494,12 @@
          而 Layout.vue 的 <transition mode="out-in"> 无法对 Fragment 根
          执行 leave 过渡，离开本页后主内容区会永久空白（必须刷新才恢复）。
          el-backtop 是 position: fixed，放在这里不影响布局与定位。 -->
-    <el-backtop :right="100" :bottom="100" />
+    <BackToTop />
   </div>
 </template>
 
 <script setup>
+import BackToTop from '@/components/BackToTop.vue';
 import { ref, computed, onMounted, onUnmounted} from 'vue';
 import { getUserInfoService } from '@/api/user';
 import {useUserInfoStore} from '@/stores/userInfo'
