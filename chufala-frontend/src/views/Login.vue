@@ -2,6 +2,8 @@
   <div class="login-container">
     <!-- 品牌展示区 -->
     <div class="brand-section">
+      <div class="brand-glow brand-glow--top" aria-hidden="true"></div>
+      <div class="brand-glow brand-glow--bottom" aria-hidden="true"></div>
       <div class="logo">
         <img src="../assets/logo2.png" alt="" class="logo-icon">
         <span class="brand-name">出发啦</span>
@@ -444,6 +446,7 @@ const showForgotPasswordTip = () => {
   justify-content: space-between;
   position: relative;
   overflow: hidden;
+  isolation: isolate;
 }
 
 .brand-section::before {
@@ -458,6 +461,34 @@ const showForgotPasswordTip = () => {
   box-shadow: 0 0 0 85px rgba(255, 255, 255, 0.025),
     0 0 0 170px rgba(255, 255, 255, 0.018);
   pointer-events: none;
+  z-index: 0;
+}
+
+.brand-glow {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  width: clamp(320px, 38vw, 520px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(18px);
+  will-change: transform;
+}
+
+.brand-glow--top {
+  top: -165px;
+  right: -175px;
+  background: radial-gradient(circle, rgba(108, 208, 255, 0.58) 0%,
+    rgba(53, 131, 251, 0.31) 40%, transparent 72%);
+  animation: glowDriftTop 7s var(--ease-in-out) infinite alternate;
+}
+
+.brand-glow--bottom {
+  bottom: -205px;
+  left: -185px;
+  background: radial-gradient(circle, rgba(79, 159, 255, 0.56) 0%,
+    rgba(48, 108, 229, 0.29) 42%, transparent 73%);
+  animation: glowDriftBottom 9s var(--ease-in-out) infinite alternate;
 }
 
 .logo, .brand-eyebrow, .brand-content h1, .brand-content > p,
@@ -701,6 +732,11 @@ const showForgotPasswordTip = () => {
   font-size: 13px;
   font-weight: 600;
   line-height: 1.5;
+  transition: color var(--dur-base) var(--ease-out);
+}
+
+.el-form-item:focus-within .field-label {
+  color: var(--c-primary-700);
 }
 
 .login-form :deep(.el-form-item) {
@@ -715,8 +751,10 @@ const showForgotPasswordTip = () => {
 .el-input :deep(.el-input__wrapper) {
   border-radius: var(--r-sm);
   box-shadow: 0 0 0 1px var(--c-line) inset;
+  background-color: #fff;
   transition: box-shadow var(--dur-base) var(--ease-out),
-    transform var(--dur-base) var(--ease-out);
+    transform var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out);
 }
 
 .el-input:hover :deep(.el-input__wrapper) {
@@ -727,14 +765,17 @@ const showForgotPasswordTip = () => {
   font-size: 15px;
 }
 
-.el-input.input-focus :deep(.el-input__wrapper) {
-  box-shadow: 0 0 0 1px var(--c-primary-600) inset,
-    0 0 0 3px var(--c-primary-100);
+.el-input:is(.input-focus, :focus-within) :deep(.el-input__wrapper) {
+  box-shadow: 0 0 0 2px var(--c-primary-500) inset,
+    0 0 0 4px rgba(59, 130, 246, 0.14),
+    0 10px 26px -18px rgba(37, 99, 235, 0.5);
+  background-color: #fbfdff;
   transform: translateY(-1px);
 }
 
 .el-form-item.is-error .el-input :deep(.el-input__wrapper) {
-  box-shadow: 0 0 0 1px var(--c-danger) inset;
+  box-shadow: 0 0 0 2px var(--c-danger) inset,
+    0 0 0 4px var(--c-danger-soft);
 }
 
 .el-input :deep(.el-input__prefix) {
@@ -744,7 +785,7 @@ const showForgotPasswordTip = () => {
     transform var(--dur-base) var(--ease-out);
 }
 
-.el-input.input-focus :deep(.el-input__prefix) {
+.el-input:is(.input-focus, :focus-within) :deep(.el-input__prefix) {
   color: var(--c-primary-600);
   transform: translateX(2px);
 }
@@ -982,6 +1023,16 @@ const showForgotPasswordTip = () => {
   to { stroke-dashoffset: 0; }
 }
 
+@keyframes glowDriftTop {
+  from { transform: translate3d(-85px, -25px, 0) scale(0.9); }
+  to { transform: translate3d(90px, 105px, 0) scale(1.13); }
+}
+
+@keyframes glowDriftBottom {
+  from { transform: translate3d(-80px, 25px, 0) scale(0.9); }
+  to { transform: translate3d(135px, -115px, 0) scale(1.16); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .logo, .brand-eyebrow, .brand-content h1, .brand-content > p,
   .journey-visual, .brand-footer, .animate-page-enter,
@@ -991,12 +1042,16 @@ const showForgotPasswordTip = () => {
 
   .journey-route .route-trace { stroke-dashoffset: 0; }
 
+  .brand-glow { animation: none; will-change: auto; }
+
   .destination-ticket, .el-input :deep(.el-input__wrapper),
   .el-input :deep(.el-input__prefix), .login-button, .register-button,
   .login-button::before, .register-button::before,
   .register-link, .social-btn {
     transition: none !important;
   }
+
+  .field-label { transition: none !important; }
 }
 
 /* 保持原有断点可用；完整的移动端布局调整留待下一阶段。 */
