@@ -34,6 +34,15 @@
     
     <!-- 右侧登录表单区 -->
     <div class="login-section" v-if="!showRegisterForm">
+      <div class="auth-postmark" aria-hidden="true">
+        <span>CHUFALA · TRAVEL</span>
+        <svg viewBox="0 0 44 34" fill="none">
+          <path d="M4 27c8 2 11-14 21-9 6 3 8-2 15-13" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 3" stroke-linecap="round" />
+          <circle cx="4" cy="27" r="2.5" fill="currentColor" />
+          <path d="m34 5 6-1-1 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span>下一站 · 由你决定</span>
+      </div>
       <div class="login-card animate-page-enter">
         <span class="form-eyebrow">账户登录</span>
         <h2 class="login-title">欢迎回来</h2>
@@ -137,6 +146,15 @@
 
     <!-- 注册表单 -->
     <div class="register-section" v-else>
+      <div class="auth-postmark" aria-hidden="true">
+        <span>CHUFALA · TRAVEL</span>
+        <svg viewBox="0 0 44 34" fill="none">
+          <path d="M4 27c8 2 11-14 21-9 6 3 8-2 15-13" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 3" stroke-linecap="round" />
+          <circle cx="4" cy="27" r="2.5" fill="currentColor" />
+          <path d="m34 5 6-1-1 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span>下一站 · 由你决定</span>
+      </div>
       <div class="register-card animate-page-enter"> 
         <h2 class="register-title">欢迎注册</h2>
         <p class="register-subtitle">请填写以下信息以注册账号</p>
@@ -663,7 +681,54 @@ const showForgotPasswordTip = () => {
   align-items: center;
   justify-content: center;
   padding: 48px clamp(32px, 6vw, 96px);
-  background: #fff;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 95% 5%, rgba(247, 200, 117, .18), transparent 28%),
+    radial-gradient(circle at 10% 95%, rgba(124, 198, 215, .1), transparent 32%),
+    #fffefa;
+}
+
+/* 像盖在旅行手帐角落的一枚轻印章，呼应左侧的航线。 */
+.auth-postmark {
+  position: absolute;
+  top: clamp(30px, 5vh, 54px);
+  right: clamp(28px, 4vw, 64px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 112px;
+  height: 112px;
+  border: 1px solid rgba(38, 119, 155, .26);
+  border-radius: 50%;
+  color: #729aa5;
+  transform: rotate(12deg);
+  pointer-events: none;
+  user-select: none;
+}
+
+.auth-postmark::before {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border: 1px dashed rgba(38, 119, 155, .3);
+  border-radius: 50%;
+}
+
+.auth-postmark span {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+
+.auth-postmark svg {
+  width: 43px;
+  height: 32px;
+  color: #c58c41;
 }
 
 .login-card,.register-card {
@@ -671,6 +736,7 @@ const showForgotPasswordTip = () => {
   max-width: 430px;
   padding: 0;
   position: relative;
+  z-index: 1;
 }
 
 .animate-page-enter {
@@ -1106,6 +1172,8 @@ const showForgotPasswordTip = () => {
   .login-section,.register-section {
     padding: 36px 28px;
   }
+
+  .auth-postmark { display: none; }
 
   .login-card,.register-card {
     max-width: 100%;
