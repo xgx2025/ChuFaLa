@@ -433,12 +433,12 @@ const showForgotPasswordTip = () => {
   overflow: hidden; /* 防止装饰元素溢出导致滚动 */
 }
 
-/* 深蓝航线与纸飞机标识呼应，紫色只保留在品牌图形中。 */
+/* 明快的海蓝与一抹晨光，延续航线和纸飞机的旅行意象。 */
 .brand-section {
-  flex: 0 0 46%;
+  flex: 0 0 44%;
   background:
-    radial-gradient(circle at 87% 14%, rgba(77, 150, 255, 0.23), transparent 34%),
-    linear-gradient(145deg, #0b2142 0%, #123a73 58%, #1755a8 100%);
+    radial-gradient(circle at 83% 12%, rgba(247, 200, 117, 0.32), transparent 32%),
+    linear-gradient(145deg, var(--c-travel-blue-deep) 0%, #246b91 58%, var(--c-travel-blue) 100%);
   color: #fff;
   padding: clamp(32px, 4vw, 64px);
   display: flex;
@@ -478,16 +478,16 @@ const showForgotPasswordTip = () => {
 .brand-glow--top {
   top: -165px;
   right: -175px;
-  background: radial-gradient(circle, rgba(108, 208, 255, 0.58) 0%,
-    rgba(53, 131, 251, 0.31) 40%, transparent 72%);
+  background: radial-gradient(circle, rgba(255, 220, 149, 0.4) 0%,
+    rgba(247, 200, 117, 0.2) 40%, transparent 72%);
   animation: glowDriftTop 7s var(--ease-in-out) infinite alternate;
 }
 
 .brand-glow--bottom {
   bottom: -205px;
   left: -185px;
-  background: radial-gradient(circle, rgba(79, 159, 255, 0.56) 0%,
-    rgba(48, 108, 229, 0.29) 42%, transparent 73%);
+  background: radial-gradient(circle, rgba(132, 211, 232, 0.52) 0%,
+    rgba(69, 158, 195, 0.24) 42%, transparent 73%);
   animation: glowDriftBottom 9s var(--ease-in-out) infinite alternate;
 }
 
@@ -536,7 +536,7 @@ const showForgotPasswordTip = () => {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.2em;
-  color: #a9cef9;
+  color: #d7edf4;
 }
 
 .brand-content h1 {
@@ -548,12 +548,12 @@ const showForgotPasswordTip = () => {
 }
 
 .brand-content h1 span {
-  color: #9bd9ff;
+  color: #ffe2a8;
 }
 
 .brand-content p {
   margin: 0;
-  color: #d0e2f8;
+  color: #e2f2f5;
   font-size: 16px;
   line-height: 1.8;
 }
@@ -575,7 +575,7 @@ const showForgotPasswordTip = () => {
 
 .journey-route .route-guide,
 .journey-route .route-trace {
-  stroke: #95caff;
+  stroke: #b4e2ec;
   stroke-width: 2;
 }
 
@@ -585,7 +585,7 @@ const showForgotPasswordTip = () => {
 }
 
 .journey-route .route-trace {
-  stroke: #d7efff;
+  stroke: var(--c-travel-sun);
   stroke-linecap: round;
   stroke-dasharray: 650;
   stroke-dashoffset: 650;
@@ -593,8 +593,8 @@ const showForgotPasswordTip = () => {
 }
 
 .journey-route circle {
-  fill: #dff3ff;
-  stroke: #2572cf;
+  fill: #ffe5ad;
+  stroke: #2b789b;
   stroke-width: 6;
 }
 
@@ -604,7 +604,7 @@ const showForgotPasswordTip = () => {
   left: 4px;
   font-size: 12px;
   letter-spacing: 0.08em;
-  color: #c3ddfa;
+  color: #dceff1;
 }
 
 .destination-ticket {
@@ -616,7 +616,7 @@ const showForgotPasswordTip = () => {
   width: 210px;
   padding: 20px 22px;
   color: var(--c-ink);
-  background: #f6fbff;
+  background: #fffdf7;
   border-radius: 16px;
   box-shadow: 0 18px 45px rgba(0, 14, 42, 0.24);
   transform: rotate(4deg);
@@ -630,7 +630,7 @@ const showForgotPasswordTip = () => {
 }
 
 .destination-ticket > span {
-  color: var(--c-primary-600);
+  color: #98601f;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -644,7 +644,7 @@ const showForgotPasswordTip = () => {
 
 .destination-ticket small {
   padding-top: 12px;
-  border-top: 1px dashed #bfd5eb;
+  border-top: 1px dashed #e8d9bd;
   color: var(--c-ink-3);
   font-size: 11px;
 }
