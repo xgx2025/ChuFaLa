@@ -291,17 +291,20 @@ const pickerOptions = ref({
   },
 });
 
-// 初始化默认日期：今天入住，明天退房
+// 优先沿用详情页选择的日期；直接打开订单页时用今天至明天。
 const initDefaultDate = () => {
   const today = dayjs();
-  const tomorrow = today.add(1, 'day');
-  // 直接用dayjs格式化，无需手动拼接
+  const isValidQueryDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && dayjs(value).isValid() && dayjs(value).format('YYYY-MM-DD') === value;
+  const requestedCheckIn = route.query.checkIn;
+  const requestedCheckOut = route.query.checkOut;
+  const start = isValidQueryDate(requestedCheckIn) && !dayjs(requestedCheckIn).isBefore(today.startOf('day')) ? dayjs(requestedCheckIn) : today;
+  const end = isValidQueryDate(requestedCheckOut) && dayjs(requestedCheckOut).isAfter(start) ? dayjs(requestedCheckOut) : start.add(1, 'day');
   dateRange.value = [
-    today.format('YYYY-MM-DD'),
-    tomorrow.format('YYYY-MM-DD')
+    start.format('YYYY-MM-DD'),
+    end.format('YYYY-MM-DD')
   ];
-  // 更新表单和费用明细的日期显示
-  updateDateDisplay(today, tomorrow);
+  nightNum.value = end.diff(start, 'day');
+  updateDateDisplay(start, end);
 };
 
 // 更新费用明细中的短日期

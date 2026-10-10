@@ -43,7 +43,7 @@ app.get('/screenshot', async (req, res) => {
     await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 2 });
 
     // Navigate to the share page
-    await page.goto(`${FRONTEND_URL}/share?id=${id}`, { waitUntil: 'networkidle0', timeout: 60000 });
+    await page.goto(`${FRONTEND_URL}/share?id=${encodeURIComponent(id)}&capture=1`, { waitUntil: 'networkidle0', timeout: 60000 });
 
     // Wait for the map and data to be ready
     await page.waitForFunction('window.screenshotReady === true', { timeout: 30000 });

@@ -84,27 +84,30 @@
         <div class="right-column">
           <div class="booking-card">
             <div class="card-header">
-              <span class="price-label">价格</span>
+              <span class="price-label">票价参考</span>
               <div class="price-display">
                 <span class="currency">¥</span>
                 <span class="amount">{{ selectedTicket.price }}</span>
-                <span class="unit">/起</span>
+                <span class="unit">/张</span>
               </div>
             </div>
 
             <div class="selection-area">
               <label class="sub-label">选择门票</label>
               <div class="ticket-list">
-                <div 
+                <button
                   v-for="ticket in tickets" 
                   :key="ticket.id"
+                  type="button"
                   class="ticket-chip"
                   :class="{ 'active': selectedTicketId === ticket.id }"
+                  :aria-pressed="selectedTicketId === ticket.id"
                   @click="selectTicket(ticket.id)"
                 >
                   <span class="ticket-chip-name">{{ ticket.name }}</span>
                   <span class="ticket-chip-price">¥{{ ticket.price }}</span>
-                </div>
+                </button>
+                <p v-if="!tickets.length" class="ticket-empty">暂无可展示的门票价格</p>
               </div>
 
               <label class="sub-label">出行日期</label>
@@ -122,11 +125,15 @@
             </div>
 
             <div class="card-footer">
-              <div class="total-preview">
-                总计: <span class="highlight">¥{{ totalPrice.toFixed(2) }}</span>
+              <div class="booking-summary" aria-live="polite">
+                <span class="booking-summary__label">已选行程</span>
+                <strong>{{ selectedTicket.name }} <span aria-hidden="true">·</span> {{ visitDateLabel }} <span aria-hidden="true">·</span> {{ form.quantity }} 张</strong>
               </div>
-              <el-button type="primary" size="large" class="book-btn" @click="openBookingModal">
-                立即预订
+              <div class="total-preview">
+                参考合计: <span class="highlight">¥{{ totalPrice.toFixed(2) }}</span>
+              </div>
+              <el-button type="primary" size="large" class="book-btn" :disabled="!tickets.length" @click="openBookingModal">
+                查看游玩计划
               </el-button>
             </div>
           </div>
@@ -156,37 +163,16 @@
       </section>
     </main>
 
-    <el-dialog v-model="bookingDialogVisible" title="填写预订信息" width="500px" destroy-on-close>
-      <el-form :model="form" :rules="rules" ref="ticketFormRef" label-position="top">
-        <el-alert 
-          :title="`您正在预订：${selectedTicket.name} x ${form.quantity}张`" 
-          type="info" 
-          :closable="false" 
-          show-icon 
-          style="margin-bottom: 20px"
-        />
-        
-        <el-form-item label="联系人姓名" prop="name">
-          <el-input v-model="form.name" placeholder="需与证件姓名一致" />
-        </el-form-item>
-
-        <el-form-item label="手机号码" prop="phone">
-          <el-input v-model="form.phone" placeholder="用于接收取票码" />
-        </el-form-item>
-
-        <el-form-item label="身份证号" prop="idCard">
-          <el-input v-model="form.idCard" placeholder="入园需刷身份证" />
-        </el-form-item>
-      </el-form>
-      
+    <el-dialog v-model="bookingDialogVisible" title="确认游玩计划" width="min(480px, calc(100vw - 32px))">
+      <div class="booking-dialog-summary">
+        <span class="booking-dialog-summary__eyebrow">YOUR VISIT</span>
+        <strong>{{ attraction.name }}</strong>
+        <p>{{ selectedTicket.name }} · {{ visitDateLabel }} · {{ form.quantity }} 张</p>
+        <div>参考票价 <b>¥{{ totalPrice.toFixed(2) }}</b></div>
+      </div>
+      <p class="booking-dialog-note">门票预订服务暂未开放。这里仅供确认选择，当前不会创建订单或收取费用。</p>
       <template #footer>
-        <div class="dialog-footer">
-          <span class="footer-price">应付：¥{{ totalPrice.toFixed(2) }}</span>
-          <div>
-            <el-button @click="bookingDialogVisible = false">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleBuyNow">确认支付</el-button>
-          </div>
-        </div>
+        <el-button type="primary" @click="bookingDialogVisible = false">我知道了</el-button>
       </template>
     </el-dialog>
 
@@ -198,6 +184,8 @@
 import { useRoute, useRouter } from 'vue-router'
 import { getAttractionDetailService } from '@/api/attraction'
 import { ref, computed, onMounted } from 'vue'
+import dayjs from 'dayjs'
+import { ElMessage } from 'element-plus'
 import { Timer, LocationInformation, Van } from '@element-plus/icons-vue' // 记得导入图标
 
 const route = useRoute()
@@ -233,12 +221,13 @@ const fetchAttractionDetail = async (id) => {
       allImages: [data.mainImage, ...(data.otherImages || [])],
     }
     
-    // Update tickets based on fetched data
+    // 只展示接口给出的票价，避免用固定价格伪造套餐票。
     tickets.value = [
-      { id: 1, name: '成人票', price: data.adultTicketPrice, originalPrice: data.adultTicketPrice },
-      { id: 2, name: '儿童票', price: data.childTicketPrice, originalPrice: data.childTicketPrice },
-      { id: 3, name: '亲子套票 (2大1小)', price: 490, originalPrice: 580 }
-    ]
+      { id: 1, name: '成人票', price: Number(data.adultTicketPrice) },
+      { id: 2, name: '儿童票', price: Number(data.childTicketPrice) }
+    ].filter((ticket) => Number.isFinite(ticket.price) && ticket.price >= 0 &&
+      (ticket.id === 1 ? data.adultTicketPrice != null : data.childTicketPrice != null))
+    selectedTicketId.value = tickets.value[0]?.id ?? null
   } catch (error) {
     console.error('获取失败', error)
   } finally {
@@ -252,35 +241,18 @@ onMounted(() => {
 
 const allImages = computed(() => (attraction.value.allImages || []).filter(Boolean))
 
-// 模拟门票数据
-const tickets = ref([
-  { id: 1, name: '成人票', price: 190, originalPrice: 230 },
-  { id: 2, name: '儿童票', price: 115, originalPrice: 230 },
-  { id: 3, name: '亲子套票 (2大1小)', price: 490, originalPrice: 580 }
-])
+const tickets = ref([])
 
 const selectedTicketId = ref(1)
 const form = ref({
   date: '',
-  quantity: 1,
-  name: '',
-  phone: '',
-  idCard: ''
+  quantity: 1
 })
-
-// 规则保持不变
-const rules = {
-  name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-  phone: [{ required: true, pattern: /^1[3-9]\d{9}$/, message: '手机号格式错误', trigger: 'blur' }],
-  idCard: [{ required: true, pattern: /(^\d{18}$)|(^\d{17}(\d|X|x)$)/, message: '身份证格式错误', trigger: 'blur' }]
-}
-
-const ticketFormRef = ref()
 const bookingDialogVisible = ref(false)
-const submitting = ref(false)
 
-const selectedTicket = computed(() => tickets.value.find(t => t.id === selectedTicketId.value) || tickets.value[0])
+const selectedTicket = computed(() => tickets.value.find(t => t.id === selectedTicketId.value) || tickets.value[0] || { name: '未选门票', price: 0 })
 const totalPrice = computed(() => (selectedTicket.value?.price || 0) * (form.value.quantity || 0))
+const visitDateLabel = computed(() => form.value.date ? dayjs(form.value.date).format('M月D日') : '待选日期')
 
 const selectTicket = (id) => selectedTicketId.value = id
 const disabledDate = (time) => time.getTime() < Date.now() - 8.64e7
@@ -290,8 +262,9 @@ const handlePreview = (index) => {
   showImageViewer.value = true
 }
 
-// 点击“立即预订”打开弹窗
+// 仅展示所选行程；当前页面没有真实门票下单接口。
 const openBookingModal = () => {
+  if (!tickets.value.length) return
   if (!form.value.date) {
     ElMessage.warning('请先选择游玩日期')
     return
@@ -299,20 +272,6 @@ const openBookingModal = () => {
   bookingDialogVisible.value = true
 }
 
-// 提交订单
-const handleBuyNow = () => {
-  ticketFormRef.value.validate(valid => {
-    if (valid) {
-      submitting.value = true
-      // 模拟API请求
-      setTimeout(() => {
-        submitting.value = false
-        bookingDialogVisible.value = false
-        ElMessage.success('预订成功！短信已发送')
-      }, 1500)
-    }
-  })
-}
 </script>
 
 <style scoped>
@@ -550,6 +509,11 @@ const handleBuyNow = () => {
 }
 
 .ticket-chip {
+  width: 100%;
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font: inherit;
+  text-align: left;
   border: 1px solid var(--c-line);
   border-radius: 8px;
   padding: 10px 15px;
@@ -558,6 +522,7 @@ const handleBuyNow = () => {
   justify-content: space-between;
   transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
 }
+.ticket-empty { margin: 0; color: var(--c-ink-3); font-size: var(--fs-caption); }
 
 .ticket-chip:hover {
   border-color: var(--c-primary-600);
@@ -578,6 +543,9 @@ const handleBuyNow = () => {
   padding-top: 20px;
   border-top: 1px solid var(--c-line);
 }
+.booking-summary { display: flex; flex-direction: column; gap: 3px; padding: var(--sp-3); margin-bottom: var(--sp-4); border: 1px solid #d8e7e8; border-radius: var(--r-sm); background: linear-gradient(110deg, #eff8f7, #fffaf1); }
+.booking-summary__label { color: var(--c-travel-blue); font-size: var(--fs-caption); }
+.booking-summary strong { color: var(--c-ink-2); font-size: var(--fs-body); font-weight: 600; }
 
 .total-preview {
   display: flex;
@@ -601,17 +569,13 @@ const handleBuyNow = () => {
 }
 
 /* 弹窗底部 */
-.dialog-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.footer-price {
-  font-size: var(--fs-body-lg);
-  font-weight: bold;
-  color: var(--c-danger);
-}
+.booking-dialog-summary { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-5); border: 1px solid #d8e7e8; border-radius: var(--r-md); background: linear-gradient(120deg, #edf7f6, #fffaf1); }
+.booking-dialog-summary__eyebrow { color: var(--c-travel-blue); font-family: var(--font-num); font-size: 10px; font-weight: 700; letter-spacing: .16em; }
+.booking-dialog-summary strong { font-size: var(--fs-body-lg); }
+.booking-dialog-summary p { margin: 0; color: var(--c-ink-2); }
+.booking-dialog-summary div { display: flex; justify-content: space-between; color: var(--c-ink-3); }
+.booking-dialog-summary b { color: var(--c-danger); font-family: var(--font-num); font-size: var(--fs-h3); }
+.booking-dialog-note { margin: var(--sp-4) 0 0; color: var(--c-ink-3); line-height: 1.6; }
 
 /* 推荐酒店区域 */
 .recommended-hotels {

@@ -13,6 +13,20 @@
       <el-button type="primary"  size="small" @click="fetchHotelOrders()">查询</el-button>
     </el-card>
 
+    <div v-if="loading && !orderList.length" class="orders-feedback" role="status" aria-live="polite">
+      <span class="orders-feedback__eyebrow">FINDING YOUR STAYS</span>
+      <strong>正在整理你的住宿记录</strong>
+      <el-skeleton :rows="3" animated />
+    </div>
+
+    <div v-else-if="!loading && !orderList.length" class="orders-feedback orders-feedback--empty">
+      <span class="orders-feedback__eyebrow">NO STAYS YET</span>
+      <strong>{{ orderStatus === 'all' ? '还没有住宿订单' : `暂无${orderStatus}的订单` }}</strong>
+      <p>{{ orderStatus === 'all' ? '下一段旅程，可以从住得舒服开始。' : '试试查看全部订单，或重新挑选酒店。' }}</p>
+      <el-button v-if="orderStatus !== 'all'" @click="orderStatus = 'all'; fetchHotelOrders()">查看全部订单</el-button>
+      <el-button v-else type="primary" @click="router.push('/hotel')">去找酒店</el-button>
+    </div>
+
     <!-- 订单列表（每个订单用卡片包裹） -->
     <el-card 
       shadow="hover" 
@@ -34,7 +48,8 @@
           <p>入住人: {{ order.guestName }}</p>
         </div>
         <div class="order-status">
-          <span class="status-tag">{{ order.orderStatus }}</span>
+          <span class="status-tag" :class="`status-tag--${order.orderStatus}`"><span class="status-tag__dot" aria-hidden="true"></span>{{ order.orderStatus }}</span>
+          <small class="order-status__hint">{{ order.orderStatus === '待支付' ? '完成支付，锁定这间房' : order.orderStatus === '已支付' ? '旅程已准备就绪' : '可重新挑选合适的日期' }}</small>
           <span class="price">¥{{ order.actualPrice }}</span>
         </div>
       </div>
@@ -223,6 +238,27 @@ const cancelHotelOrder = async (id) => {
   height: 100%;
   overflow: auto; 
 }
+.orders-feedback {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-6);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: linear-gradient(120deg, #f8fafc, #f1f8f8);
+}
+.orders-feedback__eyebrow {
+  color: var(--c-travel-blue);
+  font-family: var(--font-num);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+.orders-feedback strong { font-size: var(--fs-body-lg); }
+.orders-feedback p { margin: 0; color: var(--c-ink-3); }
+.orders-feedback :deep(.el-skeleton) { width: 100%; max-width: 560px; }
+.orders-feedback--empty { align-items: center; text-align: center; padding: var(--sp-12) var(--sp-4); }
 .filter-card {
   display: flex !important;
   align-items: center;
@@ -263,14 +299,25 @@ const cancelHotelOrder = async (id) => {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 80px;
+  gap: var(--sp-2);
 }
 .status-tag {
-  color: var(--c-ink-4);
-  padding: 2px 6px;
-  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--r-full);
+  background: var(--c-bg-mute);
+  color: var(--c-ink-3);
+  white-space: nowrap;
+  font-size: var(--fs-caption);
 }
+.status-tag__dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.status-tag--待支付 { background: var(--c-accent-soft); color: var(--c-accent-strong); }
+.status-tag--已支付 { background: var(--c-success-soft); color: #047857; }
+.order-status__hint { color: var(--c-ink-3); text-align: right; }
 .price {
+  margin-top: auto;
   font-size: var(--fs-h2);
   font-weight: bold;
   color: var(--c-ink);
@@ -279,5 +326,13 @@ const cancelHotelOrder = async (id) => {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+@media (max-width: 640px) {
+  .order-header { flex-wrap: wrap; gap: var(--sp-2); }
+  .order-info { flex-direction: column; gap: var(--sp-3); }
+  .order-status { flex-direction: row; align-items: center; flex-wrap: wrap; justify-content: space-between; }
+  .order-status__hint { order: 3; width: 100%; text-align: left; }
+  .price { margin-top: 0; }
+  .order-actions { justify-content: flex-start; flex-wrap: wrap; }
 }
 </style>

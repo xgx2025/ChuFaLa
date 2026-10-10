@@ -1,42 +1,21 @@
 <template>
   <div class="hotel-detail">
-    <!-- 1. 顶部搜索栏 -->
-    <div class="search-bar">
-      <el-row :gutter="16">
-        <el-col :span="5">
-          <el-input v-model="destination" placeholder="目的地/酒店名称" />
-        </el-col>
-        <el-col :span="3">
-          <el-date-picker
-            v-model="checkIn"
-            type="date"
-            placeholder="入住时间"
-            format="MM月DD日"
-            value-format="MM月DD日"
-          />
-        </el-col>
-        <el-col :span="2">
-          <el-input v-model.number="nightCount" type="number" placeholder="晚数" />
-        </el-col>
-        <el-col :span="3">
-          <el-date-picker
-            v-model="checkOut"
-            type="date"
-            placeholder="退房时间"
-            format="MM月DD日"
-            value-format="MM月DD日"
-          />
-        </el-col>
-        <el-col :span="3">
-          <el-select v-model="roomGuest" placeholder="房间及住客">
-            <el-option label="1间, 1位" value="1-1"></el-option>
-          </el-select>
-        </el-col>
-        <el-col :span="4" class="search-btn-col">
-          <el-input v-model="keyword" placeholder="关键词（机场/火车站等）"/>
-          <el-button type="primary">搜索</el-button>
-        </el-col>
-      </el-row>
+    <!-- 1. 入住计划：日期只用于本页估算，订单页会重新核价与核库存。 -->
+    <div class="stay-planner">
+      <div class="stay-planner__heading">
+        <span class="stay-planner__eyebrow">PLAN YOUR STAY</span>
+        <strong>住几晚，先算清楚</strong>
+      </div>
+      <div class="stay-planner__field">
+        <label for="hotel-check-in">入住</label>
+        <el-date-picker id="hotel-check-in" v-model="checkIn" type="date" placeholder="入住日期" format="MM月DD日" value-format="YYYY-MM-DD" :clearable="false" :disabled-date="disablePastDate" @change="syncCheckOut" />
+      </div>
+      <div class="stay-planner__field">
+        <label for="hotel-check-out">离店</label>
+        <el-date-picker id="hotel-check-out" v-model="checkOut" type="date" placeholder="离店日期" format="MM月DD日" value-format="YYYY-MM-DD" :clearable="false" :disabled-date="disableCheckOutDate" />
+      </div>
+      <span class="stay-planner__nights">{{ stayNights }} 晚</span>
+      <el-button type="primary" class="stay-planner__action" @click="scrollToRooms">查看房型</el-button>
     </div>
 
     <!-- 2. 面包屑导航 -->
@@ -70,7 +49,7 @@
 
       <div class="hotel-info-right">
         <span class="price">¥{{hotelData.price}} <span class="price-desc">起</span></span>
-        <el-button type="primary" style="background-color: #0066f6; height: 45px;">选择房间</el-button>
+        <el-button type="primary" style="background-color: #0066f6; height: 45px;" @click="scrollToRooms">选择房间</el-button>
       </div>
     </div>
 
@@ -128,8 +107,12 @@
     </div>
 
     <!-- 6. 标签页（房间/点评/政策） -->
-    <el-tabs v-model="activeTab" class="tabs">
+    <el-tabs v-model="activeTab" class="tabs" id="hotel-rooms">
       <el-tab-pane label="房间" name="rooms">
+        <div class="room-list__heading">
+          <div><strong>{{ formatShortDate(checkIn) }} — {{ formatShortDate(checkOut) }}</strong><span> · {{ stayNights }} 晚入住</span></div>
+          <small>下方为房型价格估算，最终价格与库存会在订单页确认</small>
+        </div>
         <div class="room-list">
           <div class="room-item" v-for="room in hotelData.roomList" :key="room.id">
             <div class="room-img">
@@ -160,8 +143,9 @@
             <div class="room-price">
               <span class="stock">该房型共{{ room.stock }}间</span>
               <div>
-              <span class="price">¥{{ room.price }}</span>
-              <el-button type="primary" @click="router.push(`/hotel/order/${room.id}`)" style="height: 38px;width: 168px;background-color: #006ff6;">预订</el-button>
+              <span class="price">¥{{ room.price }}<small>/晚起</small></span>
+              <span class="room-price__estimate">{{ stayNights }} 晚参考房费 <strong>¥{{ formatAmount(Number(room.price) * stayNights) }}</strong></span>
+              <el-button type="primary" @click="bookRoom(room.id)" style="height: 38px;width: 168px;background-color: #006ff6;">预订</el-button>
               </div>
             </div>
           </div>
@@ -184,7 +168,8 @@
 
 
 <script setup>
-import { ref,onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import dayjs from 'dayjs'
 import {Location,NoSmoking,Check,Close,Money,User} from '@element-plus/icons-vue'
 import { Bed,Gift,Plane,Subway,Train,Wifi,Window } from '@/components/Icon.vue'
 import { getHotelDetailService } from '@/api/hotel'
@@ -211,17 +196,28 @@ const hotelData = ref({
   roomList: []
 })
 
-// 搜索栏数据
-// 模板顶部搜索栏的 6 个 v-model 直接依赖这些 ref。
-// 它们此前被整段注释掉，导致每个 v-model 都绑定到未定义变量：
-// 输入框/日期选择器实际不可用，控制台刷 6 条
-// "Property xxx was accessed during render but is not defined on instance"。
-const destination = ref('')
-const checkIn = ref('')
-const nightCount = ref(1)
-const checkOut = ref('')
-const roomGuest = ref('1-1')
-const keyword = ref('')
+const today = dayjs().startOf('day')
+const isValidStayDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && dayjs(value).isValid() && dayjs(value).format('YYYY-MM-DD') === value
+const routeCheckIn = isValidStayDate(route.query.checkIn) && !dayjs(route.query.checkIn).isBefore(today) ? route.query.checkIn : today.format('YYYY-MM-DD')
+const routeCheckOut = isValidStayDate(route.query.checkOut) && dayjs(route.query.checkOut).isAfter(dayjs(routeCheckIn)) ? route.query.checkOut : dayjs(routeCheckIn).add(1, 'day').format('YYYY-MM-DD')
+const checkIn = ref(routeCheckIn)
+const checkOut = ref(routeCheckOut)
+const stayNights = computed(() => Math.max(1, dayjs(checkOut.value).diff(dayjs(checkIn.value), 'day')))
+const disablePastDate = (date) => dayjs(date).isBefore(dayjs().startOf('day'))
+const disableCheckOutDate = (date) => dayjs(date).isBefore(dayjs(checkIn.value).add(1, 'day'))
+const syncCheckOut = () => {
+  if (!checkIn.value) return
+  if (!checkOut.value || !dayjs(checkOut.value).isAfter(dayjs(checkIn.value))) {
+    checkOut.value = dayjs(checkIn.value).add(1, 'day').format('YYYY-MM-DD')
+  }
+}
+const formatShortDate = (value) => dayjs(value).format('M月D日')
+const formatAmount = (value) => Number.isFinite(value) ? value.toLocaleString('zh-CN', { maximumFractionDigits: 0 }) : '—'
+const scrollToRooms = () => {
+  activeTab.value = 'rooms'
+  document.getElementById('hotel-rooms')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })
+}
+const bookRoom = (id) => router.push({ path: `/hotel/order/${id}`, query: { checkIn: checkIn.value, checkOut: checkOut.value } })
 
 // 酒店基本信息
 const showMore = ref(false)
@@ -275,20 +271,15 @@ onMounted(() => {
   background-color: #ffffff;
 }
 
-/* 搜索栏 */
-.search-bar {
-  margin-bottom: 20px;
-}
-
-.search-btn-col {
-  display: flex;
-  gap: 8px; /* 输入框和按钮之间的间距 */
-  align-items: center; /* 垂直居中对齐 */
-}
-
-.search-btn-col .el-input {
-  flex: 1; /* 让输入框占满剩余空间 */
-}
+.stay-planner { display: flex; align-items: end; flex-wrap: wrap; gap: var(--sp-4); padding: var(--sp-4) var(--sp-5); margin-bottom: var(--sp-5); border: 1px solid #d9e5e8; border-radius: var(--r-lg); background: linear-gradient(110deg, #edf7f6, #fffaf1); }
+.stay-planner__heading { display: flex; flex-direction: column; min-width: 190px; margin-right: auto; }
+.stay-planner__heading strong { font-size: var(--fs-body-lg); }
+.stay-planner__eyebrow { color: var(--c-travel-blue); font-family: var(--font-num); font-size: 10px; font-weight: 700; letter-spacing: .16em; }
+.stay-planner__field { display: flex; flex-direction: column; gap: 5px; }
+.stay-planner__field label { color: var(--c-ink-3); font-size: var(--fs-caption); }
+.stay-planner__field :deep(.el-date-editor) { width: 150px; }
+.stay-planner__nights { align-self: center; color: var(--c-travel-blue-deep); font-weight: 700; white-space: nowrap; }
+.stay-planner__action { align-self: center; }
 
 /* 面包屑 */
 .breadcrumb {
@@ -381,6 +372,10 @@ onMounted(() => {
   flex-direction: column;
   gap: 20px;
 }
+.room-list__heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-4); border-radius: var(--r-sm); background: var(--c-bg-sub); }
+.room-list__heading strong { color: var(--c-travel-blue-deep); }
+.room-list__heading small,
+.room-list__heading span { color: var(--c-ink-3); }
 .room-item {
   display: flex;
   border: 1px solid var(--c-line-2);
@@ -401,6 +396,12 @@ onMounted(() => {
 .room-price {
   padding: 10px;
 }
+.room-price > div { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); }
+.room-price .price { margin: 0; white-space: nowrap; }
+.room-price .price small { margin-left: 4px; color: var(--c-ink-3); font-size: var(--fs-caption); font-weight: 400; }
+.room-price__estimate { color: var(--c-ink-3); font-size: var(--fs-caption); white-space: nowrap; }
+.room-price__estimate strong { color: var(--c-travel-blue-deep); }
+#hotel-rooms { scroll-margin-top: calc(var(--header-h) + var(--sp-4)); }
 .room-basic {
   flex: 2;
 }
@@ -423,5 +424,27 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+@media (max-width: 768px) {
+  .hotel-detail { width: 100%; padding: var(--sp-4); overflow: hidden; }
+  .stay-planner { gap: var(--sp-3); padding: var(--sp-4); }
+  .stay-planner__heading { width: 100%; }
+  .stay-planner__field { flex: 1 1 130px; min-width: 0; }
+  .stay-planner__field :deep(.el-date-editor) { width: 100%; }
+  .stay-planner__action { margin-left: auto; }
+  .hotel-header { align-items: flex-start; flex-direction: column; gap: var(--sp-3); }
+  .hotel-info-right { display: flex; align-items: center; justify-content: space-between; width: 100%; text-align: left; }
+  .hotel-media-section { flex-direction: column; gap: var(--sp-4); width: 100%; }
+  .hotel-images { flex-direction: column; width: 100%; gap: var(--sp-2); margin-bottom: 0; }
+  .hotel-images > :deep(.el-image) { width: 100% !important; height: 230px !important; }
+  .thumb-grid { display: flex; width: 100%; overflow-x: auto; }
+  .thumb-grid :deep(.el-image) { width: 86px !important; height: 70px !important; flex: none; margin-bottom: 0 !important; }
+  .hotel-meta-info { width: 100%; }
+  .rating, .facilities, .location { margin-right: 0; }
+  .room-item { flex-direction: column; }
+  .room-img { width: 100%; height: 180px; }
+  .room-price { flex-direction: row; align-items: center; justify-content: space-between; gap: var(--sp-3); border-top: 1px dashed var(--c-line); }
+  .room-price > div { align-items: flex-end; }
+  .map-placeholder { max-width: 100%; }
 }
 </style>

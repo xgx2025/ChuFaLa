@@ -35,13 +35,22 @@
                 <el-input v-model="searchForm.to" placeholder="城市/机场" prefix-icon="Location" />
               </el-form-item>
             </div>
+
+            <div v-if="activeRoute" class="route-feedback" role="status">
+              <span class="route-feedback__icon" aria-hidden="true">↗</span>
+              <span>已带入 <strong>{{ activeRoute.from }} → {{ activeRoute.to }}</strong>，选好日期就可以继续。</span>
+            </div>
             
             <div class="form-row">
-              <el-form-item label="出发日期" class="flex-item">
+              <el-form-item :label="activeTab === 'round-trip' ? '去程 / 返程日期' : '出发日期'" class="flex-item">
                 <el-date-picker 
                   v-model="searchForm.date" 
                   :type="activeTab === 'round-trip' ? 'daterange' : 'date'"
-                  placeholder="选择日期"
+                  :placeholder="activeTab === 'round-trip' ? undefined : '选择出发日期'"
+                  start-placeholder="去程日期"
+                  end-placeholder="返程日期"
+                  range-separator="至"
+                  :disabled-date="disablePastDate"
                   style="width: 100%"
                 />
               </el-form-item>
@@ -75,6 +84,12 @@
                 </el-popover>
               </el-form-item>
             </div>
+
+            <div class="flight-preview" aria-live="polite">
+              <span class="flight-preview__eyebrow">YOUR ROUTE</span>
+              <span class="flight-preview__cities">{{ searchForm.from || '出发地' }} <span aria-hidden="true">→</span> {{ searchForm.to || '目的地' }}</span>
+              <span class="flight-preview__date">{{ dateSummary }}</span>
+            </div>
             
             <el-button type="primary" class="search-btn" size="large" @click="handleSearch">
               搜索航班
@@ -88,7 +103,7 @@
     <div class="section-container">
       <h2 class="section-title">热门航线特惠</h2>
       <div class="routes-grid">
-        <button v-for="route in popularRoutes" :key="route.id" type="button" class="route-card" :aria-label="`选择${route.from}到${route.to}的航线`" @click="selectPopularRoute(route)">
+        <button v-for="route in popularRoutes" :key="route.id" type="button" class="route-card" :class="{ 'route-card--selected': activeRoute?.id === route.id }" :aria-label="`选择${route.from}到${route.to}的航线`" :aria-pressed="activeRoute?.id === route.id" @click="selectPopularRoute(route)">
           <img v-lazy-img loading="lazy" :src="route.image" :alt="`${route.from} 到 ${route.to} 航线`" class="route-image">
           <div class="route-info">
             <div class="route-header">
@@ -134,12 +149,15 @@
 </template>
 <script setup lang="ts">
 import BackToTop from '@/components/BackToTop.vue'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import dayjs from 'dayjs'
+import { ElMessage } from 'element-plus'
 import { Location, Switch, User, Timer, Service } from '@element-plus/icons-vue'
 import { Plane } from '@/components/Icon.vue'
 
 const activeTab = ref('one-way')
 const routeReversed = ref(false)
+const selectedRouteId = ref<number | null>(null)
 
 const slides = [
   { image: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2074&auto=format&fit=crop' },
@@ -150,7 +168,7 @@ const slides = [
 const searchForm = ref({
   from: '',
   to: '',
-  date: '',
+  date: null as Date | [Date, Date] | null,
   passengers: {
     adult: 1,
     child: 0
@@ -168,16 +186,30 @@ const passengerSummary = computed(() => {
   return `${adult + child}人 · ${classMap[searchForm.value.class]}`
 })
 
+const activeRoute = computed(() => popularRoutes.find((route) => route.id === selectedRouteId.value && route.from === searchForm.value.from && route.to === searchForm.value.to))
+const dateSummary = computed(() => {
+  const date = searchForm.value.date
+  if (Array.isArray(date) && date.length === 2 && date[0] && date[1]) {
+    return `${dayjs(date[0]).format('M月D日')} 去 · ${dayjs(date[1]).format('M月D日')} 回`
+  }
+  if (date instanceof Date) return `${dayjs(date).format('M月D日')} 出发`
+  return activeTab.value === 'round-trip' ? '选择去程与返程日期' : '选择出发日期'
+})
+const disablePastDate = (date: Date) => dayjs(date).isBefore(dayjs().startOf('day'))
+watch(activeTab, () => { searchForm.value.date = null })
+
 const swapLocations = () => {
   const temp = searchForm.value.from
   searchForm.value.from = searchForm.value.to
   searchForm.value.to = temp
   routeReversed.value = !routeReversed.value
+  selectedRouteId.value = null
 }
 
-const selectPopularRoute = (route: { from: string; to: string }) => {
+const selectPopularRoute = (route: { id: number; from: string; to: string }) => {
   searchForm.value.from = route.from
   searchForm.value.to = route.to
+  selectedRouteId.value = route.id
   document.querySelector('.search-card')?.scrollIntoView({
     behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
     block: 'center'
@@ -185,8 +217,19 @@ const selectPopularRoute = (route: { from: string; to: string }) => {
 }
 
 const handleSearch = () => {
-  console.log('Searching flights:', searchForm.value)
-  // Implement search logic here
+  if (!searchForm.value.from.trim() || !searchForm.value.to.trim()) {
+    ElMessage.warning('请先填写出发地和目的地')
+    return
+  }
+  if (searchForm.value.from.trim() === searchForm.value.to.trim()) {
+    ElMessage.warning('出发地和目的地不能相同')
+    return
+  }
+  if (!searchForm.value.date || (activeTab.value === 'round-trip' && !Array.isArray(searchForm.value.date))) {
+    ElMessage.warning('请选择完整的出行日期')
+    return
+  }
+  ElMessage.info('航班查询服务暂未接入，可继续调整当前搜索条件')
 }
 
 const popularRoutes = [
@@ -295,6 +338,14 @@ const popularRoutes = [
 .search-form {
   margin-top: 20px;
 }
+
+.route-feedback { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); margin: -4px 0 var(--sp-4); border-radius: var(--r-sm); background: #edf7f6; color: var(--c-travel-blue-deep); font-size: var(--fs-caption); }
+.route-feedback__icon { font-size: 18px; line-height: 1; }
+.flight-preview { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; padding: var(--sp-3) var(--sp-4); border: 1px solid #d7e7e8; border-radius: var(--r-sm); background: linear-gradient(110deg, #f0f8f7, #fffaf0); }
+.flight-preview__eyebrow { color: var(--c-travel-blue); font-family: var(--font-num); font-size: 10px; font-weight: 700; letter-spacing: .16em; }
+.flight-preview__cities { color: var(--c-ink); font-weight: 600; }
+.flight-preview__cities span { margin: 0 var(--sp-1); color: var(--c-travel-blue); }
+.flight-preview__date { margin-left: auto; color: var(--c-ink-3); font-size: var(--fs-caption); }
 
 .form-row {
   display: flex;
@@ -411,6 +462,7 @@ const popularRoutes = [
   transform: translateY(-4px);
   box-shadow: var(--sh-hover);
 }
+.route-card--selected { outline: 2px solid var(--c-travel-blue); outline-offset: 3px; }
 
 .route-card:focus-visible {
   outline: 3px solid var(--c-primary-300);
@@ -532,6 +584,7 @@ const popularRoutes = [
     flex-direction: column;
     gap: 10px;
   }
+  .flight-preview__date { width: 100%; margin-left: 0; }
   
   .exchange-icon {
     padding-top: 0;

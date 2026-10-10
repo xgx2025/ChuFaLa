@@ -1,5 +1,5 @@
 <template>
-  <div class="package-page">
+  <div class="package-page" :class="{ 'package-page--comparing': comparedPackages.length }">
     <!-- 页面标题 -->
     <h1 class="page-title">旅游套餐</h1>
 
@@ -34,6 +34,32 @@
       </div>
     </el-card>
 
+    <div class="discovery-bar" aria-label="按旅行灵感筛选">
+      <div class="discovery-bar__intro">
+        <span class="discovery-bar__eyebrow">PICK YOUR PACE</span>
+        <span>这次想怎么出发？</span>
+      </div>
+      <div class="discovery-bar__options">
+        <button
+          v-for="idea in tripIdeas"
+          :key="idea.key"
+          type="button"
+          class="idea-chip"
+          :class="{ 'idea-chip--active': selectedIdea === idea.key }"
+          :aria-pressed="selectedIdea === idea.key"
+          @click="selectedIdea = selectedIdea === idea.key ? '' : idea.key"
+        >
+          <span class="idea-chip__mark" aria-hidden="true">{{ idea.mark }}</span>
+          {{ idea.label }}
+        </button>
+      </div>
+    </div>
+
+    <div class="results-heading" aria-live="polite">
+      <div><strong>{{ filteredPackages.length }}</strong> 个旅行提案<span v-if="selectedIdea"> · {{ activeIdeaLabel }}</span></div>
+      <span>点选两款套餐，可并排看清差别</span>
+    </div>
+
     <!-- 首次加载：骨架屏 -->
     <div v-if="firstLoading" class="package-list">
       <el-card v-for="n in 6" :key="n" class="package-card" shadow="never">
@@ -51,7 +77,7 @@
     </div>
 
     <!-- 套餐列表 -->
-    <div v-else class="package-list">
+    <TransitionGroup v-else name="package-grid" tag="div" class="package-list">
       <el-card
         v-for="pkg in filteredPackages"
         :key="pkg.id"
@@ -68,6 +94,17 @@
             class="package-card__image"
           />
           <div class="package-card__days-tag">{{ pkg.days }}天{{ pkg.nights }}晚</div>
+          <button
+            type="button"
+            class="package-card__compare"
+            :class="{ 'package-card__compare--selected': isCompared(pkg.id) }"
+            :aria-pressed="isCompared(pkg.id)"
+            :aria-label="`${isCompared(pkg.id) ? '移出' : '加入'}对比：${pkg.name}`"
+            @click="toggleCompare(pkg.id)"
+          >
+            <span aria-hidden="true">{{ isCompared(pkg.id) ? '✓' : '+' }}</span>
+            {{ isCompared(pkg.id) ? '已加入' : '加入对比' }}
+          </button>
         </div>
 
         <div class="package-card__content">
@@ -96,7 +133,7 @@
           </div>
         </div>
       </el-card>
-    </div>
+    </TransitionGroup>
 
     <!-- 空态 -->
     <div v-if="!firstLoading && filteredPackages.length === 0" class="empty-state">
@@ -104,6 +141,37 @@
         <el-button @click="resetFilters">重置筛选条件</el-button>
       </el-empty>
     </div>
+
+    <Transition name="compare-dock">
+      <aside v-if="comparedPackages.length" class="compare-dock" aria-label="套餐对比栏">
+        <div class="compare-dock__heading">
+          <span class="compare-dock__eyebrow">TRIP COMPARE</span>
+          <strong>把心动的旅程放在一起</strong>
+          <small>{{ comparedPackages.length }}/2 已选择</small>
+        </div>
+        <div class="compare-dock__items">
+          <div v-for="pkg in comparedPackages" :key="pkg.id" class="compare-dock__item">
+            <img :src="pkg.image" :alt="pkg.name" />
+            <span>{{ pkg.name }}</span>
+            <button type="button" :aria-label="`移出对比：${pkg.name}`" @click="toggleCompare(pkg.id)">×</button>
+          </div>
+          <div v-if="comparedPackages.length === 1" class="compare-dock__placeholder">再选 1 款，就能对比</div>
+        </div>
+        <button type="button" class="compare-dock__action" :disabled="comparedPackages.length < 2" @click="compareVisible = true">查看对比 <span aria-hidden="true">↗</span></button>
+      </aside>
+    </Transition>
+
+    <el-dialog v-model="compareVisible" title="两段旅程，怎么选？" width="min(760px, calc(100vw - 32px))" class="package-compare-dialog">
+      <div class="compare-table" v-if="comparedPackages.length === 2">
+        <div class="compare-table__label">旅行提案</div>
+        <div v-for="pkg in comparedPackages" :key="`name-${pkg.id}`" class="compare-table__name">{{ pkg.name }}</div>
+        <template v-for="row in compareRows" :key="row.label">
+          <div class="compare-table__label">{{ row.label }}</div>
+          <div v-for="pkg in comparedPackages" :key="`${row.label}-${pkg.id}`" class="compare-table__value">{{ row.value(pkg) }}</div>
+        </template>
+      </div>
+      <p class="compare-note">当前为展示套餐，用于比较行程方向；价格与可订状态以正式上线数据为准。</p>
+    </el-dialog>
   </div>
 </template>
 
@@ -146,6 +214,38 @@ const searchKeyword = ref('')
 const filterType = ref('')
 const sortBy = ref('default')
 const loading = ref(false)
+const selectedIdea = ref('')
+const comparedIds = ref([])
+const compareVisible = ref(false)
+const tripIdeas = [
+  { key: 'weekend', label: '周末轻出发', mark: '↗' },
+  { key: 'family', label: '带孩子去玩', mark: '✳' },
+  { key: 'long', label: '慢慢走远方', mark: '◌' },
+]
+const activeIdeaLabel = computed(() => tripIdeas.find((idea) => idea.key === selectedIdea.value)?.label || '')
+const comparedPackages = computed(() => comparedIds.value.map((id) => packages.value.find((pkg) => pkg.id === id)).filter(Boolean))
+const compareRows = [
+  { label: '起价 / 人', value: (pkg) => `¥${pkg.price.toLocaleString()}` },
+  { label: '旅行时间', value: (pkg) => `${pkg.days} 天 ${pkg.nights} 晚` },
+  { label: '旅行类型', value: (pkg) => pkg.type },
+  { label: '评分', value: (pkg) => `${pkg.rating} / 5` },
+  { label: '展示销量', value: (pkg) => `${pkg.sold.toLocaleString()} 份` },
+  { label: '行程亮点', value: (pkg) => pkg.description },
+]
+
+const isCompared = (id) => comparedIds.value.includes(id)
+const toggleCompare = (id) => {
+  if (isCompared(id)) {
+    comparedIds.value = comparedIds.value.filter((item) => item !== id)
+    if (comparedIds.value.length < 2) compareVisible.value = false
+    return
+  }
+  if (comparedIds.value.length === 2) {
+    ElMessage.info('最多对比 2 款套餐，先移出一款再添加')
+    return
+  }
+  comparedIds.value = [...comparedIds.value, id]
+}
 
 // 首屏骨架屏：数据是本地同步的，这里给一帧过渡，避免骨架屏一闪而过
 const firstLoading = computed(() => loading.value)
@@ -156,6 +256,9 @@ const filteredPackages = computed(() => {
   let list = packages.value.filter((pkg) => {
     if (filterType.value && pkg.type !== filterType.value) return false
     if (kw && !(`${pkg.name} ${pkg.description}`.toLowerCase().includes(kw))) return false
+    if (selectedIdea.value === 'weekend' && pkg.days > 3) return false
+    if (selectedIdea.value === 'family' && !/亲子|带娃|乐园|手作/.test(`${pkg.name} ${pkg.description}`)) return false
+    if (selectedIdea.value === 'long' && pkg.days < 6) return false
     return true
   })
 
@@ -174,6 +277,7 @@ const resetFilters = () => {
   searchKeyword.value = ''
   filterType.value = ''
   sortBy.value = 'default'
+  selectedIdea.value = ''
 }
 
 const handleBook = (pkg) => {
@@ -196,6 +300,10 @@ onMounted(() => {
   padding: var(--sp-5);
 }
 
+.package-page--comparing {
+  padding-bottom: 164px;
+}
+
 .filter-card {
   margin-bottom: var(--sp-5);
 }
@@ -213,6 +321,80 @@ onMounted(() => {
 
 .filter-container__select {
   width: 150px;
+}
+
+.discovery-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  margin: 0 0 var(--sp-6);
+  border: 1px solid #dbe8e9;
+  border-radius: var(--r-lg);
+  background: linear-gradient(110deg, #edf7f6 0%, #f8fafc 58%, #fffaf0 100%);
+}
+
+.discovery-bar__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--c-ink);
+  font-size: var(--fs-body-lg);
+  font-weight: 600;
+}
+
+.discovery-bar__eyebrow,
+.compare-dock__eyebrow {
+  color: var(--c-travel-blue);
+  font-family: var(--font-num);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+
+.discovery-bar__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.idea-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 38px;
+  padding: 0 var(--sp-3);
+  border: 1px solid #d3e4e5;
+  border-radius: var(--r-full);
+  background: rgba(255, 255, 255, .84);
+  color: var(--c-ink-2);
+  font: inherit;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
+}
+
+.idea-chip:hover { transform: translateY(-2px); border-color: var(--c-travel-blue); }
+.idea-chip:active { transform: scale(.97); }
+.idea-chip--active { background: var(--c-travel-blue-deep); border-color: var(--c-travel-blue-deep); color: #fff; }
+.idea-chip__mark { font-size: 18px; line-height: 1; }
+
+.results-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin: 0 0 var(--sp-3);
+  color: var(--c-ink-3);
+  font-size: var(--fs-caption);
+}
+
+.results-heading strong {
+  color: var(--c-travel-blue-deep);
+  font-family: var(--font-num);
+  font-size: var(--fs-h2);
+  font-weight: 700;
 }
 
 .package-list {
@@ -281,6 +463,32 @@ onMounted(() => {
   background: var(--c-travel-sun);
   box-shadow: 0 0 0 3px rgba(247, 200, 117, .18);
 }
+
+.package-card__compare {
+  position: absolute;
+  left: var(--sp-3);
+  bottom: var(--sp-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgba(255, 255, 255, .76);
+  border-radius: var(--r-full);
+  background: rgba(15, 23, 42, .68);
+  color: #fff;
+  font: inherit;
+  font-size: var(--fs-caption);
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  transition: background var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+
+.package-card__compare:hover { background: var(--c-travel-blue-deep); }
+.package-card__compare:active { transform: scale(.96); }
+.package-card__compare--selected { background: var(--c-travel-blue-deep); }
+.package-card__compare span { font-size: 18px; line-height: 1; }
 
 .package-card__content {
   padding: var(--sp-4);
@@ -395,5 +603,90 @@ onMounted(() => {
 .empty-state {
   padding: var(--sp-12) 0;
   text-align: center;
+}
+
+.package-grid-move,
+.package-grid-enter-active,
+.package-grid-leave-active { transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out); }
+.package-grid-enter-from,
+.package-grid-leave-to { opacity: 0; transform: translateY(12px); }
+.package-grid-leave-active { position: absolute; }
+
+.compare-dock {
+  position: fixed;
+  z-index: 40;
+  left: 50%;
+  bottom: var(--sp-4);
+  width: min(940px, calc(100vw - 32px));
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid #cee1e1;
+  border-radius: var(--r-lg);
+  background: rgba(255, 255, 255, .96);
+  box-shadow: var(--sh-3);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  transform: translateX(-50%);
+}
+
+.compare-dock-enter-active,
+.compare-dock-leave-active { transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out); }
+.compare-dock-enter-from,
+.compare-dock-leave-to { opacity: 0; transform: translate(-50%, 20px); }
+
+.compare-dock__heading { display: flex; flex-direction: column; gap: 2px; }
+.compare-dock__heading strong { font-size: var(--fs-body); line-height: 1.3; }
+.compare-dock__heading small { color: var(--c-ink-3); }
+.compare-dock__items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); min-width: 0; }
+.compare-dock__item,
+.compare-dock__placeholder { min-width: 0; min-height: 52px; border-radius: var(--r-sm); }
+.compare-dock__item { display: flex; align-items: center; gap: var(--sp-2); padding: 5px; background: var(--c-bg-sub); }
+.compare-dock__item img { width: 46px; height: 42px; flex: none; object-fit: cover; border-radius: 5px; }
+.compare-dock__item span { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-caption); }
+.compare-dock__item button { flex: none; border: 0; background: none; color: var(--c-ink-3); font-size: 21px; cursor: pointer; }
+.compare-dock__item button:hover { color: var(--c-danger); }
+.compare-dock__placeholder { display: grid; place-items: center; border: 1px dashed #c8d7db; color: var(--c-ink-3); font-size: var(--fs-caption); }
+.compare-dock__action { min-height: 44px; padding: 0 var(--sp-4); border: 0; border-radius: var(--r-sm); background: var(--c-travel-blue-deep); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+.compare-dock__action:hover:not(:disabled) { background: var(--c-travel-blue); }
+.compare-dock__action:disabled { opacity: .48; cursor: not-allowed; }
+
+.compare-table { display: grid; grid-template-columns: 112px repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--c-line); border-left: 1px solid var(--c-line); }
+.compare-table > div { min-width: 0; padding: var(--sp-3); border-right: 1px solid var(--c-line); border-bottom: 1px solid var(--c-line); line-height: 1.5; }
+.compare-table__label { background: var(--c-bg-sub); color: var(--c-ink-3); font-size: var(--fs-caption); }
+.compare-table__name { color: var(--c-travel-blue-deep); font-weight: 600; }
+.compare-table__value { color: var(--c-ink-2); }
+.compare-note { margin: var(--sp-3) 0 0; color: var(--c-ink-3); font-size: var(--fs-caption); }
+
+@media (max-width: 1000px) {
+  .package-page--comparing { padding-bottom: 210px; }
+  .compare-dock { bottom: 104px; }
+}
+
+@media (max-width: 700px) {
+  .package-page { padding: var(--sp-4); }
+  .discovery-bar { padding: var(--sp-4); }
+  .results-heading > span { display: none; }
+  .compare-dock { grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-2); padding: var(--sp-2); }
+  .compare-dock__heading { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: space-between; padding: 0 var(--sp-1); }
+  .compare-dock__eyebrow { display: none; }
+  .compare-dock__heading strong { font-size: var(--fs-caption); }
+  .compare-dock__items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .compare-dock__item,
+  .compare-dock__placeholder { min-height: 42px; }
+  .compare-dock__item img { display: none; }
+  .compare-dock__action { align-self: end; }
+  .compare-table { grid-template-columns: 76px repeat(2, minmax(0, 1fr)); font-size: var(--fs-caption); }
+  .compare-table > div { padding: var(--sp-2); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .package-grid-move,
+  .package-grid-enter-active,
+  .package-grid-leave-active,
+  .compare-dock-enter-active,
+  .compare-dock-leave-active { transition: none; }
 }
 </style>

@@ -548,6 +548,7 @@
 <script setup>
 import BackToTop from '@/components/BackToTop.vue';
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import dayjs from 'dayjs';
 import { ElMessage } from 'element-plus';
 import { getHotelListService } from '@/api/hotel';
 import { useGeoStore } from '@/stores/geo';
@@ -603,7 +604,11 @@ const hotelsSectionRef = ref(null); // 列表区块，用于筛选变化后回�
 
 // 整卡可点：卡片本身承担跳转，右下角按钮是它的视觉化身
 const goHotelDetail = (id) => {
-  router.push(`/hotel/detail/${id}`);
+  const dates = searchForm.value.dates;
+  const query = Array.isArray(dates) && dates.length === 2 && dates[0] && dates[1]
+    ? { checkIn: dayjs(dates[0]).format('YYYY-MM-DD'), checkOut: dayjs(dates[1]).format('YYYY-MM-DD') }
+    : {};
+  router.push({ path: `/hotel/detail/${id}`, query });
 };
 
 // 订阅表单

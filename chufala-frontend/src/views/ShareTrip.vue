@@ -1,5 +1,13 @@
 <template>
-  <div class="share-page">
+  <div class="share-page" :class="{ 'share-page--preview': previewMode }">
+    <nav v-if="itinerary.length && !previewMode && !captureMode" class="share-navigator" aria-label="行程天数导航">
+      <div class="share-navigator__title"><span>YOUR DAYS</span><strong>{{ travelForm.destination }} · {{ itinerary.length }} 天</strong></div>
+      <div class="share-navigator__days">
+        <button v-for="(day, index) in itinerary" :key="day.day ?? index" type="button" :class="{ 'is-active': activeDayIndex === index }" :aria-current="activeDayIndex === index ? 'step' : undefined" @click="jumpToDay(index)">第 {{ day.day }} 天</button>
+      </div>
+      <button type="button" class="share-navigator__preview" @click="previewMode = true">预览分享卡 <span aria-hidden="true">↗</span></button>
+    </nav>
+    <button v-if="previewMode" type="button" class="share-preview-exit" @click="previewMode = false">退出预览 <span aria-hidden="true">×</span></button>
     <div class="share-card" id="share-card">
       <!-- 顶部装饰 -->
       <div class="card-decoration"></div>
@@ -71,7 +79,7 @@
                   <div class="custom-dot">{{ index + 1 }}</div>
                 </template>
                 
-                <div class="day-header">
+                <div :id="`share-day-${index}`" class="day-header share-day-anchor">
                   <span class="day-label">DAY {{ day.day }}</span>
                   <div class="day-weather" v-if="day.weather">
                     <img :src="`/weather/${day.weather}.png`" class="weather-icon">
@@ -163,7 +171,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import * as echarts from 'echarts';
 import { loadAMap } from '@/utils/amap-loader';
@@ -172,6 +180,7 @@ import { User, Wallet, MapLocation, Picture, Van } from '@element-plus/icons-vue
 
 const route = useRoute();
 const AMAP_KEY = import.meta.env.VITE_AMAP_API_KEY;
+const captureMode = route.query.capture === '1';
 
 const itinerary = ref([]);
 const budgetSummary = ref({ breakdown: [], total: 0 });
@@ -181,16 +190,41 @@ const markers = ref([]);
 const budgetChart = ref(null);
 const types = ["warning", "primary", "success", "danger"];
 const currentDate = new Date().toLocaleDateString();
+const activeDayIndex = ref(0);
+const previewMode = ref(false);
+let scrollFrame = 0;
+const updateActiveDay = () => {
+  cancelAnimationFrame(scrollFrame);
+  scrollFrame = requestAnimationFrame(() => {
+    const threshold = window.innerHeight * .42;
+    itinerary.value.forEach((_, index) => {
+      const day = document.getElementById(`share-day-${index}`);
+      if (day && day.getBoundingClientRect().top <= threshold) activeDayIndex.value = index;
+    });
+  });
+};
+const jumpToDay = (index) => {
+  activeDayIndex.value = index;
+  document.getElementById(`share-day-${index}`)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
+};
+const onPreviewKeyDown = (event) => { if (event.key === 'Escape') previewMode.value = false; };
 
 // 标记页面是否准备好供截图
 window.screenshotReady = false;
 
 onMounted(async () => {
+  window.addEventListener('scroll', updateActiveDay, { passive: true });
+  window.addEventListener('keydown', onPreviewKeyDown);
   const id = route.query.id;
   if (id) {
     await initMap();
     await loadData(id);
   }
+});
+onUnmounted(() => {
+  window.removeEventListener('scroll', updateActiveDay);
+  window.removeEventListener('keydown', onPreviewKeyDown);
+  cancelAnimationFrame(scrollFrame);
 });
 
 const loadData = async (id) => {
@@ -223,6 +257,7 @@ const loadData = async (id) => {
     });
 
     nextTick(() => {
+      updateActiveDay();
       addMarkersToMap();
       renderBudgetChart();
       // 延迟一点点确保图片加载（实际生产中可能需要监听图片加载）
@@ -339,17 +374,39 @@ body {
   background-color: var(--c-bg-sub); 
   padding: 40px;
   display: flex;
+  flex-direction: column;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
+  gap: 16px;
   font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   color: var(--c-ink);
   box-sizing: border-box;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
+.share-page--preview { background-color: #152334; }
 </style>
 
 <style scoped>
+.share-navigator { position: sticky; top: 16px; z-index: 20; display: flex; align-items: center; gap: var(--sp-4); width: min(1200px, 100%); min-height: 64px; padding: var(--sp-2) var(--sp-4); border: 1px solid #d9e6e8; border-radius: var(--r-lg); background: rgba(255, 255, 255, .96); box-shadow: var(--sh-2); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.share-navigator__title { display: flex; flex-direction: column; flex: none; }
+.share-navigator__title span { color: var(--c-travel-blue); font-family: var(--font-num); font-size: 10px; font-weight: 700; letter-spacing: .16em; }
+.share-navigator__title strong { font-size: var(--fs-body); }
+.share-navigator__days { display: flex; gap: var(--sp-2); flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+.share-navigator__days button { flex: none; min-height: 34px; padding: 0 var(--sp-3); border: 1px solid var(--c-line); border-radius: var(--r-full); background: var(--c-bg-sub); color: var(--c-ink-3); font: inherit; font-size: var(--fs-caption); cursor: pointer; transition: color var(--dur-base) var(--ease-out), background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out); }
+.share-navigator__days button:hover { border-color: var(--c-travel-blue); color: var(--c-travel-blue-deep); }
+.share-navigator__days button.is-active { border-color: var(--c-travel-blue-deep); background: var(--c-travel-blue-deep); color: #fff; }
+.share-navigator__preview { flex: none; min-height: 38px; padding: 0 var(--sp-3); border: 0; border-radius: var(--r-sm); background: var(--c-travel-blue-deep); color: #fff; font: inherit; cursor: pointer; }
+.share-navigator__preview:hover { background: var(--c-travel-blue); }
+.share-preview-exit { position: fixed; top: var(--sp-5); right: var(--sp-5); z-index: 30; min-height: 40px; padding: 0 var(--sp-4); border: 1px solid rgba(255,255,255,.4); border-radius: var(--r-full); background: rgba(15,23,42,.8); color: #fff; font: inherit; cursor: pointer; }
+.share-preview-exit:hover { background: var(--c-travel-blue-deep); }
+.share-day-anchor { scroll-margin-top: 96px; }
+.share-page--preview .share-card { box-shadow: 0 24px 80px rgba(0,0,0,.36); }
+@media (max-width: 800px) {
+  .share-navigator { flex-wrap: wrap; }
+  .share-navigator__days { order: 3; flex-basis: 100%; }
+  .share-navigator__preview { margin-left: auto; }
+}
 .share-card {
   width: 1200px;
   background: #ffffff;
