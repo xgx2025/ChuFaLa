@@ -11,6 +11,7 @@ import com.hope.chufala.model.vo.HotelInfoVO;
 import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.mapper.HotelMapper;
 import com.hope.chufala.infra.HotelListCache;
+import com.hope.chufala.infra.DetailMissCache;
 
 import com.hope.chufala.mapper.HotelReviewMapper;
 import com.hope.chufala.mapper.RoomMapper;
@@ -44,6 +45,8 @@ public class HotelServiceImpl implements IHotelService {
     private HotelReviewMapper commentMapper;
     @Autowired
     private HotelListCache hotelListCache;
+    @Autowired
+    private DetailMissCache detailMissCache;
 
     private static final Logger log = LoggerFactory.getLogger(HotelServiceImpl.class);
 
@@ -57,7 +60,10 @@ public class HotelServiceImpl implements IHotelService {
     @Transactional
     public boolean addHotel(Hotel hotel) {
         boolean inserted = hotelMapper.insert(hotel) > 0;
-        if (inserted) hotelListCache.invalidateAfterCommit();
+        if (inserted) {
+            hotelListCache.invalidateAfterCommit();
+            detailMissCache.forgetAfterCommit("hotel", hotel.getId());
+        }
         return inserted;
     }
 
@@ -92,38 +98,35 @@ public class HotelServiceImpl implements IHotelService {
                 ? null : CursorPaginationUtils.decode(query.getCursor(), cursorSort, scope);
         String cacheKey = !"distance".equals(cursorSort)
                 ? hotelListCache.pageKey(cursorSort, scope, size, cursor) : null;
-        PageResult<Hotel> cached = cacheKey == null ? null : hotelListCache.get(cacheKey);
-        if (cached != null) {
-            calculateDistances(cached.getData(), point.getLatitude(), point.getLongitude());
-            return cached;
-        }
-        List<Hotel> rows = hotelMapper.selectByScoreRankPage(size + 1, query.getStars(), query.getCity(),
-                query.getMaxPrice(), query.getMinPrice(), query.getFacilities(), sort,
-                point.getLatitude(), point.getLongitude(),
-                cursor == null ? null : cursor.id(), cursor == null ? null : cursor.value());
-        boolean hasMore = rows.size() > size;
-        List<Hotel> hotels = new ArrayList<>(rows.subList(0, Math.min(size, rows.size())));
-        PageResult<Hotel> result = new PageResult<>();
-        result.setData(hotels);
-        result.setSize(size);
-        result.setHasMore(hasMore);
-        if (hasMore) {
-            Hotel last = hotels.get(hotels.size() - 1);
-            Double value;
-            if ("distance".equals(cursorSort)) {
-                value = last.getCursorSortValue() == null ? 1.0E15 : last.getCursorSortValue();
-            } else if ("price-asc".equals(cursorSort)) {
-                value = last.getPrice();
-            } else if ("price-desc".equals(cursorSort)) {
-                value = last.getPrice();
-            } else {
-                value = last.getOverallRating();
+        PageResult<Hotel> result = hotelListCache.getOrLoad(cacheKey, () -> {
+            List<Hotel> rows = hotelMapper.selectByScoreRankPage(size + 1, query.getStars(), query.getCity(),
+                    query.getMaxPrice(), query.getMinPrice(), query.getFacilities(), sort,
+                    point.getLatitude(), point.getLongitude(),
+                    cursor == null ? null : cursor.id(), cursor == null ? null : cursor.value());
+            boolean hasMore = rows.size() > size;
+            List<Hotel> hotels = new ArrayList<>(rows.subList(0, Math.min(size, rows.size())));
+            PageResult<Hotel> page = new PageResult<>();
+            page.setData(hotels);
+            page.setSize(size);
+            page.setHasMore(hasMore);
+            if (hasMore) {
+                Hotel last = hotels.get(hotels.size() - 1);
+                Double value;
+                if ("distance".equals(cursorSort)) {
+                    value = last.getCursorSortValue() == null ? 1.0E15 : last.getCursorSortValue();
+                } else if ("price-asc".equals(cursorSort)) {
+                    value = last.getPrice();
+                } else if ("price-desc".equals(cursorSort)) {
+                    value = last.getPrice();
+                } else {
+                    value = last.getOverallRating();
+                }
+                page.setNextCursor(CursorPaginationUtils.encode(cursorSort, scope, value, last.getId(),
+                        cursor == null ? 2 : Math.min(4, cursor.page() + 1)));
             }
-            result.setNextCursor(CursorPaginationUtils.encode(cursorSort, scope, value, last.getId(),
-                    cursor == null ? 2 : Math.min(4, cursor.page() + 1)));
-        }
-        if (cacheKey != null) hotelListCache.put(cacheKey, result);
-        calculateDistances(hotels, point.getLatitude(), point.getLongitude());
+            return page;
+        });
+        calculateDistances(result.getData(), point.getLatitude(), point.getLongitude());
         return result;
     }
 
@@ -190,7 +193,13 @@ public class HotelServiceImpl implements IHotelService {
      */
     @Override
     public Hotel getHotelDetail(Long id) {
+        if (id == null || id < 1) throw new IllegalArgumentException("酒店 ID 必须为正数");
+        if (detailMissCache.isMissing("hotel", id)) return null;
         Hotel hotel = hotelMapper.selectById(id);
+        if (hotel == null) {
+            detailMissCache.rememberMissing("hotel", id);
+            return null;
+        }
         List<String> imageList = hotelMapper.findHotelImage(id);
         hotel.setMainImage(imageList.get(0));
         hotel.setOtherImages(imageList.subList(1,imageList.size()));

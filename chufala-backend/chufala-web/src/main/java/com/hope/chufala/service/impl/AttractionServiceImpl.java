@@ -9,6 +9,7 @@ import com.hope.chufala.model.vo.AttractionInfoVO;
 import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.mapper.AttractionMapper;
 import com.hope.chufala.infra.AttractionListCache;
+import com.hope.chufala.infra.DetailMissCache;
 import com.hope.chufala.service.IAttractionService;
 import com.hope.chufala.util.CursorPaginationUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,8 @@ public class AttractionServiceImpl implements IAttractionService {
     private AttractionMapper attractionMapper;
     @Autowired
     private AttractionListCache attractionListCache;
+    @Autowired
+    private DetailMissCache detailMissCache;
     /**
      * 新增景点。
      *
@@ -47,7 +50,10 @@ public class AttractionServiceImpl implements IAttractionService {
     @Transactional
     public boolean addAttraction(Attraction attraction) {
         boolean inserted = attractionMapper.insert(attraction) > 0;
-        if (inserted) attractionListCache.invalidateAfterCommit();
+        if (inserted) {
+            attractionListCache.invalidateAfterCommit();
+            detailMissCache.forgetAfterCommit("attraction", attraction.getId());
+        }
         return inserted;
     }
 
@@ -74,28 +80,25 @@ public class AttractionServiceImpl implements IAttractionService {
         CursorPaginationUtils.Cursor cursor = query.getCursor() != null && !query.getCursor().isBlank()
                 ? CursorPaginationUtils.decode(query.getCursor(), "rating", scope) : null;
         String cacheKey = attractionListCache.pageKey("rating", scope, size, cursor);
-        PageResult<Attraction> cached = cacheKey == null ? null : attractionListCache.get(cacheKey);
-        if (cached != null) {
-            calculateDistances(cached.getData(), query.getUserLng(), query.getUserLat());
-            return cached;
-        }
-        List<Attraction> rows = attractionMapper.selectAttractionPage(size + 1,
-                query.getKeyword(), query.getStars(), query.getCity(), query.getTags(),
-                cursor == null ? null : cursor.id(), cursor == null ? null : cursor.value());
-        boolean hasMore = rows.size() > size;
-        List<Attraction> attractions = new ArrayList<>(rows.subList(0, Math.min(size, rows.size())));
+        PageResult<Attraction> result = attractionListCache.getOrLoad(cacheKey, () -> {
+            List<Attraction> rows = attractionMapper.selectAttractionPage(size + 1,
+                    query.getKeyword(), query.getStars(), query.getCity(), query.getTags(),
+                    cursor == null ? null : cursor.id(), cursor == null ? null : cursor.value());
+            boolean hasMore = rows.size() > size;
+            List<Attraction> attractions = new ArrayList<>(rows.subList(0, Math.min(size, rows.size())));
 
-        PageResult<Attraction> result = new PageResult<>();
-        result.setData(attractions);
-        result.setSize(size);
-        result.setHasMore(hasMore);
-        if (hasMore) {
-            Attraction last = attractions.get(attractions.size() - 1);
-            result.setNextCursor(CursorPaginationUtils.encode("rating", scope, last.getRating(), last.getId(),
-                    cursor == null ? 2 : Math.min(4, cursor.page() + 1)));
-        }
-        if (cacheKey != null) attractionListCache.put(cacheKey, result);
-        calculateDistances(attractions, query.getUserLng(), query.getUserLat());
+            PageResult<Attraction> page = new PageResult<>();
+            page.setData(attractions);
+            page.setSize(size);
+            page.setHasMore(hasMore);
+            if (hasMore) {
+                Attraction last = attractions.get(attractions.size() - 1);
+                page.setNextCursor(CursorPaginationUtils.encode("rating", scope, last.getRating(), last.getId(),
+                        cursor == null ? 2 : Math.min(4, cursor.page() + 1)));
+            }
+            return page;
+        });
+        calculateDistances(result.getData(), query.getUserLng(), query.getUserLat());
         return result;
     }
 
@@ -161,7 +164,13 @@ public class AttractionServiceImpl implements IAttractionService {
      */
     @Override
     public Attraction getAttractionById(Long id) {
+         if (id == null || id < 1) throw new IllegalArgumentException("景点 ID 必须为正数");
+         if (detailMissCache.isMissing("attraction", id)) return null;
          Attraction attraction = attractionMapper.selectById(id);
+         if (attraction == null) {
+             detailMissCache.rememberMissing("attraction", id);
+             return null;
+         }
          List<String> images = attractionMapper.findAttractionImage(id);
          attraction.setMainImage(images.get(0));
          attraction.setOtherImages(images.subList(1,images.size()));

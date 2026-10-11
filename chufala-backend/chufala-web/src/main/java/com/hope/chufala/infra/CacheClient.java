@@ -1,16 +1,16 @@
 package com.hope.chufala.infra;
 
 import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
+import com.hope.chufala.common.util.SimpleRedisLock;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDate;
-import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.time.LocalDateTime;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -24,9 +24,9 @@ import java.util.function.Function;
  * @author 谢光湘
  */
 @Component
+@Slf4j
 public class CacheClient {
     private final StringRedisTemplate stringRedisTemplate;
-    private static final Long CACHE_NLL_TLL = 5L;
 
 
     public CacheClient(StringRedisTemplate stringRedisTemplate) {
@@ -56,7 +56,7 @@ public class CacheClient {
     public void setWithLogicalExpire(String key, Object value, Long time, TimeUnit unit) {
         RedisData redisData = new RedisData();
         redisData.setData(value);
-        redisData.setExpireTime(LocalDate.now().plus(time, unit.toChronoUnit()));
+        redisData.setExpireTime(LocalDateTime.now().plus(time, unit.toChronoUnit()));
         stringRedisTemplate.opsForValue().set(key, JSONUtil.toJsonStr(redisData));
     }
 
@@ -92,7 +92,12 @@ public class CacheClient {
         return r;
     }
 
-    private static final ExecutorService CACHE_REBUILD_EXECUTOR = Executors.newFixedThreadPool(10);
+    private static final ThreadPoolExecutor CACHE_REBUILD_EXECUTOR = new ThreadPoolExecutor(
+            2, 10, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(100), task -> {
+                Thread thread = new Thread(task, "cache-rebuild");
+                thread.setDaemon(true);
+                return thread;
+            });
 
 
     /**
@@ -119,46 +124,39 @@ public class CacheClient {
         }
         RedisData redisData = JSONUtil.toBean(json, RedisData.class);
         R r = BeanUtil.toBean(redisData.getData(),type);
-        LocalDate expireTime = redisData.getExpireTime();
-        if(expireTime.isAfter(LocalDate.now())){
+        LocalDateTime expireTime = redisData.getExpireTime();
+        if(expireTime.isAfter(LocalDateTime.now())){
             return r;
         }
         //重建缓存
-        String lockKey = "lock:" + key;
-        String clientId = UUID.randomUUID().toString();
-        boolean isLock = tryLock(lockKey);
+        SimpleRedisLock lock = new SimpleRedisLock("cache:logical:" + key, stringRedisTemplate);
+        boolean isLock = lock.tryLock(30);
         if(isLock){
-            CACHE_REBUILD_EXECUTOR.submit(()->{
+            try {
+                CACHE_REBUILD_EXECUTOR.submit(()->{
+                    try {
+                        R r1 = dbFallback.apply(id);
+                        this.setWithLogicalExpire(key, r1, time, unit);
+                    } catch (Exception e) {
+                        log.warn("逻辑过期缓存重建失败，key={}", key, e);
+                    } finally {
+                        try {
+                            lock.unlock();
+                        } catch (RuntimeException e) {
+                            log.warn("逻辑过期缓存锁释放失败，key={}", key, e);
+                        }
+                    }
+                });
+            } catch (java.util.concurrent.RejectedExecutionException e) {
                 try {
-                    R r1 = dbFallback.apply(id);
-                    this.setWithLogicalExpire(key, r1, time, unit);
-                }catch (Exception e){
-                    throw new RuntimeException(e);
-                }finally {
-                    unlock(lockKey);
+                    lock.unlock();
+                } catch (RuntimeException unlockError) {
+                    log.warn("逻辑过期缓存锁释放失败，key={}", key, unlockError);
                 }
-            });
+                log.warn("逻辑过期缓存重建队列已满，key={}", key, e);
+            }
         }
         return r;
-    }
-
-
-    /**
-     * 尝试获取分布式锁
-     * @param key 锁的键名，用于标识唯一的锁
-     * @return 获取锁成功返回true，否则返回false
-     */
-    private boolean tryLock(String key){
-        Boolean flag = stringRedisTemplate.opsForValue().setIfAbsent(key, "1",10L,TimeUnit.SECONDS);
-        return BooleanUtil.isTrue(flag);
-    }
-
-    /**
-     * 解锁操作，通过删除Redis中的指定键来实现解锁
-     * @param key 要删除的Redis键值，用于标识需要解锁的资源
-     */
-    private void unlock(String key){
-        stringRedisTemplate.delete(key);
     }
 
 

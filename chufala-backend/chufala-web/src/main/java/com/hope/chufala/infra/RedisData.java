@@ -3,7 +3,7 @@ package com.hope.chufala.infra;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * 逻辑过期缓存的包装体：把数据与「逻辑过期时间」一起存入 Redis，
@@ -15,7 +15,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 public class RedisData {
     /** 逻辑过期时间 */
-    private LocalDate expireTime;
+    private LocalDateTime expireTime;
     /** 实际缓存数据 */
     private Object data;
 

@@ -2,6 +2,7 @@ package com.hope.chufala;
 
 import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.infra.AttractionListCache;
+import com.hope.chufala.infra.DetailMissCache;
 import com.hope.chufala.mapper.AttractionMapper;
 import com.hope.chufala.model.dto.AttractionPageQueryDTO;
 import com.hope.chufala.model.entity.Attraction;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -29,7 +31,7 @@ class AttractionListCacheFlowTest {
         attraction.setDistance(999.0);
         when(cache.pageKey(eq("rating"), eq(scope), eq(1),
                 eq(new CursorPaginationUtils.Cursor(4.9, 9L, 2)))).thenReturn("page-2");
-        when(cache.get("page-2")).thenReturn(page(attraction));
+        when(cache.getOrLoad(eq("page-2"), any())).thenReturn(page(attraction));
 
         PageResult<Attraction> result = service.queryAttraction(query);
 
@@ -45,11 +47,12 @@ class AttractionListCacheFlowTest {
         when(cache.pageKey(eq("rating"), anyString(), eq(1), isNull())).thenReturn("first");
         when(mapper.selectAttractionPage(eq(2), any(), any(), any(), any(), any(), any()))
                 .thenReturn(List.of(attraction(9L, 4.9), attraction(8L, 4.8)));
-        doAnswer(invocation -> {
-            PageResult<Attraction> cached = invocation.getArgument(1);
-            assertNull(cached.getData().get(0).getDistance());
-            return null;
-        }).when(cache).put(eq("first"), any());
+        when(cache.getOrLoad(eq("first"), any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked") Supplier<PageResult<Attraction>> loader = invocation.getArgument(1);
+            PageResult<Attraction> page = loader.get();
+            assertNull(page.getData().get(0).getDistance());
+            return page;
+        });
 
         PageResult<Attraction> result = service.queryAttraction(query());
 
@@ -57,7 +60,7 @@ class AttractionListCacheFlowTest {
         assertNotNull(result.getData().get(0).getDistance());
         String scope = CursorPaginationUtils.scope(null, null, null, List.of());
         assertEquals(2, CursorPaginationUtils.decode(result.getNextCursor(), "rating", scope).page());
-        verify(cache).put(eq("first"), any());
+        verify(cache).getOrLoad(eq("first"), any());
     }
 
     @Test
@@ -70,11 +73,14 @@ class AttractionListCacheFlowTest {
         query.setCursor(CursorPaginationUtils.encode("rating", scope, 4.5, 20L, 4));
         when(mapper.selectAttractionPage(anyInt(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(List.of(attraction(19L, 4.4)));
+        when(cache.getOrLoad(isNull(), any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked") Supplier<PageResult<Attraction>> loader = invocation.getArgument(1);
+            return loader.get();
+        });
 
         service.queryAttraction(query);
 
-        verify(cache, never()).get(anyString());
-        verify(cache, never()).put(anyString(), any());
+        verify(cache).getOrLoad(isNull(), any());
         verify(mapper).selectAttractionPage(eq(2), any(), any(), any(), any(), eq(20L), eq(4.5));
 
         when(mapper.insert(any(Attraction.class))).thenReturn(1);
@@ -86,6 +92,7 @@ class AttractionListCacheFlowTest {
         AttractionServiceImpl service = new AttractionServiceImpl();
         ReflectionTestUtils.setField(service, "attractionMapper", mapper);
         ReflectionTestUtils.setField(service, "attractionListCache", cache);
+        ReflectionTestUtils.setField(service, "detailMissCache", mock(DetailMissCache.class));
         return service;
     }
 

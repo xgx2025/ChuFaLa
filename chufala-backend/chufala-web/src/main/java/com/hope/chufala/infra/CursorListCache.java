@@ -3,19 +3,29 @@ package com.hope.chufala.infra;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hope.chufala.common.model.vo.PageResult;
+import com.hope.chufala.common.exception.biz.BizException;
+import com.hope.chufala.common.util.SimpleRedisLock;
 import com.hope.chufala.util.CursorPaginationUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /** 列表前 3 页共用的 Redis cache-aside 实现；缓存值不含用户距离。 */
 @Slf4j
 public abstract class CursorListCache<T> {
+    private static final int MAX_CONCURRENT_DATABASE_LOADS = 24;
+    private static final int CACHE_WAIT_ATTEMPTS = 20;
+    private static final long CACHE_WAIT_MILLIS = 50;
+    private final Semaphore databaseLoadPermits = new Semaphore(MAX_CONCURRENT_DATABASE_LOADS);
     private final String generationKey;
     private final String pagePrefix;
     private final TypeReference<PageResult<T>> pageType;
@@ -63,11 +73,75 @@ public abstract class CursorListCache<T> {
         }
     }
 
+    /** 同一缓存页只允许一个实例回源；等待者读取重建结果，Redis 故障时限制数据库并发。 */
+    public PageResult<T> getOrLoad(String key, Supplier<PageResult<T>> databaseLoader) {
+        if (key == null) return loadFromDatabase(databaseLoader);
+        PageResult<T> cached = get(key);
+        if (cached != null) return cached;
+
+        SimpleRedisLock lock = new SimpleRedisLock("cache:page:" + key, redisTemplate);
+        boolean acquired;
+        try {
+            acquired = lock.tryLock(15);
+        } catch (DataAccessException e) {
+            log.warn("Redis 不可用，限制并发后回源数据库，key={}", key, e);
+            return loadFromDatabase(databaseLoader);
+        }
+        if (acquired) return loadWithLock(key, databaseLoader, lock);
+
+        try {
+            for (int attempt = 0; attempt < CACHE_WAIT_ATTEMPTS; attempt++) {
+                TimeUnit.MILLISECONDS.sleep(CACHE_WAIT_MILLIS);
+                cached = get(key);
+                if (cached != null) return cached;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BizException("列表数据正在加载，请稍后重试");
+        }
+        try {
+            acquired = lock.tryLock(15);
+        } catch (DataAccessException e) {
+            log.warn("Redis 不可用，限制并发后回源数据库，key={}", key, e);
+            return loadFromDatabase(databaseLoader);
+        }
+        if (acquired) return loadWithLock(key, databaseLoader, lock);
+        throw new BizException("列表数据正在加载，请稍后重试");
+    }
+
+    private PageResult<T> loadWithLock(String key, Supplier<PageResult<T>> databaseLoader,
+                                       SimpleRedisLock lock) {
+        try {
+            PageResult<T> cached = get(key);
+            if (cached != null) return cached;
+            PageResult<T> page = loadFromDatabase(databaseLoader);
+            put(key, page);
+            return page;
+        } finally {
+            try {
+                lock.unlock();
+            } catch (RuntimeException e) {
+                log.warn("列表缓存锁释放失败，等待锁自动过期，key={}", key, e);
+            }
+        }
+    }
+
+    private PageResult<T> loadFromDatabase(Supplier<PageResult<T>> databaseLoader) {
+        if (!databaseLoadPermits.tryAcquire()) {
+            throw new BizException("列表查询繁忙，请稍后重试");
+        }
+        try {
+            return databaseLoader.get();
+        } finally {
+            databaseLoadPermits.release();
+        }
+    }
+
     /** 写入不含用户距离的分页结果；后续页与空页采用更短 TTL。 */
     public void put(String key, PageResult<T> page) {
         if (key == null) return;
         try {
-            long seconds = page.getData().isEmpty() ? 30
+            long seconds = page.getData().isEmpty() ? 30 + ThreadLocalRandom.current().nextLong(15)
                     : key.endsWith(":1:start") ? 180 + ThreadLocalRandom.current().nextLong(60)
                     : 90 + ThreadLocalRandom.current().nextLong(30);
             redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(page), Duration.ofSeconds(seconds));
