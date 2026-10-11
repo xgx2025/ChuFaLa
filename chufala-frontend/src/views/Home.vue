@@ -11,7 +11,7 @@
           <!-- indicator-position 的合法值只有 "" / "none" / "outside"，
                原写法 "bottom" 非法（会回落成默认值 ""，也就是"内部底部"，渲染效果一致），
                但会在控制台刷 prop 校验警告。默认值即为所需效果，直接不传。 -->
-          <el-carousel autoplay :interval="3000" arrow="hover" height="500px">
+          <el-carousel autoplay :interval="6000" arrow="hover" height="500px">
             <el-carousel-item v-for="(slide, index) in slides" :key="index">
               <img
                 :src="slide.image"
@@ -88,9 +88,7 @@
                 </div>
               </div>
               
-              <button type="button" class="search-form__btn" @click="handleSearch">
-              <!-- <el-button type="primary" class="search-form__btn" :icon="Search" @click="handleSearch"> -->
-
+              <button type="submit" class="search-form__btn">
                 <span>搜索景点</span>
               </button>
             </form>
@@ -102,46 +100,34 @@
       <section class="category-nav">
         <div class="category-nav__container section-container">
           <div class="category-nav__list">
-            <div class="category-nav__item">
-              <div class="category-nav__icon-container" @click="router.push(`/attraction`)">
-              <Ticket/>
-              </div>
+            <router-link to="/attraction" class="category-nav__item">
+              <div class="category-nav__icon-container"><Ticket/></div>
               <span class="category-nav__text">景点门票</span>
-            </div>
+            </router-link>
             
-            <div class="category-nav__item">
-              <div class="category-nav__icon-container" @click="router.push(`/flight`)">
-                <Plane/>
-              </div>
+            <router-link to="/flight" class="category-nav__item">
+              <div class="category-nav__icon-container"><Plane/></div>
               <span class="category-nav__text">机票</span>
-            </div>
+            </router-link>
             
-            <div class="category-nav__item">
-              <div class="category-nav__icon-container" @click="router.push(`/hotel`)">
-                <Hotel/>
-              </div>
+            <router-link to="/hotel" class="category-nav__item">
+              <div class="category-nav__icon-container"><Hotel/></div>
               <span class="category-nav__text">酒店</span>
-            </div>
+            </router-link>
             
-            <div class="category-nav__item">
-              <div class="category-nav__icon-container" @click="router.push(`/package`)">
-                <TravelPackage/>
-              </div>
+            <router-link to="/package" class="category-nav__item">
+              <div class="category-nav__icon-container"><TravelPackage/></div>
               <span class="category-nav__text">旅游套餐</span>
+            </router-link>
+            
+            <div class="category-nav__item category-nav__item--coming-soon" aria-label="租车，即将上线">
+              <div class="category-nav__icon-container"><Taxi/></div>
+              <span class="category-nav__text">租车 <small>即将上线</small></span>
             </div>
             
-            <div class="category-nav__item">
-              <div class="category-nav__icon-container">
-                <Taxi/>
-              </div>
-              <span class="category-nav__text">租车</span>
-            </div>
-            
-            <div class="category-nav__item">
-              <div class="category-nav__icon-container">
-                <More/>
-              </div>
-              <span class="category-nav__text">更多</span>
+            <div class="category-nav__item category-nav__item--coming-soon" aria-label="更多服务，即将上线">
+              <div class="category-nav__icon-container"><More/></div>
+              <span class="category-nav__text">更多 <small>即将上线</small></span>
             </div>
           </div>
         </div>
@@ -152,10 +138,10 @@
         <div class="section-container">
           <div class="section-header">
             <h2 class="section-title">热门目的地</h2>
-            <a href="#" class="section-more">
+            <router-link to="/attraction" class="section-more">
               查看全部
               <el-icon class="section-more__icon"><ArrowRight /></el-icon>
-            </a>
+            </router-link>
           </div>
           
           <div class="destinations-list">
@@ -197,14 +183,14 @@
         <div class="section-container">
           <div class="section-header">
             <h2 class="section-title">特惠活动</h2>
-            <a href="#" class="section-more">
-              更多优惠
+            <router-link to="/package" class="section-more">
+              浏览旅行套餐
               <el-icon class="section-more__icon"><ArrowRight /></el-icon>
-            </a>
+            </router-link>
           </div>
           
           <div class="deals-container">
-            <div class="deals-scroll">
+            <div ref="dealsScroll" class="deals-scroll" @scroll.passive="updateDealsProgress" aria-label="特惠活动，可横向滚动">
               <div class="deals-list">
                 <!-- 注意：这里不能加 v-reveal。特惠卡是横向滚动列表（.deals-list 宽度 max-content），
                      第 5 张卡初始位于可视区右侧之外，IntersectionObserver 永远不会判定它进入视口，
@@ -224,18 +210,21 @@
                         <span class="deal-card__price">¥{{ deal.price }}</span>
                         <span class="deal-card__original-price">¥{{ deal.originalPrice }}</span>
                       </div>
-                      <button class="deal-card__btn">立即抢购</button>
+                      <router-link class="deal-card__btn" :to="deal.to">浏览同类</router-link>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
             
-            <!-- 滚动指示器 -->
-            <div class="deals-indicators">
-              <span class="deal-indicator deal-indicator--active"></span>
-              <span class="deal-indicator"></span>
-              <span class="deal-indicator"></span>
+            <div class="deals-controls">
+              <div class="deals-progress" role="progressbar" :aria-valuenow="Math.round(dealsProgress * 100)" aria-valuemin="0" aria-valuemax="100" aria-label="特惠活动浏览进度">
+                <span class="deals-progress__fill" :style="{ transform: `scaleX(${dealsProgress})` }"></span>
+              </div>
+              <div class="deals-controls__buttons">
+                <button type="button" class="deals-controls__button" :disabled="!canScrollDealsBack" aria-label="查看前面的特惠活动" @click="scrollDeals(-1)"><ArrowLeft /></button>
+                <button type="button" class="deals-controls__button" :disabled="!canScrollDealsForward" aria-label="查看更多特惠活动" @click="scrollDeals(1)"><ArrowRight /></button>
+              </div>
             </div>
           </div>
         </div>
@@ -259,14 +248,13 @@
             </div>
           </div>
           
-          <div class="packages-list">
+          <TransitionGroup name="package-preview" tag="div" class="packages-list" appear>
             <!-- 空态必须 grid-column: 1 / -1，否则会被压进第一列 -->
-            <p v-if="filteredPackages.length === 0" class="packages-empty">该分类暂无套餐</p>
+            <p v-if="filteredPackages.length === 0" key="empty" class="packages-empty">该分类暂无套餐</p>
             <div
-              v-for="(tourPackage, index) in filteredPackages"
+              v-for="tourPackage in filteredPackages"
               :key="tourPackage.name"
               class="package-card"
-              v-reveal="(index % 3) * 60"
             >
               <div class="package-card__image-container">
                 <img
@@ -305,13 +293,13 @@
                     <span class="package-card__price">¥{{ tourPackage.price }}</span>
                     <span class="package-card__price-unit">/人起</span>
                   </div>
-                  <button class="package-card__btn">查看详情</button>
+                  <router-link to="/package" class="package-card__btn">浏览套餐</router-link>
                 </div>
               </div>
             </div>
-          </div>
+          </TransitionGroup>
           
-          <button class="load-more-btn">加载更多</button>
+          <router-link to="/package" class="load-more-btn">查看全部套餐 <ArrowRight /></router-link>
         </div>
       </section>
 
@@ -320,10 +308,7 @@
         <div class="section-container">
           <div class="section-header">
             <h2 class="section-title">旅游攻略</h2>
-            <a href="#" class="section-more">
-              更多攻略
-              <el-icon class="section-more__icon"><ArrowRight /></el-icon>
-            </a>
+            <router-link to="/guide" class="section-more">开始规划行程 <el-icon class="section-more__icon"><ArrowRight /></el-icon></router-link>
           </div>
           
           <div class="guides-list">
@@ -470,21 +455,9 @@
         </div>
         
         <div class="subscribe-section__content">
-          <h2 class="subscribe-section__title">获取最新旅游资讯和独家优惠</h2>
-          <p class="subscribe-section__desc">订阅我们的邮件，第一时间获取旅游灵感和限时优惠</p>
-          
-          <form class="subscribe-form">
-            <input 
-              type="email" 
-              placeholder="请输入您的邮箱地址" 
-              class="subscribe-form__input"
-            >
-            <button type="button" class="subscribe-form__btn">立即订阅</button>
-          </form>
-          
-          <p class="subscribe-section__privacy">
-            我们尊重您的隐私，不会向第三方分享您的信息
-          </p>
+          <h2 class="subscribe-section__title">下一程，从一点灵感开始</h2>
+          <p class="subscribe-section__desc">告诉我们你想去哪里，先把旅行的轮廓画出来。</p>
+          <router-link to="/guide" class="subscribe-section__action">试试智能规划 <ArrowRight /></router-link>
         </div>
       </section>
     </div>
@@ -500,17 +473,10 @@
 
 <script setup>
 import BackToTop from '@/components/BackToTop.vue';
-import { ref, computed, onMounted, onUnmounted} from 'vue';
-import { getUserInfoService } from '@/api/user';
-import {useUserInfoStore} from '@/stores/userInfo'
+import { ref, computed, nextTick, onMounted, onUnmounted} from 'vue';
 import router from '@/router'
-import { useTokenStore } from '@/stores/token'
-import {ElMessageBox,ElNotification} from 'element-plus'
 import {Plane,Hotel,Taxi,TravelPackage,More} from '@/components/Icon.vue'
-import { Ticket, Search, PriceTag, Star, StarFilled, ArrowRight, Location, UserFilled, View, ChatDotRound, Clock, Sunny, Compass } from '@element-plus/icons-vue'
-
-const tokenStore = useTokenStore()
-const userInfoStore = useUserInfoStore()
+import { Ticket, Search, PriceTag, Star, StarFilled, ArrowLeft, ArrowRight, Location, UserFilled, View, ChatDotRound, Clock, Sunny, Compass } from '@element-plus/icons-vue'
 
 // 搜索表单
 const searchForm = ref({
@@ -541,14 +507,27 @@ const handleSearch = () => {
   })
 }
 
-// 导航栏滚动效果
-const scrolled = ref(false);
-const handleScroll = () => {
-  scrolled.value = window.scrollY > 50;
-};
+const dealsScroll = ref(null)
+const dealsProgress = ref(0)
+const canScrollDealsBack = ref(false)
+const canScrollDealsForward = ref(false)
 
-// 移动端菜单
-const isMenuOpen = ref(false);
+const updateDealsProgress = () => {
+  const el = dealsScroll.value
+  if (!el) return
+  const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth)
+  dealsProgress.value = maxScroll ? Math.min(1, el.scrollLeft / maxScroll) : 1
+  canScrollDealsBack.value = el.scrollLeft > 2
+  canScrollDealsForward.value = el.scrollLeft < maxScroll - 2
+}
+
+const scrollDeals = (direction) => {
+  const el = dealsScroll.value
+  if (!el) return
+  const distance = Math.max(304, el.clientWidth * 0.75)
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  el.scrollBy({ left: direction * distance, behavior: reduceMotion ? 'auto' : 'smooth' })
+}
 
 // 轮播图
 const slides = ref([
@@ -598,7 +577,8 @@ const deals = ref([
     price: 2999,
     originalPrice: 4599,
     discount: '立减1600',
-    image: 'https://picsum.photos/400/300?random=8'
+    image: 'https://picsum.photos/400/300?random=8',
+    to: '/package'
   },
   {
     name: '三亚5星级酒店3晚套餐',
@@ -606,7 +586,8 @@ const deals = ref([
     price: 1599,
     originalPrice: 2399,
     discount: '6.7折',
-    image: 'https://picsum.photos/400/300?random=9'
+    image: 'https://picsum.photos/400/300?random=9',
+    to: '/hotel'
   },
   {
     name: '日本东京迪士尼门票',
@@ -614,7 +595,8 @@ const deals = ref([
     price: 699,
     originalPrice: 899,
     discount: '7.8折',
-    image: 'https://picsum.photos/400/300?random=10'
+    image: 'https://picsum.photos/400/300?random=10',
+    to: '/attraction'
   },
   {
     name: '张家界3日游',
@@ -622,7 +604,8 @@ const deals = ref([
     price: 899,
     originalPrice: 1299,
     discount: '立减400',
-    image: 'https://picsum.photos/400/300?random=11'
+    image: 'https://picsum.photos/400/300?random=11',
+    to: '/package'
   },
   {
     name: '欧洲法意瑞10日游',
@@ -630,7 +613,8 @@ const deals = ref([
     price: 9999,
     originalPrice: 12999,
     discount: '立减3000',
-    image: 'https://picsum.photos/400/300?random=12'
+    image: 'https://picsum.photos/400/300?random=12',
+    to: '/package'
   }
 ]);
 
@@ -724,38 +708,13 @@ const reviews = ref([
 
 // 生命周期钩子
 onMounted(() => {
-  window.addEventListener('scroll', handleScroll);
+  window.addEventListener('resize', updateDealsProgress);
+  nextTick(updateDealsProgress);
 });
 
-
-
-const getUserInfo = async() => { 
-  const result = await getUserInfoService()
-  userInfoStore.setInfo(result.data)
-};
-getUserInfo()
-
-const logout = ()=>{
-  ElMessageBox.confirm(
-    '是否要退出登录?',
-    '提示',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  )
-    .then(() => {
-      tokenStore.removeToken()
-      router.push('/login')
-      ElNotification.success({
-        title: '提示',
-        message: '您已成功退出登录！'})
-    })
-    .catch(() => {
-      ElNotification.primary('您已取消 “退出登录” 操作',)
-    })
-}
+onUnmounted(() => {
+  window.removeEventListener('resize', updateDealsProgress);
+});
 </script>
 
 <style scoped>
@@ -884,6 +843,7 @@ html {
   /* 由 h2 提升为 h1，显式写 margin 避免受浏览器默认外边距影响 */
   margin: 0 0 var(--sp-3);
   text-shadow: 0 2px 16px rgba(15, 23, 42, 0.35);
+  animation: fadeInUp 520ms var(--ease-out) both;
 }
 
 .hero-section__desc {
@@ -893,6 +853,7 @@ html {
   line-height: var(--lh-body-lg);
   margin-bottom: var(--sp-8);
   text-shadow: 0 1px 8px rgba(15, 23, 42, 0.3);
+  animation: fadeInUp 520ms var(--ease-out) 90ms both;
 }
 
 /* 悬浮白卡：半透明 + 毛玻璃 + 大圆角，是"高级感"最直接的一处体现 */
@@ -907,6 +868,7 @@ html {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--sp-3);
+  animation: fadeInUp 580ms var(--ease-out) 180ms both;
 }
 
 @media (min-width: 768px) {
@@ -1041,12 +1003,45 @@ html {
   align-items: center;
   padding: var(--sp-4) var(--sp-2);
   border-radius: var(--r-md);
+  text-decoration: none;
   cursor: pointer;
   transition: background-color var(--dur-base) var(--ease-out);
 }
 
 .category-nav__item:hover {
   background-color: var(--c-bg-sub);
+}
+
+.category-nav__item--coming-soon {
+  cursor: default;
+  opacity: 0.56;
+}
+
+.category-nav__item--coming-soon:hover {
+  background-color: transparent;
+}
+
+.category-nav__item--coming-soon .category-nav__icon-container {
+  cursor: default;
+}
+
+.category-nav__item--coming-soon:hover .category-nav__icon-container {
+  transform: none;
+  color: var(--c-primary-600);
+  background-color: var(--c-primary-50);
+  box-shadow: none;
+}
+
+.category-nav__item--coming-soon:hover .category-nav__text {
+  color: var(--c-ink);
+}
+
+.category-nav__text small {
+  display: block;
+  color: var(--c-ink-3);
+  font-size: 10px;
+  font-weight: 400;
+  text-align: center;
 }
 
 /* 由正圆改为圆角方块（更现代），并加上悬浮上移 + 主色底 */
@@ -1279,6 +1274,7 @@ html {
 .deals-scroll {
   overflow-x: auto;
   padding-bottom: var(--sp-4);
+  scroll-snap-type: x proximity;
   /* 横向滚动条在卡片下方很破坏观感，这里隐藏（仍可触摸/滚轮滚动） */
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -1306,6 +1302,7 @@ html {
   transition: transform var(--dur-base) var(--ease-out),
     box-shadow var(--dur-base) var(--ease-out),
     border-color var(--dur-base) var(--ease-out);
+  scroll-snap-align: start;
 }
 
 .deal-card:hover {
@@ -1392,6 +1389,10 @@ html {
 }
 
 .deal-card__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
   background-color: var(--c-primary-600);
   color: #ffffff;
   font-family: inherit;
@@ -1414,22 +1415,71 @@ html {
   transform: scale(0.97);
 }
 
-.deals-indicators {
+.deals-controls {
   display: flex;
-  justify-content: center;
-  gap: 0.25rem;
-  margin-top: 1.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
 }
 
-.deal-indicator {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background-color: var(--c-line);
+.deals-progress {
+  width: min(240px, 45%);
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--r-full);
+  background: var(--c-line);
 }
 
-.deal-indicator--active {
-  background-color: var(--c-primary-600);
+.deals-progress__fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--c-primary-600);
+  transform-origin: left center;
+  transition: transform var(--dur-fast) linear;
+}
+
+.deals-controls__buttons {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.deals-controls__button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-full);
+  background: var(--c-bg);
+  color: var(--c-ink-2);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
+}
+
+.deals-controls__button:hover:not(:disabled) {
+  color: var(--c-primary-700);
+  border-color: var(--c-primary-300);
+  background-color: var(--c-primary-50);
+}
+
+.deals-controls__button:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.deals-controls__button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.deals-controls__button svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* 精选旅游套餐样式 */
@@ -1481,6 +1531,19 @@ html {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--sp-6);
+}
+
+.packages-list .package-preview-enter-active,
+.packages-list .package-preview-leave-active,
+.packages-list .package-preview-move {
+  transition: opacity var(--dur-slow) var(--ease-out),
+    transform var(--dur-slow) var(--ease-out);
+}
+
+.packages-list .package-preview-enter-from,
+.packages-list .package-preview-leave-to {
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
 }
 
 /* 空态必须跨满所有列，否则会被 grid 压进第一列 */
@@ -1654,6 +1717,10 @@ html {
 }
 
 .package-card__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
   background-color: var(--c-primary-600);
   color: #ffffff;
   font-family: inherit;
@@ -1679,7 +1746,11 @@ html {
 }
 
 .load-more-btn {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  width: fit-content;
   margin: var(--sp-10) auto 0;
   padding: var(--sp-3) var(--sp-6);
   background-color: var(--c-bg);
@@ -1689,6 +1760,7 @@ html {
   font-family: inherit;
   font-size: var(--fs-body);
   font-weight: 500;
+  text-decoration: none;
   cursor: pointer;
   transition: background-color var(--dur-base) var(--ease-out),
     border-color var(--dur-base) var(--ease-out),
@@ -1699,6 +1771,16 @@ html {
   background-color: var(--c-bg-mute);
   border-color: var(--c-primary-300);
   box-shadow: var(--sh-1);
+}
+
+.load-more-btn svg {
+  width: 16px;
+  height: 16px;
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.load-more-btn:hover svg {
+  transform: translateX(4px);
 }
 
 /* 旅游攻略样式 */
@@ -2100,67 +2182,42 @@ html {
   margin-bottom: var(--sp-8);
 }
 
-.subscribe-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-}
-
-@media (min-width: 640px) {
-  .subscribe-form {
-    flex-direction: row;
-  }
-}
-
-.subscribe-form__input {
-  flex-grow: 1;
-  padding: var(--sp-3) var(--sp-4);
-  font-family: inherit;
-  font-size: var(--fs-body-lg);
-  color: var(--c-ink);
-  background-color: #ffffff;
-  border-radius: var(--r-sm);
-  border: none;
-  outline: none;
-  transition: box-shadow var(--dur-base) var(--ease-out);
-}
-
-.subscribe-form__input::placeholder {
-  color: var(--c-ink-4);
-}
-
-.subscribe-form__input:focus {
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.55);
-}
-
-.subscribe-form__btn {
+.subscribe-section__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
   background-color: var(--c-star);
   color: var(--c-ink);
   font-family: inherit;
   font-size: var(--fs-body-lg);
   font-weight: 600;
+  text-decoration: none;
   border: none;
-  border-radius: var(--r-sm);
+  border-radius: var(--r-full);
   padding: var(--sp-3) var(--sp-6);
   cursor: pointer;
-  white-space: nowrap;
   transition: background-color var(--dur-base) var(--ease-out),
     box-shadow var(--dur-base) var(--ease-out),
     transform var(--dur-fast) var(--ease-out);
 }
 
-.subscribe-form__btn:hover {
+.subscribe-section__action:hover {
   background-color: var(--c-accent);
   box-shadow: 0 8px 24px -6px rgba(250, 204, 21, 0.5);
 }
 
-.subscribe-form__btn:active {
+.subscribe-section__action:active {
   transform: scale(0.98);
 }
 
-.subscribe-section__privacy {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: var(--fs-caption);
-  margin-top: var(--sp-4);
+.subscribe-section__action svg {
+  width: 18px;
+  height: 18px;
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.subscribe-section__action:hover svg {
+  transform: translateX(4px);
 }
 </style>

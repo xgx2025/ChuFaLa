@@ -61,8 +61,8 @@
               </div>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item @click="">我的积分</el-dropdown-item>
-                  <el-dropdown-item>我的收藏</el-dropdown-item>
+                  <el-dropdown-item disabled>我的积分 · 即将上线</el-dropdown-item>
+                  <el-dropdown-item disabled>我的收藏 · 即将上线</el-dropdown-item>
                   <el-dropdown-item @click="router.push('/my/order/hotel')">我的订单</el-dropdown-item>
                   <el-dropdown-item @click="router.push('/my/subscription')">开通会员</el-dropdown-item>
                   <el-dropdown-item @click="router.push('/my/profile')">个人中心</el-dropdown-item>
@@ -125,52 +125,27 @@
               <a href="javascript:void(0)" class="footer__social-icon footer__social-icon--qq" aria-label="QQ 交流群" @click="showQrCode('qq')">
                 <QQ />
               </a>
-              <a href="javascript:void(0)" class="footer__social-icon footer__social-icon--weibo" aria-label="官方微博" @click="showQrCode('weibo')">
-                <WeiBo />
-              </a>
-              <a href="javascript:void(0)" class="footer__social-icon footer__social-icon--tiktok" aria-label="抖音号" @click="showQrCode('tiktok')">
-                <TikTok />
-              </a>
             </div>
           </div>
 
           <div class="footer__column">
-            <h4 class="footer__column-title">目的地</h4>
+            <h4 class="footer__column-title">旅行服务</h4>
             <ul class="footer__list">
-              <li><a href="#" class="footer__link">国内游</a></li>
-              <li><a href="#" class="footer__link">国外游</a></li>
-              <li><a href="#" class="footer__link">热门城市</a></li>
-              <li><a href="#" class="footer__link">景点大全</a></li>
-              <li><a href="#" class="footer__link">美食推荐</a></li>
+              <li><router-link to="/attraction" class="footer__link">景点门票</router-link></li>
+              <li><router-link to="/hotel" class="footer__link">精选酒店</router-link></li>
+              <li><router-link to="/flight" class="footer__link">机票查询</router-link></li>
+              <li><router-link to="/package" class="footer__link">旅游套餐</router-link></li>
+              <li><router-link to="/guide" class="footer__link">智能规划</router-link></li>
             </ul>
           </div>
 
           <div class="footer__column">
-            <h4 class="footer__column-title">关于我们</h4>
+            <h4 class="footer__column-title">账户服务</h4>
             <ul class="footer__list">
-              <li><a href="#" class="footer__link">公司简介</a></li>
-              <li><a href="#" class="footer__link">联系我们</a></li>
-              <li><a href="#" class="footer__link">加入我们</a></li>
-              <li><a href="#" class="footer__link">旅游保险</a></li>
-              <li><a href="#" class="footer__link">服务条款</a></li>
-            </ul>
-          </div>
-
-          <div class="footer__column">
-            <h4 class="footer__column-title">客户服务</h4>
-            <ul class="footer__list">
-              <li class="footer__contact-item">
-                <el-icon class="footer__contact-icon"><Phone /></el-icon>
-                <span class="num">400-123-4567</span>
-              </li>
-              <li class="footer__contact-item">
-                <el-icon class="footer__contact-icon"><Email /></el-icon>
-                <span>service@chufala.com</span>
-              </li>
-              <li class="footer__contact-item">
-                <el-icon class="footer__contact-icon"><Clock /></el-icon>
-                <span>7:00-23:00 全年无休</span>
-              </li>
+              <li><router-link to="/login" class="footer__link">登录 / 注册</router-link></li>
+              <li><router-link to="/my/order/hotel" class="footer__link">我的订单</router-link></li>
+              <li><router-link to="/my/subscription" class="footer__link">会员中心</router-link></li>
+              <li><router-link to="/my/profile" class="footer__link">个人中心</router-link></li>
             </ul>
           </div>
         </div>
@@ -206,7 +181,7 @@
 <script setup>
 // 导航栏滚动效果（公共逻辑，放在根组件）
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { Logout, NormalVip, SuperVip, WeChat, QQ, WeiBo, Phone, Email, Clock, TikTok, Plane } from '@/components/Icon.vue';
+import { Logout, NormalVip, SuperVip, WeChat, QQ, Plane } from '@/components/Icon.vue';
 import { useUserInfoStore } from '@/stores/userInfo';
 import { useTokenStore } from '@/stores/token';
 import { getUserInfoService } from '@/api/user';
@@ -234,16 +209,6 @@ const qrMap = {
     title: '加入QQ交流群',
     image: 'https://chufala.oss-cn-shenzhen.aliyuncs.com/1a5f4d3e-a0fb-4b4c-a462-adee6edc4f7e.jpg',
     desc: '扫码加入官方QQ交流群，与驴友畅聊'
-  },
-  weibo: {
-    title: '关注官方微博',
-    image: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://weibo.com/',
-    desc: '扫码关注“出发啦”官方微博，参与互动抽奖'
-  },
-  tiktok: {
-    title: '关注抖音号',
-    image: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://www.douyin.com/',
-    desc: '扫码关注“出发啦”抖音号，看遍世界美景'
   }
 };
 
@@ -276,7 +241,11 @@ const handleScroll = () => {
 onMounted(() => {
   window.addEventListener('scroll', handleScroll, { passive: true });
   handleScroll();
-  getUserInfo();
+  if (tokenStore.accessToken) {
+    getUserInfo();
+  } else {
+    userInfoStore.removeInfo();
+  }
   geoStore.getCityByBrowser();
 });
 
@@ -583,7 +552,7 @@ const logout = () => {
 
 @media (min-width: 768px) {
   .footer__content {
-    grid-template-columns: 2fr 1fr 1fr 1.2fr;
+    grid-template-columns: 2fr 1fr 1.2fr;
     gap: var(--sp-8);
   }
 }
