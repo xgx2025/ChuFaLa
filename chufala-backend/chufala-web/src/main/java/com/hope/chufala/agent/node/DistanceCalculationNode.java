@@ -2,6 +2,7 @@ package com.hope.chufala.agent.node;
 
 
 import com.hope.chufala.common.util.Gcj02DistanceCalculator;
+import com.hope.chufala.infra.SseManager;
 import com.hope.chufala.model.vo.AttractionInfoVO;
 import com.hope.chufala.model.vo.DailyScheduleVO;
 import com.hope.chufala.model.vo.TravelItineraryVO;
@@ -32,6 +33,8 @@ import java.util.Map;
 public class DistanceCalculationNode implements NodeAction<TravelPlanState> {
     @Autowired
     private IAttractionService attractionService;
+    @Autowired
+    private SseManager sseManager;
 
     /**
      * 计算每日相邻景点间的距离与驾车耗时，并写回行程骨架。
@@ -44,6 +47,7 @@ public class DistanceCalculationNode implements NodeAction<TravelPlanState> {
     public Map<String, Object> apply(TravelPlanState state) throws Exception {
         log.info("===DistanceCalculateNode节点===");
         log.info("开始计算景点之间的距离和耗时");
+        sseManager.sendProgress(state.taskId(), "DistanceCalculationNode", "正在计算景点间距离和路程时间...");
         //获取景点列表
         TravelItineraryVO travelItinerary = state.itinerarySkeleton();
         List<DailyScheduleVO> dailyScheduleList = travelItinerary.getDailySchedules();
@@ -74,6 +78,7 @@ public class DistanceCalculationNode implements NodeAction<TravelPlanState> {
             }
         }
         travelItinerary.setDailySchedules(dailyScheduleList);
+        sseManager.sendProgress(state.taskId(), "DistanceCalculationNode", "景点间路程计算完成");
         return TravelPlanState.updateState(state, Map.of(TravelPlanState.ITINERARY_SKELETON, travelItinerary), TravelPlanState.SCHEMA);
     }
 

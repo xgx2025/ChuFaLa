@@ -44,35 +44,40 @@ export function authSse(url: string, options: SseOptions) {
       const reader = response.body.getReader()
       const decoder = new TextDecoder('utf-8')
       let buffer = ''
+      let event = 'message'
+      let dataLines: string[] = []
+
+      const processLine = (rawLine: string) => {
+        const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine
+        if (line === '') {
+          if (dataLines.length > 0) onMessage(dataLines.join('\n'), event)
+          event = 'message'
+          dataLines = []
+          return
+        }
+        if (line.startsWith(':')) return
+        const colon = line.indexOf(':')
+        const field = colon < 0 ? line : line.slice(0, colon)
+        const value = colon < 0 ? '' : line.slice(colon + 1).replace(/^ /, '')
+        if (field === 'event') event = value
+        else if (field === 'data') dataLines.push(value)
+      }
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
         buffer += decoder.decode(value, { stream: true })
-
-        // 按行处理 SSE 数据（SSE 协议以 \n\n 分隔事件）
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || '' // 保留不完整行
-
-        let event = 'message' // 默认事件名
-        let data = ''
-
-        for (const line of lines) {
-          if (line.startsWith('event:')) {
-            event = line.slice(7).trim()
-          } else if (line.startsWith('data:')) {
-            data = line.slice(5).trim()
-          } else if (line === '') {
-            // 空行表示事件结束
-            if (data) {
-              onMessage(data, event)
-              data = ''
-              event = 'message'
-            }
-          }
+        let newline = buffer.indexOf('\n')
+        while (newline >= 0) {
+          processLine(buffer.slice(0, newline))
+          buffer = buffer.slice(newline + 1)
+          newline = buffer.indexOf('\n')
         }
       }
+      buffer += decoder.decode()
+      if (buffer) processLine(buffer)
+      if (dataLines.length > 0) onMessage(dataLines.join('\n'), event)
     })
     .catch((err) => {
       if (signal.aborted) {

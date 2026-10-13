@@ -58,22 +58,37 @@ public class SseManager implements Serializable {
      * <p>推送失败（连接已断开）时移除该连接，不影响规划流程继续执行。
      *
      * @param taskId   任务 ID
-     * @param nodeNode 节点名
+     * @param node 节点名
      * @param message  进度文案
      */
-    public void sendProgress(String taskId,String nodeNode,String message) {
+    public void sendProgress(String taskId, String node, String message) {
+        TaskQueue.TaskProgress progress = new TaskQueue.TaskProgress(node, message, System.currentTimeMillis());
+        try {
+            if (!taskQueue.updateProgress(taskId, node, message, progress.timestamp())) return;
+        } catch (RuntimeException e) {
+            log.warn("保存规划节点进度失败，taskId={}", taskId, e);
+        }
+        sendProgressEvent(taskId, progress);
+    }
+
+    public void replayProgress(String taskId) {
+        TaskQueue.TaskProgress progress = taskQueue.getProgress(taskId);
+        if (progress != null) sendProgressEvent(taskId, progress);
+    }
+
+    private void sendProgressEvent(String taskId, TaskQueue.TaskProgress progress) {
         SseEmitter emitter = emitters.get(taskId);
         if(emitter != null){
             try {
                 emitter.send(SseEmitter.event()
                         .name("progress")
                         .data(Map.of(
-                                "node",nodeNode,
-                                "message",message,
-                                "timestamp",System.currentTimeMillis()
+                                "node", progress.node(),
+                                "message", progress.message(),
+                                "timestamp", progress.timestamp()
                         )));
-            }catch (IOException e){
-                emitters.remove(taskId);
+            }catch (IOException | IllegalStateException e){
+                emitters.remove(taskId, emitter);
             }
         }
     }

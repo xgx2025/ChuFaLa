@@ -940,6 +940,14 @@ const applyTripIdea = (idea) => {
 const isGenerating = ref(false);
 const planningProgress = ref('正在准备你的行程，请稍候。');
 const planningSteps = ['收集旅行线索', '编排每日路线', '核对花费预算'];
+const planningStageByNode = {
+  fetchCandidate: 0,
+  PlanItineraryNode: 1,
+  WeatherInquiryNode: 1,
+  DistanceCalculationNode: 1,
+  RecommendHotelNode: 1,
+  CalculateBudgetNode: 2,
+};
 const planningStage = ref(0);
 const itinerary = ref([]);
 const mapActivityCount = computed(() => itinerary.value.reduce((count, day) => count + (day.activities?.length || 0), 0));
@@ -1187,8 +1195,8 @@ const generateItinerary = async () => {
         if (event === 'progress') {
           const data = JSON.parse(message);
           planningProgress.value = data.message || '正在安排每日路线、景点和预算。';
-          if (data.node === 'PlanItineraryNode' || data.node === 'RecommendHotelNode') planningStage.value = Math.max(planningStage.value, 1);
-          if (data.node === 'CalculateBudgetNode') planningStage.value = 2;
+          const stage = planningStageByNode[data.node];
+          if (Number.isInteger(stage)) planningStage.value = Math.max(planningStage.value, stage);
           return;
         }
         if (event === 'failed') {

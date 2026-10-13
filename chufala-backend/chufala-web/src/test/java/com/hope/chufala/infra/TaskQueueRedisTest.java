@@ -109,4 +109,17 @@ class TaskQueueRedisTest {
         verify(redis).execute(any(RedisScript.class), eq(List.of("task:plan:old")),
                 eq(Long.toString(TaskQueue.FINISHED_TTL.toMillis())));
     }
+
+    @Test
+    void latestNodeProgressCanBeReadAfterReconnect() {
+        when(redis.execute(any(RedisScript.class), anyList(),
+                anyString(), anyString(), anyString())).thenReturn(1L);
+        when(hashes.multiGet("task:plan:task-1",
+                List.of("progressNode", "progressMessage", "progressAt")))
+                .thenReturn(List.of("PlanItineraryNode", "正在规划行程", "123"));
+        TaskQueue queue = new TaskQueue(redis, mapper);
+        assertTrue(queue.updateProgress("task-1", "PlanItineraryNode", "正在规划行程", 123L));
+        assertEquals(new TaskQueue.TaskProgress("PlanItineraryNode", "正在规划行程", 123L),
+                new TaskQueue(redis, mapper).getProgress("task-1"));
+    }
 }

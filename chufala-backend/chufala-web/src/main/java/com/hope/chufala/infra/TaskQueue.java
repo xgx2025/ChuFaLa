@@ -55,6 +55,12 @@ public class TaskQueue {
             redis.call('PEXPIRE', KEYS[1], ARGV[1])
             return 1
             """);
+    private static final DefaultRedisScript<Long> PROGRESS_SCRIPT = script("""
+            if redis.call('HGET', KEYS[1], 'status') ~= 'PROCESSING' then return 0 end
+            redis.call('HSET', KEYS[1], 'progressNode', ARGV[1],
+                'progressMessage', ARGV[2], 'progressAt', ARGV[3])
+            return 1
+            """);
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
@@ -120,6 +126,25 @@ public class TaskQueue {
         return Long.valueOf(1).equals(redisTemplate.execute(FAIL_SCRIPT, List.of(key(taskId)),
                 Long.toString(FINISHED_TTL.toMillis())));
     }
+
+    public boolean updateProgress(String taskId, String node, String message, long timestamp) {
+        return Long.valueOf(1).equals(redisTemplate.execute(PROGRESS_SCRIPT, List.of(key(taskId)),
+                node, message, Long.toString(timestamp)));
+    }
+
+    /** 供新建立的 SSE 连接补收最近一次节点进度。 */
+    public TaskProgress getProgress(String taskId) {
+        List<Object> fields = redisTemplate.opsForHash().multiGet(key(taskId),
+                List.of("progressNode", "progressMessage", "progressAt"));
+        if (fields == null || fields.size() != 3 || fields.get(0) == null
+                || fields.get(1) == null || fields.get(2) == null) {
+            return null;
+        }
+        return new TaskProgress((String) fields.get(0), (String) fields.get(1),
+                Long.parseLong((String) fields.get(2)));
+    }
+
+    public record TaskProgress(String node, String message, long timestamp) {}
 
     /** 执行器拒绝任务后立即删除 PENDING 记录。 */
     public void removeTask(String taskId) {

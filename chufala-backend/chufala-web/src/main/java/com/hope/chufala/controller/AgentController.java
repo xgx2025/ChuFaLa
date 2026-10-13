@@ -179,6 +179,8 @@ public class AgentController {
             sseManager.failTask(taskId, "行程规划失败或任务已过期");
         } else if (latest.getStatus() == TaskStatus.COMPLETED) {
             sseManager.completeTask(taskId, latest.getResult());
+        } else {
+            sseManager.replayProgress(taskId);
         }
         return emitter;
     }

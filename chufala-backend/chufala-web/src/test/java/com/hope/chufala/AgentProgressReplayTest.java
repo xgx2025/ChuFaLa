@@ -63,4 +63,24 @@ class AgentProgressReplayTest {
             ThreadLocalUtils.remove();
         }
     }
+
+    @Test
+    void activeTaskReplaysItsLatestNodeProgress() {
+        AgentController controller = new AgentController();
+        TaskQueue queue = mock(TaskQueue.class);
+        SseManager sse = mock(SseManager.class);
+        AgentTask task = new AgentTask("task-3", 7L, null, TaskStatus.PROCESSING);
+        when(queue.getTask("task-3")).thenReturn(task);
+        ReflectionTestUtils.setField(controller, "taskQueue", queue);
+        ReflectionTestUtils.setField(controller, "sseManager", sse);
+        Claims claims = Jwts.claims();
+        claims.put("userId", 7L);
+        ThreadLocalUtils.set(claims);
+        try {
+            assertNotNull(controller.subscribeProgress("task-3"));
+            verify(sse).replayProgress("task-3");
+        } finally {
+            ThreadLocalUtils.remove();
+        }
+    }
 }
