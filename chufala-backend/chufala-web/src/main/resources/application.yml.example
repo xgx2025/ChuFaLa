@@ -38,7 +38,7 @@ spring:
       chat:
         base-url: "https://api.deepseek.com/"
         options:
-          model: "deepseek-chat"
+          model: "deepseek-flash"
 
     ollama:
       base-url: "http://localhost:11434"
@@ -156,7 +156,7 @@ llm:
 deepseek:
   api-key: ${DEEPSEEK_API_KEY}
   url: "https://api.deepseek.com/"
-  model: "deepseek-chat"
+  model: "deepseek-flash"
 
 logging:
   level:

@@ -25,7 +25,7 @@ import java.util.Map;
 /**
  * 酒店推荐节点。
  *
- * <p>由豆包模型按行程与候选酒店为每天挑选若干酒店（每天 3 个左右、不超过 5 个），
+ * <p>由 DeepSeek 模型按行程与候选酒店为每天挑选若干酒店（每天 3 个左右、不超过 5 个），
  * 本地再按酒店 ID 补全信息，写入对应日程的 recommendHotels。
  *
  * @author 谢光湘
@@ -33,7 +33,7 @@ import java.util.Map;
 @Slf4j
 @Component
 public class RecommendHotelNode implements NodeAction<TravelPlanState>{
-    @Resource(name = "doubao")
+    @Resource(name = "deepseek")
     private ChatClient chatClient;
     @Autowired
     private IHotelService hotelService;
