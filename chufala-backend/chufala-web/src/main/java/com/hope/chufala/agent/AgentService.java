@@ -5,7 +5,6 @@ import com.hope.chufala.agent.node.*;
 import com.hope.chufala.agent.AgentTask;
 import com.hope.chufala.infra.SseManager;
 import com.hope.chufala.infra.TaskQueue;
-import com.hope.chufala.agent.TaskStatus;
 import com.hope.chufala.model.dto.UserPlanDTO;
 import com.hope.chufala.agent.TravelPlanState;
 import lombok.extern.slf4j.Slf4j;
@@ -79,7 +78,12 @@ public class AgentService {
         if (task == null) {
             // 任务不存在或已被清理，直接失败退出，避免后续 task.getUserPlan() 抛 NPE
             log.error("任务不存在或已过期，taskId={}", taskId);
-            sseManager.sendProgress(taskId, "failed", "任务不存在或已过期");
+            sseManager.failTask(taskId, "任务不存在或已过期");
+            return;
+        }
+        if (!taskQueue.startTask(taskId)) {
+            log.warn("任务状态不允许开始执行，taskId={}", taskId);
+            sseManager.failTask(taskId, "任务不存在或状态不允许执行");
             return;
         }
         UserPlanDTO userPlan = task.getUserPlan();
@@ -113,20 +117,25 @@ public class AgentService {
                long endTime = System.currentTimeMillis();
                long costMillis = endTime - startTime;
                log.info("旅游规划完成，耗时 {} 毫秒（约 {} 秒）", costMillis, String.format("%.2f", costMillis / 1000.0));
-               //向用户推送旅游规划结果
-               task.setResult(result.get().itinerarySkeleton());
-               task.setStatus(TaskStatus.COMPLETED);
-               sseManager.completeTask(taskId, task.getResult());
-               log.info("旅游行程规划结果{}", task.getResult());
-               //将规划结果保存到数据库
-               planHistoryService.addHistory(userId,createTime,userPlan,result.get().masterPlan(),task.getResult());
+               var itinerary = result.get().itinerarySkeleton();
+               // 历史落库成功后再持久化终态并通知前端，避免先发完成事件后落库失败。
+               planHistoryService.addHistory(userId, createTime, userPlan, result.get().masterPlan(), itinerary);
+               if (!taskQueue.completeTask(taskId, itinerary)) {
+                   throw new IllegalStateException("任务不存在或状态不允许完成：" + taskId);
+               }
+               sseManager.completeTask(taskId, itinerary);
+               log.info("旅游行程规划结果{}", itinerary);
            } else {
                throw new RuntimeException("任务执行未返回结果");
            }
         } catch (Exception e) {
             log.error("旅游行程规划失败！", e);
-            task.setStatus(TaskStatus.FAILED);
-            sseManager.sendProgress(taskId, "failed", "旅游行程规划失败！");
+            try {
+                taskQueue.failTask(taskId);
+            } catch (Exception persistenceError) {
+                log.error("持久化任务失败状态时出错，taskId={}", taskId, persistenceError);
+            }
+            sseManager.failTask(taskId, "旅游行程规划失败！");
         }
     }
 }

@@ -1,93 +1,166 @@
 package com.hope.chufala.infra;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hope.chufala.agent.AgentTask;
 import com.hope.chufala.agent.TaskStatus;
 import com.hope.chufala.model.dto.UserPlanDTO;
+import com.hope.chufala.model.vo.TravelItineraryVO;
+import jakarta.annotation.PreDestroy;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
-/**
- * 行程规划任务队列
- *
- * 局限：任务只存放在本进程内存中，服务重启后进行中的任务会丢失。
- * 如需跨重启保留，应改为 Redis 或数据库存储。
- *
- * @author 谢光湘
- */
+/** Redis 中的行程规划任务。每个任务占用一个带过期时间的 Hash。 */
 @Component
 public class TaskQueue {
 
-    /**
-     * 已结束任务的保留时长。
-     * 超期后在下次提交任务时被清理；未结束（PENDING / PROCESSING）的任务不会被清理，
-     * 否则规划流程取不到任务会直接 NPE。
-     */
-    private static final long FINISHED_TASK_TTL_MILLIS = TimeUnit.HOURS.toMillis(2);
+    private static final String KEY_PREFIX = "task:plan:";
+    private static final String WORKER_KEY_PREFIX = "task:plan:worker:";
+    // 异步执行器中的任务不会跨服务重启恢复，运行中记录也必须有过期上限。
+    static final Duration ACTIVE_TTL = Duration.ofHours(24);
+    static final Duration FINISHED_TTL = Duration.ofHours(2);
+    private static final Duration WORKER_TTL = Duration.ofMinutes(1);
 
-    /**
-     * 任务队列
-     * key:任务ID
-     * value:任务对象（存储用户行程的相关信息、规划后的结果）及创建时间
-     */
-    private final Map<String, TaskEntry> taskMap = new ConcurrentHashMap<>();
+    private static final DefaultRedisScript<Long> CREATE_SCRIPT = script("""
+            redis.call('HSET', KEYS[1], 'taskId', ARGV[1], 'userId', ARGV[2],
+                'userPlan', ARGV[3], 'status', 'PENDING', 'createdAt', ARGV[4],
+                'workerId', ARGV[5])
+            redis.call('PEXPIRE', KEYS[1], ARGV[6])
+            return 1
+            """);
+    private static final DefaultRedisScript<Long> START_SCRIPT = script("""
+            if redis.call('HGET', KEYS[1], 'status') ~= 'PENDING' then return 0 end
+            redis.call('HSET', KEYS[1], 'status', 'PROCESSING')
+            redis.call('PEXPIRE', KEYS[1], ARGV[1])
+            return 1
+            """);
+    private static final DefaultRedisScript<Long> COMPLETE_SCRIPT = script("""
+            if redis.call('HGET', KEYS[1], 'status') ~= 'PROCESSING' then return 0 end
+            redis.call('HSET', KEYS[1], 'status', 'COMPLETED', 'result', ARGV[1])
+            redis.call('PEXPIRE', KEYS[1], ARGV[2])
+            return 1
+            """);
+    private static final DefaultRedisScript<Long> FAIL_SCRIPT = script("""
+            local status = redis.call('HGET', KEYS[1], 'status')
+            if status ~= 'PENDING' and status ~= 'PROCESSING' then return 0 end
+            redis.call('HSET', KEYS[1], 'status', 'FAILED')
+            redis.call('HDEL', KEYS[1], 'result')
+            redis.call('PEXPIRE', KEYS[1], ARGV[1])
+            return 1
+            """);
 
-    /** 任务 + 创建时间 */
-    private record TaskEntry(AgentTask task, long createdAt) {}
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
+    private final String workerId = UUID.randomUUID().toString();
 
-    /**
-     * 提交任务
-     *
-     * <p>提交时顺带清理已结束且超期的任务，避免内存只增不减。
-     *
-     * @param userId   提交用户 ID
-     * @param userPlan 用户旅行的相关信息
-     * @return 任务ID
-     */
-    public String submitTask(Long userId, UserPlanDTO userPlan){
-        // 顺带清理已结束且超期的任务，避免任务只增不减导致内存持续增长
-        evictFinishedTasks();
+    public TaskQueue(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+    }
+
+    public String submitTask(Long userId, UserPlanDTO userPlan) {
+        heartbeat();
         String taskId = UUID.randomUUID().toString();
-        taskMap.put(taskId, new TaskEntry(new AgentTask(taskId, userId, userPlan, TaskStatus.PENDING), System.currentTimeMillis()));
+        Long created = redisTemplate.execute(CREATE_SCRIPT, List.of(key(taskId)), taskId,
+                userId.toString(), toJson(userPlan), Long.toString(System.currentTimeMillis()),
+                workerId, Long.toString(ACTIVE_TTL.toMillis()));
+        if (!Long.valueOf(1).equals(created)) {
+            throw new IllegalStateException("创建行程规划任务失败");
+        }
         return taskId;
     }
 
-    /**
-     * 获取任务
-     * @param taskId 任务ID
-     * @return 任务对象；不存在（未提交或已被清理）时返回 null
-     */
-    public AgentTask getTask(String taskId){
-        TaskEntry entry = taskMap.get(taskId);
-        return entry == null ? null : entry.task();
+    /** 不存在或已过期时返回 null。返回值是快照，修改它不会写回 Redis。 */
+    public AgentTask getTask(String taskId) {
+        Map<Object, Object> fields = redisTemplate.opsForHash().entries(key(taskId));
+        if (fields.isEmpty()) {
+            return null;
+        }
+        String owner = (String) fields.get("workerId");
+        String status = (String) fields.get("status");
+        if (owner != null && !workerId.equals(owner)
+                && (TaskStatus.PENDING.name().equals(status) || TaskStatus.PROCESSING.name().equals(status))
+                && Boolean.FALSE.equals(redisTemplate.hasKey(WORKER_KEY_PREFIX + owner))) {
+            // 原执行进程已停止：只把状态改为失败，保留记录供重连的用户读取。
+            failTask(taskId);
+            fields = redisTemplate.opsForHash().entries(key(taskId));
+            if (fields.isEmpty()) {
+                return null;
+            }
+        }
+        AgentTask task = new AgentTask();
+        task.setTaskId((String) fields.get("taskId"));
+        task.setUserId(Long.valueOf((String) fields.get("userId")));
+        task.setUserPlan(fromJson((String) fields.get("userPlan"), UserPlanDTO.class));
+        task.setStatus(TaskStatus.valueOf((String) fields.get("status")));
+        if (fields.containsKey("result")) {
+            task.setResult(fromJson((String) fields.get("result"), TravelItineraryVO.class));
+        }
+        return task;
     }
 
-    /** 移除未能提交到执行器的任务，避免留下永远处于 PENDING 的记录。 */
+    public boolean startTask(String taskId) {
+        return Long.valueOf(1).equals(redisTemplate.execute(START_SCRIPT, List.of(key(taskId)),
+                Long.toString(ACTIVE_TTL.toMillis())));
+    }
+
+    public boolean completeTask(String taskId, TravelItineraryVO result) {
+        return Long.valueOf(1).equals(redisTemplate.execute(COMPLETE_SCRIPT, List.of(key(taskId)),
+                toJson(result), Long.toString(FINISHED_TTL.toMillis())));
+    }
+
+    public boolean failTask(String taskId) {
+        return Long.valueOf(1).equals(redisTemplate.execute(FAIL_SCRIPT, List.of(key(taskId)),
+                Long.toString(FINISHED_TTL.toMillis())));
+    }
+
+    /** 执行器拒绝任务后立即删除 PENDING 记录。 */
     public void removeTask(String taskId) {
-        taskMap.remove(taskId);
+        redisTemplate.delete(key(taskId));
     }
 
-    /**
-     * 清理已结束（COMPLETED / FAILED）且超过保留时长的任务。
-     */
-    private void evictFinishedTasks() {
-        long deadline = System.currentTimeMillis() - FINISHED_TASK_TTL_MILLIS;
-        taskMap.entrySet().removeIf(entry -> {
-            TaskEntry value = entry.getValue();
-            return value.createdAt() < deadline && isFinished(value.task().getStatus());
-        });
+    /** 运行中任务的执行进程心跳；进程退出后心跳自动过期。 */
+    @Scheduled(fixedDelay = 15_000)
+    public void heartbeat() {
+        redisTemplate.opsForValue().set(WORKER_KEY_PREFIX + workerId, "1", WORKER_TTL);
     }
 
-    /**
-     * 判断任务是否已结束。
-     *
-     * @param status 任务状态
-     * @return 已结束返回 true
-     */
-    private boolean isFinished(TaskStatus status) {
-        return status == TaskStatus.COMPLETED || status == TaskStatus.FAILED;
+    @PreDestroy
+    public void stopHeartbeat() {
+        redisTemplate.delete(WORKER_KEY_PREFIX + workerId);
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("序列化行程规划任务失败", e);
+        }
+    }
+
+    private <T> T fromJson(String json, Class<T> type) {
+        try {
+            return objectMapper.readValue(json, type);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("反序列化行程规划任务失败", e);
+        }
+    }
+
+    private static String key(String taskId) {
+        return KEY_PREFIX + taskId;
+    }
+
+    private static DefaultRedisScript<Long> script(String source) {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setScriptText(source);
+        script.setResultType(Long.class);
+        return script;
     }
 }
