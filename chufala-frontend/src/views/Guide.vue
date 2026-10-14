@@ -179,12 +179,12 @@
               </ol>
               <aside class="planning-evidence" aria-live="polite">
                 <div class="planning-evidence__header"><span>已确认的行程线索</span><strong>{{ completedPlanningStages }} / 5</strong></div>
-                <div v-if="planningSummaries.length" class="planning-evidence__items">
+                <TransitionGroup v-if="planningSummaries.length" name="planning-evidence" tag="div" class="planning-evidence__items" appear>
                   <div v-for="item in planningSummaries" :key="item.id" class="planning-evidence__item">
                     <el-icon><component :is="item.icon" /></el-icon>
                     <span><strong>{{ item.label }}</strong><small>{{ item.summary }}</small></span>
                   </div>
-                </div>
+                </TransitionGroup>
                 <p v-else class="planning-evidence__empty">每完成一个环节，这里就会出现一条真实的规划成果。</p>
                 <div v-if="planningWeatherDays.length" class="planning-weather">
                   <div class="planning-weather__heading"><strong>逐日天气参考</strong><span>{{ planningWeatherDays.length }} 天已查询</span></div>
@@ -207,13 +207,13 @@
           
           <el-timeline v-else>
             <el-timeline-item v-for="(day, index) in itinerary" :id="`itinerary-day-${index}`" :key="index" :timestamp="`DAY ${day.day}`" placement="top" :hollow="true" class="custom-timeline-item">
-              <div class="day-weather">
+              <div class="day-weather" v-reveal>
                 <img v-if="weatherIconNames.has(day.weather)" :src="`/weather/${day.weather}.png`" :alt="day.weather" />
                 <el-icon v-else aria-hidden="true"><Picture /></el-icon>
                 <span>{{ day.temperature }} · {{ day.weather }}</span>
               </div>
               <div class="day-card" shadow="hover">
-                <div v-for="(item, itemIndex) in day.activities" :key="item.id" @click="focusOnLocation(item)">
+                <div v-for="(item, itemIndex) in day.activities" :key="item.id" v-reveal="Math.min(itemIndex, 3) * 50" @click="focusOnLocation(item)">
                   <div class="activity-item">
                     <img :src="item.image" :alt="item.name" />
                     <div class="activity-content">
@@ -243,10 +243,10 @@
                 </div>
               </div>
               <div class="hotel-recommendations">
-                <h3>为您推荐的酒店</h3>
+                <h3 v-reveal>为您推荐的酒店</h3>
                 <div class="hotel-cards-container">
                   <!-- 酒店卡片 -->
-                  <div class="hotel-card" v-for="hotel in day.recommendHotels" :key="hotel.id">
+                  <div class="hotel-card" v-for="(hotel, hotelIndex) in day.recommendHotels" :key="hotel.id" v-reveal="Math.min(hotelIndex, 3) * 50">
                     <img :src="`${hotel.image}`" :alt="hotel.name" class="hotel-image">
                     <div class="hotel-info">
                       <h4>{{ hotel.name }}</h4>
@@ -265,7 +265,7 @@
 
       <!-- 地图和预算概览 -->
        <div class="map-panel" v-show="itinerary.length > 0 && !isPlanning">
-        <div class="result-banner">
+        <div class="result-banner" v-reveal>
           <div class="result-banner__main">
             <span class="result-banner__eyebrow">YOUR ITINERARY</span>
             <h2>{{ planDestination }} · {{ itinerary.length }} 天的旅行提案</h2>
@@ -280,7 +280,7 @@
             <el-icon><ArrowRight /></el-icon>
           </button>
         </div>
-        <el-card class="map-card" shadow="never">
+        <el-card class="map-card" shadow="never" v-reveal="80">
           <template #header>
             <div class="card-header">
               <span class="card-header__number">02</span>
@@ -327,7 +327,7 @@
         </el-card>
 
         <!-- 预算摘要卡片 -->
-        <el-card v-if="budgetSummary.total > 0" class="budget-summary-card" shadow="never">
+        <el-card v-if="budgetSummary.total > 0" class="budget-summary-card" shadow="never" v-reveal="160">
           <template #header>
             <div class="card-header">
               <span class="card-header__number">¥</span>
@@ -1218,12 +1218,13 @@ const planDestination = ref('张家界');
 const planBudget = ref(5000);
 const planPeople = ref(2);
 const currentHistoryId = ref(null);
+const scrollBehavior = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth';
 const scrollToDay = (index) => {
-  document.getElementById(`itinerary-day-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById(`itinerary-day-${index}`)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
 };
 const openReferencedItinerary = () => {
   currentMode.value = 'planning';
-  nextTick(() => document.querySelector('.result-banner')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  nextTick(() => document.querySelector('.result-banner')?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }));
 };
 const continueWithAdvisor = () => {
   startNewChat();
@@ -3101,6 +3102,8 @@ onUnmounted(() => {
 .planning-evidence__header { display: flex; justify-content: space-between; gap: 10px; padding-bottom: 13px; border-bottom: 1px dashed #d4e2da; color: #426b73; font-size: 11px; font-weight: 700; }
 .planning-evidence__header strong { font: 700 12px var(--font-num); }
 .planning-evidence__items { display: grid; align-content: start; gap: 8px; padding-top: 14px; }
+.planning-evidence-enter-active { transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out); }
+.planning-evidence-enter-from { opacity: 0; transform: translateY(8px); }
 .planning-evidence__item { display: flex; align-items: flex-start; gap: 9px; padding: 8px 9px; border: 1px solid #e3eee8; border-radius: 9px; background: rgba(255, 255, 255, .7); }
 .planning-evidence__item > .el-icon { flex: 0 0 24px; width: 24px; height: 24px; border-radius: 7px; color: #498c79; background: #e8f5eb; }
 .loading-state .planning-evidence__item i { margin: 0; font-size: 13px; }
