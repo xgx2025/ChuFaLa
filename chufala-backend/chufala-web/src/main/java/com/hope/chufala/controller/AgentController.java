@@ -4,6 +4,7 @@ package com.hope.chufala.controller;
 import com.hope.chufala.common.util.ThreadLocalUtils;
 import com.hope.chufala.common.constant.ResultCode;
 import com.hope.chufala.infra.SseManager;
+import com.hope.chufala.infra.ChatStreamManager;
 import com.hope.chufala.infra.TaskQueue;
 import com.hope.chufala.model.dto.ChatRequest;
 import com.hope.chufala.model.dto.UserPlanDTO;
@@ -33,12 +34,15 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Schedulers;
 
 import java.net.MalformedURLException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * AI 智能体接口。
@@ -77,6 +81,8 @@ public class AgentController {
     private TaskQueue taskQueue;
     @Autowired
     private SseManager sseManager;
+    @Autowired
+    private ChatStreamManager chatStreamManager;
     @Resource(name="qwen")
     private ChatClient defaultChatClient;
     @Resource(name="doubao")
@@ -209,10 +215,10 @@ public class AgentController {
      * 智能助手聊天
      *
      * @param chatRequest 对话请求（消息、会话、模型、关联规划、附件）
-     * @return 以 text/event-stream 流式返回模型输出；响应头 X-Conversation-Id 回传会话 ID
+     * @return 以 text/event-stream 流式返回模型输出；响应头返回会话及助手消息 ID
      */
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public ResponseEntity<Flux<String>> chat(@RequestBody ChatRequest chatRequest) {
+    public ResponseEntity<SseEmitter> chat(@RequestBody ChatRequest chatRequest) {
         String conversationId = chatRequest.getConversationId();
         Claims claims = ThreadLocalUtils.get();
         Long userId = claims.get("userId", Long.class);
@@ -233,7 +239,7 @@ public class AgentController {
         if (isValidModel(modelName)) {
             if ("deepseek".equals(modelName) && !userService.isVipUser(userId)) {
                 log.warn("{}是非VIP用户，不可使用 DeepSeek 模型", userId);
-                return ResponseEntity.status(403).body(Flux.just("非VIP用户不可使用 DeepSeek 模型，请升级为VIP用户后重试。"));
+                return ResponseEntity.status(403).build();
             }
             chatClient = applicationContext.getBean(modelName, ChatClient.class);
         }
@@ -298,16 +304,7 @@ public class AgentController {
                         .tools(orderTools, attractionTools, userInfoTools, hotelInfoTools, otherTools)
                         .toolContext(Map.of("userId", userId))
                         .stream()
-                        .content()
-                        .doOnNext(contentBuilder::append)
-                        .doOnComplete(() -> {
-                            // 流式输出结束，更新完整的消息内容
-                            aiConversationService.updateAssistantMessageContent(assistantMessageId, contentBuilder.toString(), true);
-                        })
-                        .doOnError(e -> {
-                            log.error("智能助手流式响应错误", e);
-                            aiConversationService.updateAssistantMessageContent(assistantMessageId, contentBuilder.toString(), false);
-                        });
+                        .content();
 
                 //  log.info("图片分析结果：{}", analysisResult);
                 //将 图片分析结果 到 会话消息中
@@ -323,21 +320,79 @@ public class AgentController {
                     .tools(orderTools, attractionTools, userInfoTools, hotelInfoTools, otherTools)
                     .toolContext(Map.of("userId", userId))
                     .stream()
-                    .content()
-                    .doOnNext(contentBuilder::append)
-                    .doOnComplete(() -> {
-                        // 流式输出结束，更新完整的消息内容
-                        aiConversationService.updateAssistantMessageContent(assistantMessageId, contentBuilder.toString(), true);
-                    })
-                    .doOnError(e -> {
-                        log.error("智能助手流式响应错误", e);
-                        aiConversationService.updateAssistantMessageContent(assistantMessageId, contentBuilder.toString(), false);
-                    });
+                    .content();
 
         }
+        chatStreamManager.create(assistantMessageId, userId, finalConversationId);
+        SseEmitter emitter = chatStreamManager.subscribe(assistantMessageId, null);
+        // The ready event was persisted by create() and flushes headers immediately.
+        long startedAt = System.currentTimeMillis();
+        AtomicBoolean firstOutput = new AtomicBoolean(true);
+        flux.timeout(Duration.ofMinutes(15))
+                .bufferTimeout(32, Duration.ofMillis(80))
+                .map(chunks -> String.join("", chunks))
+                .filter(content -> !content.isEmpty())
+                .subscribeOn(Schedulers.boundedElastic())
+                // bufferTimeout emits on a timer worker. Redis and MySQL are blocking I/O.
+                .publishOn(Schedulers.boundedElastic())
+                .subscribe(content -> {
+                    if (firstOutput.compareAndSet(true, false)) {
+                        log.info("聊天首段输出 messageId={}, elapsedMs={}",
+                                assistantMessageId, System.currentTimeMillis() - startedAt);
+                    }
+                    contentBuilder.append(content);
+                    chatStreamManager.publish(assistantMessageId, "delta", content);
+                }, error -> {
+                    log.error("智能助手流式响应错误 messageId={}, elapsedMs={}",
+                            assistantMessageId, System.currentTimeMillis() - startedAt, error);
+                    try {
+                        aiConversationService.updateAssistantMessageContent(assistantMessageId,
+                                contentBuilder.toString(), false);
+                    } catch (RuntimeException saveError) {
+                        log.error("保存聊天部分回复失败，messageId={}", assistantMessageId, saveError);
+                    }
+                    try {
+                        chatStreamManager.publish(assistantMessageId, "failed", "回复中断，请稍后重试");
+                    } catch (RuntimeException publishError) {
+                        log.error("发布聊天失败事件失败，messageId={}", assistantMessageId, publishError);
+                    }
+                }, () -> {
+                    log.info("聊天生成完成 messageId={}, elapsedMs={}",
+                            assistantMessageId, System.currentTimeMillis() - startedAt);
+                    try {
+                        aiConversationService.updateAssistantMessageContent(assistantMessageId,
+                                contentBuilder.toString(), true);
+                    } catch (RuntimeException e) {
+                        log.error("保存聊天回复失败，messageId={}", assistantMessageId, e);
+                        try {
+                            chatStreamManager.publish(assistantMessageId, "failed", "保存回复失败，请稍后重试");
+                        } catch (RuntimeException publishError) {
+                            log.error("发布聊天失败事件失败，messageId={}", assistantMessageId, publishError);
+                        }
+                        return;
+                    }
+                    try {
+                        chatStreamManager.publish(assistantMessageId, "complete", "");
+                    } catch (RuntimeException publishError) {
+                        log.error("发布聊天完成事件失败，messageId={}", assistantMessageId, publishError);
+                    }
+                });
         return ResponseEntity.ok()
                 .header("X-Conversation-Id", conversationId)
-                .body(flux);
+                .header("X-Message-Id", assistantMessageId)
+                .body(emitter);
+    }
+
+    /** Reattaches to an existing generation without sending the user's question again. */
+    @GetMapping(value = "/chat/stream/{messageId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter subscribeChat(@PathVariable String messageId,
+                                    @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
+        Claims claims = ThreadLocalUtils.get();
+        Long userId = claims.get("userId", Long.class);
+        if (!messageId.matches("[0-9]{1,19}") || !chatStreamManager.belongsTo(messageId, userId)) {
+            throw new ResourceNotFoundException("聊天流不存在");
+        }
+        return chatStreamManager.subscribe(messageId, lastEventId);
     }
 
     /**

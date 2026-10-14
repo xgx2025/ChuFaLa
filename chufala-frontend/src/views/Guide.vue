@@ -549,6 +549,7 @@ import { useUserInfoStore } from '@/stores/userInfo';
 import { config } from '@/utils/config';
 import { useTokenStore } from '@/stores/token';
 import { authSse, SseHttpError } from '@/utils/authSse';
+import { followChatStream } from '@/utils/chatStream';
 import MarkdownRender from 'markstream-vue';
 import 'markstream-vue/index.css';
 
@@ -760,152 +761,35 @@ const quickQuestions = [
   { icon: 'House', text: '帮我订购北京的酒店' },
 ];
 
-const sendMessage = async (text) => {
-  const content = text || chatInput.value;
-  if (!content.trim()) return;
+const CHAT_TASK_KEY = 'chufala:chat-task';
 
-  isGenerating.value = true;
-
-  // 添加用户消息
-  chatMessages.value.push({
-    id: Date.now(),
-    role: 'user',
-    content: content,
-    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  });
-
-  if (!text) chatInput.value = '';
-
-  // 创建AI消息占位
-  const aiMsgId = Date.now() + 1;
-  chatMessages.value.push({
-    id: aiMsgId,
-    role: 'ai',
-    content: '...', // 正在思考中
-    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  });
-
-  // 滚动到底部
-  nextTick(() => {
-    const chatBody = document.querySelector('.chat-body');
-    if (chatBody) chatBody.scrollTop = chatBody.scrollHeight;
-  });
-
-  // 获取图片ID列表
-  const fileIds = uploadImages.value.map(img => img.fileId).filter(id => id);
-
-  try {
-    const response = await sendChatStream({ 
-        message: content, 
-        conversationId: typeof currentSessionId.value === 'string' ? currentSessionId.value : null,
-        model: selectedModel.value,
-        planId: currentHistoryId.value,
-        fileIds: fileIds
+const streamChatReply = async (messageId, conversationId, aiMessage, response = null) => {
+  let content = aiMessage.content === '...' ? '' : aiMessage.content;
+  let failure = '';
+  let renderTimer = null;
+  const flushContent = () => {
+    if (renderTimer) clearTimeout(renderTimer);
+    renderTimer = null;
+    if (!content) return;
+    aiMessage.content = content;
+    nextTick(() => {
+      const body = document.querySelector('.chat-body');
+      if (body) body.scrollTop = body.scrollHeight;
     });
-
-    // 发送后清空图片和输入框
-    if (!text) {
-      chatInput.value = '';
-      uploadImages.value = [];
-    }
-
-    if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error('VIP_REQUIRED');
+  };
+  try {
+    await followChatStream(messageId, response, {
+      onEvent: (event, data) => {
+        if (event === 'delta') {
+          content += data;
+          if (!renderTimer) renderTimer = setTimeout(flushContent, 80);
+        } else if (event === 'failed') {
+          failure = data || '回复中断，请稍后重试';
         }
-       throw new Error('Network response was not ok');
-    }
-
-    // 获取会话ID
-    const conversationId = response.headers.get('X-Conversation-Id');
-    if (conversationId && currentSessionId.value !== conversationId) {
-        currentSessionId.value = conversationId;
-        
-        // 添加到历史记录
-        const exists = chatHistory.value.find(h => h.id === conversationId);
-        if (!exists) {
-             chatHistory.value.unshift({
-              id: conversationId,
-              title: content.length > 10 ? content.substring(0, 10) + '...' : content,
-              time: new Date().toLocaleDateString()
-            });
-        }
-    }
-
-    // 读取流
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let aiContent = '';
-    let buffer = '';
-    
-    // 获取响应式消息对象引用
-    const aiMessage = chatMessages.value.find(m => m.id === aiMsgId);
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      
-      const chunk = decoder.decode(value, { stream: true });
-      
-      // 检查是否是 SSE 格式
-      const isSSE = response.headers.get('Content-Type')?.includes('text/event-stream');
-      
-      if (isSSE) {
-        buffer += chunk;
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // 保留未完成的行
-
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            // 注意：这里不要使用 trim()，否则会丢失开头的空格（对于流式输出很重要）
-            // data: 后面通常有一个空格，slice(5) 会保留这个空格
-            // 如果是 JSON，JSON.parse 会忽略空格
-            // 如果是纯文本，我们需要这个空格
-            const data = line.slice(5);
-            
-            // 忽略 [DONE] 标记
-            if (data.trim() === '[DONE]') continue;
-            
-            try {
-              // 尝试解析 JSON
-              const parsed = JSON.parse(data);
-              const text = typeof parsed === 'object' ? (parsed.content || parsed.text || parsed.message || '') : parsed;
-              aiContent += text;
-            } catch {
-              // 如果不是 JSON，直接追加文本
-              // 注意：如果 data 是 " hello"，slice(5) 是 " hello"
-              // 如果后端发送的是 "data: hello"，slice(5) 是 " hello"
-              // 如果后端发送的是 "data:hello"，slice(5) 是 "hello"
-              // 通常 SSE 规范建议 data: 后有个空格
-              // 这里我们假设如果开头有空格，是协议分隔符，如果内容本身需要空格，后端应该处理好
-              // 为了安全起见，如果 data 开头是空格，我们去掉第一个空格
-              // 但如果内容就是 " " (空格)，data:  -> slice(5) -> "  " -> 去掉第一个 -> " "
-              
-              let text = data;
-              if (text.startsWith(' ')) {
-                  text = text.substring(1);
-              }
-              aiContent += text;
-            }
-          }
-        }
-      } else {
-        // 非 SSE 模式，直接追加
-        aiContent += chunk;
       }
-      
-      if (aiMessage && aiContent) {
-          aiMessage.content = aiContent;
-      }
-      
-      nextTick(() => {
-        const chatBody = document.querySelector('.chat-body');
-        if (chatBody) chatBody.scrollTop = chatBody.scrollHeight;
-      });
-    }
-
-    // 响应完成后，刷新当前会话以确保 Markdown 格式正确
-    if (conversationId && currentSessionId.value === conversationId) {
+    });
+    flushContent();
+    if (currentSessionId.value === conversationId) {
       const res = await getChatMessagesService(conversationId);
       if (res.data) {
         chatMessages.value = res.data.map(msg => ({
@@ -914,25 +798,98 @@ const sendMessage = async (text) => {
           content: msg.content,
           time: new Date(msg.createTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }));
-        
-        nextTick(() => {
-          const chatBody = document.querySelector('.chat-body');
-          if (chatBody) chatBody.scrollTop = chatBody.scrollHeight;
-        });
+        if (failure) {
+          const saved = chatMessages.value.find(msg => msg.id === messageId);
+          if (saved) saved.content += `\n[${failure}]`;
+        }
       }
     }
-
+    sessionStorage.removeItem(CHAT_TASK_KEY);
   } catch (error) {
-    console.error('Chat error:', error);
-    const aiMessage = chatMessages.value.find(m => m.id === aiMsgId);
-    if (aiMessage) {
-        if (error.message === 'VIP_REQUIRED') {
-             aiMessage.content = '非VIP用户不可使用 DeepSeek 模型，请升级为VIP用户后重试。';
-        } else {
-             aiMessage.content += '\n[网络异常，请稍后再试]';
-        }
+    console.error('Chat stream error:', error);
+    flushContent();
+    if (error instanceof Error && error.message.includes('(404)')) {
+      sessionStorage.removeItem(CHAT_TASK_KEY);
+      try {
+        const res = await getChatMessagesService(conversationId);
+        const saved = res.data?.find(msg => msg.id === messageId);
+        aiMessage.content = saved?.content || content || '聊天流已过期，请重新提问';
+      } catch {
+        aiMessage.content = content || '聊天流已过期，请重新提问';
+      }
+    } else {
+      aiMessage.content = content + '\n[连接中断，请刷新页面恢复]';
     }
   } finally {
+    if (renderTimer) clearTimeout(renderTimer);
+    isGenerating.value = false;
+  }
+};
+
+const resumeChatTask = async () => {
+  let saved;
+  try { saved = JSON.parse(sessionStorage.getItem(CHAT_TASK_KEY) || 'null'); }
+  catch { sessionStorage.removeItem(CHAT_TASK_KEY); return; }
+  if (!saved?.messageId || !saved?.conversationId) return;
+  currentMode.value = 'chat';
+  await loadSession({ id: saved.conversationId });
+  let aiMessage = chatMessages.value.find(msg => msg.id === saved.messageId);
+  if (!aiMessage) {
+    aiMessage = { id: saved.messageId, role: 'ai', content: '', time: new Date().toLocaleTimeString() };
+    chatMessages.value.push(aiMessage);
+    aiMessage = chatMessages.value[chatMessages.value.length - 1];
+  }
+  // Replay from event zero: the database draft may not contain the live partial reply.
+  aiMessage.content = '';
+  isGenerating.value = true;
+  await streamChatReply(saved.messageId, saved.conversationId, aiMessage);
+};
+
+const sendMessage = async (text) => {
+  const content = text || chatInput.value;
+  if (!content.trim() || isGenerating.value) return;
+  isGenerating.value = true;
+  chatMessages.value.push({
+    id: Date.now(), role: 'user', content,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  });
+  chatMessages.value.push({
+    id: Date.now() + 1, role: 'ai', content: '...',
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  });
+  // Always mutate Vue's proxy, not the raw object passed into the reactive array.
+  const aiMessage = chatMessages.value[chatMessages.value.length - 1];
+  if (!text) chatInput.value = '';
+  const fileIds = uploadImages.value.map(img => img.fileId).filter(Boolean);
+  try {
+    const response = await sendChatStream({
+      message: content,
+      conversationId: typeof currentSessionId.value === 'string' ? currentSessionId.value : null,
+      model: selectedModel.value,
+      planId: currentHistoryId.value,
+      fileIds
+    });
+    if (!response.ok) throw new Error(response.status === 403 ? 'VIP_REQUIRED' : `HTTP ${response.status}`);
+    const conversationId = response.headers.get('X-Conversation-Id');
+    const messageId = response.headers.get('X-Message-Id');
+    if (!conversationId || !messageId) throw new Error('聊天响应缺少会话标识');
+    currentSessionId.value = conversationId;
+    aiMessage.id = messageId;
+    if (!chatHistory.value.some(item => item.id === conversationId)) {
+      chatHistory.value.unshift({
+        id: conversationId,
+        title: content.length > 10 ? content.substring(0, 10) + '...' : content,
+        time: new Date().toLocaleDateString()
+      });
+    }
+    uploadImages.value = [];
+    sessionStorage.setItem(CHAT_TASK_KEY, JSON.stringify({ conversationId, messageId }));
+    await streamChatReply(messageId, conversationId, aiMessage, response);
+  } catch (error) {
+    console.error('Chat error:', error);
+    aiMessage.content = error.message === 'VIP_REQUIRED'
+      ? '非VIP用户不可使用 DeepSeek 模型，请升级为VIP用户后重试。'
+      : '网络异常，请稍后再试';
     isGenerating.value = false;
   }
 };
@@ -1643,6 +1600,7 @@ onMounted(async () => {
   resumePlanningTask();
   await loadHistory();
   await loadChatHistory();
+  void resumeChatTask();
 });
 onUnmounted(() => {
   isPlannerMounted = false;

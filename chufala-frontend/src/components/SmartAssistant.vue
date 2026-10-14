@@ -64,10 +64,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue';
+import { ref, nextTick, onMounted } from 'vue';
 import MarkdownIt from 'markdown-it';
 import DOMPurify from 'dompurify';
 import { sendChatStream } from '@/api/agent';
+import { followChatStream } from '@/utils/chatStream';
 
 const md = new MarkdownIt({
   html: true,
@@ -126,84 +127,92 @@ const scrollToBottom = () => {
 
 const conversationId = ref<string | null>(null);
 
-const processMessage = async (text: string) => {
-  messages.value.push({ type: 'user', text });
-  scrollToBottom();
-  
-  isTyping.value = true;
-  
-  let assistantMessageIndex = -1;
+const CHAT_TASK_KEY = 'chufala:widget-chat-task';
 
-  try {
-    const response = await sendChatStream({ 
-      message: text, 
-      conversationId: conversationId.value,
-      model: 'qwen'
-    });
-
-    isStreaming.value = true;
-    if (!response.ok) {
-      throw new Error(`Error: ${response.statusText}`);
-    }
-
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error('No reader available');
-
-    const decoder = new TextDecoder();
-    isTyping.value = false;
-    
-    messages.value.push({ type: 'assistant', text: '' });
-    assistantMessageIndex = messages.value.length - 1;
-
-    // Check if response is SSE
-    const isSSE = response.headers.get('Content-Type')?.includes('text/event-stream');
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      
-      const chunk = decoder.decode(value, { stream: true });
-      
-      if (isSSE) {
-        buffer += chunk;
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            const data = line.slice(5).trim();
-            if (data === '[DONE]') continue;
-            
-            try {
-              const parsed = JSON.parse(data);
-              // Adapt to common formats: { content: "..." } or "..."
-              const text = typeof parsed === 'object' ? (parsed.content || parsed.text || parsed.message || '') : parsed;
-              messages.value[assistantMessageIndex].text += text;
-            } catch {
-              messages.value[assistantMessageIndex].text += data;
-            }
-            scrollToBottom();
-          }
-        }
-      } else {
-        messages.value[assistantMessageIndex].text += chunk;
-        scrollToBottom();
-      }
-    }
-  } catch (error) {
-    console.error('Chat error:', error);
-    isTyping.value = false;
-    if (assistantMessageIndex === -1) {
-      messages.value.push({ type: 'assistant', text: '' });
-      assistantMessageIndex = messages.value.length - 1;
-    }
-    messages.value[assistantMessageIndex].text = '抱歉，遇到了一些问题，请稍后再试。';
+const consumeReply = async (messageId: string, index: number, response: Response | null) => {
+  let pendingText = '';
+  let renderTimer: ReturnType<typeof setTimeout> | null = null;
+  const flushText = () => {
+    if (renderTimer) clearTimeout(renderTimer);
+    renderTimer = null;
+    if (!pendingText) return;
+    messages.value[index].text += pendingText;
+    pendingText = '';
     scrollToBottom();
+  };
+  try {
+    await followChatStream(messageId, response, {
+      onEvent: (event, data) => {
+        if (event === 'delta') {
+          pendingText += data;
+          if (!renderTimer) renderTimer = setTimeout(flushText, 80);
+        }
+        if (event === 'failed') {
+          flushText();
+          messages.value[index].text += `\n[${data}]`;
+          scrollToBottom();
+        }
+      }
+    });
+    flushText();
+    sessionStorage.removeItem(CHAT_TASK_KEY);
+  } catch (error) {
+    console.error('Chat stream error:', error);
+    flushText();
+    if (error instanceof Error && error.message.includes('(404)')) {
+      sessionStorage.removeItem(CHAT_TASK_KEY);
+      messages.value[index].text += '\n[聊天流已过期，请重新提问]';
+    } else {
+      messages.value[index].text += '\n[连接中断，请刷新页面恢复]';
+    }
   } finally {
+    if (renderTimer) clearTimeout(renderTimer);
+    isTyping.value = false;
     isStreaming.value = false;
   }
 };
+
+const processMessage = async (text: string) => {
+  if (isTyping.value || isStreaming.value) return;
+  messages.value.push({ type: 'user', text });
+  messages.value.push({ type: 'assistant', text: '' });
+  const index = messages.value.length - 1;
+  scrollToBottom();
+  isTyping.value = true;
+  try {
+    const response = await sendChatStream({
+      message: text, conversationId: conversationId.value, model: 'qwen'
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const nextConversationId = response.headers.get('X-Conversation-Id');
+    const messageId = response.headers.get('X-Message-Id');
+    if (!nextConversationId || !messageId) throw new Error('聊天响应缺少会话标识');
+    conversationId.value = nextConversationId;
+    sessionStorage.setItem(CHAT_TASK_KEY, JSON.stringify({
+      conversationId: nextConversationId, messageId, question: text
+    }));
+    isTyping.value = false;
+    isStreaming.value = true;
+    await consumeReply(messageId, index, response);
+  } catch (error) {
+    console.error('Chat error:', error);
+    messages.value[index].text = '抱歉，遇到了一些问题，请稍后再试。';
+    isTyping.value = false;
+    isStreaming.value = false;
+  }
+};
+
+onMounted(() => {
+  let saved: { conversationId: string; messageId: string; question: string } | null = null;
+  try { saved = JSON.parse(sessionStorage.getItem(CHAT_TASK_KEY) || 'null'); }
+  catch { sessionStorage.removeItem(CHAT_TASK_KEY); }
+  if (!saved?.conversationId || !saved.messageId) return;
+  conversationId.value = saved.conversationId;
+  messages.value.push({ type: 'user', text: saved.question || '' });
+  messages.value.push({ type: 'assistant', text: '' });
+  isStreaming.value = true;
+  void consumeReply(saved.messageId, messages.value.length - 1, null);
+});
 
 const sendMessage = () => {
   const text = inputMessage.value.trim();
