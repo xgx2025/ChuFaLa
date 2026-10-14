@@ -3,6 +3,7 @@ package com.hope.chufala;
 import com.hope.chufala.agent.AgentTask;
 import com.hope.chufala.agent.TaskStatus;
 import com.hope.chufala.common.util.ThreadLocalUtils;
+import com.hope.chufala.common.exception.ResourceNotFoundException;
 import com.hope.chufala.controller.AgentController;
 import com.hope.chufala.infra.SseManager;
 import com.hope.chufala.infra.TaskQueue;
@@ -14,6 +15,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -21,7 +23,7 @@ import static org.mockito.Mockito.*;
 
 class AgentProgressReplayTest {
     @Test
-    void reconnectReplaysPersistedCompletion() {
+    void completedTaskSubscriptionPassesCursorToSseManager() {
         AgentController controller = new AgentController();
         TaskQueue queue = mock(TaskQueue.class);
         SseManager sse = mock(SseManager.class);
@@ -35,16 +37,15 @@ class AgentProgressReplayTest {
         claims.put("userId", 7L);
         ThreadLocalUtils.set(claims);
         try {
-            assertNotNull(controller.subscribeProgress("task-1"));
-            verify(sse).registerEmitter(eq("task-1"), any(SseEmitter.class));
-            verify(sse).completeTask("task-1", result);
+            assertNotNull(controller.subscribeProgress("task-1", "12"));
+            verify(sse).subscribe(eq("task-1"), any(SseEmitter.class), eq("12"));
         } finally {
             ThreadLocalUtils.remove();
         }
     }
 
     @Test
-    void reconnectReplaysPersistedFailure() {
+    void failedTaskSubscriptionIsAllowedForOwner() {
         AgentController controller = new AgentController();
         TaskQueue queue = mock(TaskQueue.class);
         SseManager sse = mock(SseManager.class);
@@ -56,16 +57,15 @@ class AgentProgressReplayTest {
         claims.put("userId", 7L);
         ThreadLocalUtils.set(claims);
         try {
-            assertNotNull(controller.subscribeProgress("task-2"));
-            verify(sse).registerEmitter(eq("task-2"), any(SseEmitter.class));
-            verify(sse).failTask(eq("task-2"), anyString());
+            assertNotNull(controller.subscribeProgress("task-2", null));
+            verify(sse).subscribe(eq("task-2"), any(SseEmitter.class), isNull());
         } finally {
             ThreadLocalUtils.remove();
         }
     }
 
     @Test
-    void activeTaskReplaysItsLatestNodeProgress() {
+    void activeTaskSubscriptionWithoutCursorStartsWithSnapshot() {
         AgentController controller = new AgentController();
         TaskQueue queue = mock(TaskQueue.class);
         SseManager sse = mock(SseManager.class);
@@ -77,8 +77,29 @@ class AgentProgressReplayTest {
         claims.put("userId", 7L);
         ThreadLocalUtils.set(claims);
         try {
-            assertNotNull(controller.subscribeProgress("task-3"));
-            verify(sse).replayProgress("task-3");
+            assertNotNull(controller.subscribeProgress("task-3", null));
+            verify(sse).subscribe(eq("task-3"), any(SseEmitter.class), isNull());
+        } finally {
+            ThreadLocalUtils.remove();
+        }
+    }
+
+    @Test
+    void anotherUsersCursorCannotReadTaskEvents() {
+        AgentController controller = new AgentController();
+        TaskQueue queue = mock(TaskQueue.class);
+        SseManager sse = mock(SseManager.class);
+        when(queue.getTask("task-4")).thenReturn(
+                new AgentTask("task-4", 8L, null, TaskStatus.PROCESSING));
+        ReflectionTestUtils.setField(controller, "taskQueue", queue);
+        ReflectionTestUtils.setField(controller, "sseManager", sse);
+        Claims claims = Jwts.claims();
+        claims.put("userId", 7L);
+        ThreadLocalUtils.set(claims);
+        try {
+            assertThrows(ResourceNotFoundException.class,
+                    () -> controller.subscribeProgress("task-4", "3"));
+            verifyNoInteractions(sse);
         } finally {
             ThreadLocalUtils.remove();
         }

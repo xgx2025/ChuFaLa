@@ -1,6 +1,5 @@
 package com.hope.chufala.infra;
 
-import com.hope.chufala.agent.AgentTask;
 import com.hope.chufala.agent.TaskStatus;
 import com.hope.chufala.model.vo.TravelItineraryVO;
 import lombok.extern.slf4j.Slf4j;
@@ -9,79 +8,79 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
-import java.io.Serial;
-import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * SSE 连接管理器。
- *
- * <p>维护「任务 ID → SseEmitter」的映射，供行程规划各节点推送进度；
- * 连接完成或超时会自动清理，避免 Map 无限增长。
- *
- * @author 谢光湘
- */
+/** 将 Redis 中的规划事件按 ID 投递给当前实例的 SSE 连接。 */
 @Slf4j
 @Component
-public class SseManager implements Serializable {
-    @Serial
-    private static final long serialVersionUID = 1L;
-    /**
-     * 存储SSE Emitter
-     * 一个任务ID对应一个SSE Emitter
-     */
-    private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
-    private final Map<String, Long> deliveredSnapshotSeq = new ConcurrentHashMap<>();
-    private final transient TaskQueue taskQueue;
+public class SseManager {
+    private static final int REPLAY_BATCH_SIZE = 100;
+
+    private final Map<String, Set<Connection>> connections = new ConcurrentHashMap<>();
+    private final TaskQueue taskQueue;
 
     public SseManager(TaskQueue taskQueue) {
         this.taskQueue = taskQueue;
     }
 
-    /**
-     * 注册一个任务的 SseEmitter
-     *
-     * @param taskId  任务 ID
-     * @param emitter SSE 发射器
-     */
-    public void registerEmitter(String taskId, SseEmitter emitter) {
-        emitters.put(taskId, emitter);
-        deliveredSnapshotSeq.put(taskId, -1L);
-        log.info("已为任务 {} 注册 SSE 连接", taskId);
-        // 设置完成和超时回调，自动清理
-        emitter.onCompletion(() -> removeEmitter(taskId, emitter));
-        emitter.onTimeout(() -> removeEmitter(taskId, emitter));
+    /** 初次订阅发送当前快照；带有效游标的订阅补发该 ID 之后的所有事件。 */
+    public void subscribe(String taskId, SseEmitter emitter, String lastEventId) {
+        Connection connection = new Connection(taskId, emitter);
+        emitter.onCompletion(() -> remove(connection));
+        emitter.onTimeout(() -> remove(connection));
+        emitter.onError(error -> remove(connection));
+
+        TaskQueue.ReplayState state = taskQueue.getReplayState(taskId);
+        if (state == null) {
+            sendTerminal(connection, "failed", "行程规划失败或任务已过期", 0);
+            return;
+        }
+
+        Long requestedId = parseEventId(lastEventId);
+        boolean canReplay = requestedId != null && requestedId >= state.firstId() - 1
+                && requestedId <= state.lastId();
+        if (canReplay) {
+            connection.cursor = requestedId;
+        } else {
+            connection.cursor = state.lastId();
+            if (state.status() == TaskStatus.COMPLETED) {
+                sendTerminal(connection, "complete", state.result(), state.lastId());
+                return;
+            }
+            if (state.status() == TaskStatus.FAILED) {
+                sendTerminal(connection, "failed", state.failureMessage(), state.lastId());
+                return;
+            }
+            if (!send(connection, "snapshot", state.snapshot(), state.lastId())) return;
+        }
+
+        connections.computeIfAbsent(taskId, ignored -> ConcurrentHashMap.newKeySet()).add(connection);
+        deliver(connection);
+        // 已收到终态 ID 的客户端通常已经结束；若它再次订阅，仍明确返回终态。
+        if (!connection.closed && canReplay && state.status() != TaskStatus.PROCESSING
+                && state.status() != TaskStatus.PENDING) {
+            TaskQueue.ReplayState latest = taskQueue.getReplayState(taskId);
+            if (latest != null && connection.cursor == latest.lastId()) {
+                if (latest.status() == TaskStatus.COMPLETED) {
+                    sendTerminal(connection, "complete", latest.result(), latest.lastId());
+                } else if (latest.status() == TaskStatus.FAILED) {
+                    sendTerminal(connection, "failed", latest.failureMessage(), latest.lastId());
+                }
+            }
+        }
     }
 
-    /**
-     * 发送进度信息
-     *
-     * <p>推送失败（连接已断开）时移除该连接，不影响规划流程继续执行。
-     *
-     * @param taskId   任务 ID
-     * @param node 节点名
-     * @param message  进度文案
-     */
     public void sendProgress(String taskId, String node, String message) {
-        TaskQueue.TaskProgress progress = new TaskQueue.TaskProgress(node, message, System.currentTimeMillis());
         try {
-            if (!taskQueue.updateProgress(taskId, node, message, progress.timestamp())) return;
+            if (taskQueue.updateProgress(taskId, node, message, System.currentTimeMillis())) {
+                deliverAll(taskId);
+            }
         } catch (RuntimeException e) {
             log.warn("保存规划节点进度失败，taskId={}", taskId, e);
         }
-        sendProgressEvent(taskId, progress);
-    }
-
-    public void replayProgress(String taskId) {
-        TaskQueue.StageSnapshot snapshot = taskQueue.getStageSnapshot(taskId);
-        if (snapshot != null) {
-            sendSnapshot(taskId, snapshot);
-            return;
-        }
-        TaskQueue.TaskProgress progress = taskQueue.getProgress(taskId);
-        if (progress != null) sendProgressEvent(taskId, progress);
     }
 
     public void stageStarted(String taskId, String stageId, String message) {
@@ -95,9 +94,9 @@ public class SseManager implements Serializable {
     public void weatherUpdated(String taskId, String message, String summary,
                                List<TaskQueue.WeatherPreview> days) {
         try {
-            if (taskQueue.updateWeatherStage(taskId, message, summary, days) == 0) return;
-            TaskQueue.StageSnapshot snapshot = taskQueue.getStageSnapshot(taskId);
-            if (snapshot != null) sendSnapshot(taskId, snapshot);
+            if (taskQueue.updateWeatherStage(taskId, message, summary, days) != 0) {
+                deliverAll(taskId);
+            }
         } catch (RuntimeException e) {
             log.warn("保存逐日天气预览失败，taskId={}", taskId, e);
         }
@@ -109,108 +108,158 @@ public class SseManager implements Serializable {
 
     private void publishStage(String taskId, String stageId, String state, String message, String summary) {
         try {
-            if (taskQueue.updateStage(taskId, stageId, state, message, summary) == 0) return;
-            TaskQueue.StageSnapshot snapshot = taskQueue.getStageSnapshot(taskId);
-            if (snapshot != null) sendSnapshot(taskId, snapshot);
+            if (taskQueue.updateStage(taskId, stageId, state, message, summary) != 0) {
+                deliverAll(taskId);
+            }
         } catch (RuntimeException e) {
             log.warn("保存规划阶段失败，taskId={}, stageId={}", taskId, stageId, e);
         }
     }
 
-    private void sendSnapshot(String taskId, TaskQueue.StageSnapshot snapshot) {
-        SseEmitter emitter = emitters.get(taskId);
-        if (emitter == null || snapshot.seq() <= deliveredSnapshotSeq.getOrDefault(taskId, -1L)) return;
-        try {
-            emitter.send(SseEmitter.event().name("snapshot").data(snapshot));
-            deliveredSnapshotSeq.put(taskId, snapshot.seq());
-        } catch (IOException | IllegalStateException e) {
-            removeEmitter(taskId, emitter);
-        }
+    /** 任务终态由 TaskQueue 先写入 Redis，这里只触发立即投递。 */
+    public void completeTask(String taskId, TravelItineraryVO result) {
+        deliverAll(taskId);
     }
 
-    private void sendProgressEvent(String taskId, TaskQueue.TaskProgress progress) {
-        SseEmitter emitter = emitters.get(taskId);
-        if(emitter != null){
-            try {
-                emitter.send(SseEmitter.event()
-                        .name("progress")
-                        .data(Map.of(
-                                "node", progress.node(),
-                                "message", progress.message(),
-                                "timestamp", progress.timestamp()
-                        )));
-            }catch (IOException | IllegalStateException e){
-                removeEmitter(taskId, emitter);
-            }
-        }
-    }
-
-    /**
-     * 完成任务
-     *
-     * <p>推送 complete 事件（携带最终行程）并关闭连接。
-     *
-     * @param taskId 任务 ID
-     * @param result 最终行程结果
-     */
-    public void completeTask(String taskId, TravelItineraryVO result){
-        SseEmitter emitter = emitters.remove(taskId);
-        deliveredSnapshotSeq.remove(taskId);
-        if (emitter != null){
-            try{
-                emitter.send(SseEmitter.event().name("complete").data(result));
-                emitter.complete();
-            } catch (IOException | IllegalStateException e) {
-                log.debug("任务 {} 的完成事件发送失败", taskId, e);
-                try {
-                    emitter.completeWithError(e);
-                } catch (IllegalStateException ignored) {
-                    // 连接可能已经被客户端关闭；Redis 中的完成状态不受影响。
-                }
-            }
-        }
-    }
-
-    /** 推送失败终态并关闭连接。 */
     public void failTask(String taskId, String message) {
-        SseEmitter emitter = emitters.remove(taskId);
-        deliveredSnapshotSeq.remove(taskId);
-        if (emitter != null) {
-            try {
-                emitter.send(SseEmitter.event().name("failed").data(message));
-                emitter.complete();
-            } catch (IOException | IllegalStateException e) {
-                log.debug("任务 {} 的失败事件发送失败", taskId, e);
-                try {
-                    emitter.completeWithError(e);
-                } catch (IllegalStateException ignored) {
-                    // 连接可能已经被客户端关闭。
-                }
+        deliverAll(taskId);
+        TaskQueue.ReplayState state;
+        try {
+            state = taskQueue.getReplayState(taskId);
+        } catch (RuntimeException e) {
+            log.warn("查询规划失败状态出错，taskId={}", taskId, e);
+            state = null;
+        }
+        if (state == null || (state.status() != TaskStatus.FAILED
+                && state.status() != TaskStatus.COMPLETED)) {
+            for (Connection connection : List.copyOf(connections.getOrDefault(taskId, Set.of()))) {
+                sendTerminal(connection, "failed", message, connection.cursor);
             }
         }
     }
 
-    /** 补发其他进程写入的终态，以及执行进程退出后的失败状态。 */
+    /** 跨实例执行的任务由定时读取 Redis 事件日志补推。 */
+    @Scheduled(fixedDelay = 1_000)
+    public void deliverPendingEvents() {
+        for (String taskId : connections.keySet()) {
+            deliverAll(taskId);
+        }
+    }
+
+    /** 保留原有的执行进程失联检测，使已连接的页面也能收到失败终态。 */
     @Scheduled(fixedDelay = 5_000)
-    public void deliverFinishedTasks() {
-        for (String taskId : emitters.keySet()) {
+    public void detectAbandonedTasks() {
+        for (String taskId : connections.keySet()) {
             try {
-                AgentTask task = taskQueue.getTask(taskId);
-                if (task == null || task.getStatus() == TaskStatus.FAILED) {
-                    failTask(taskId, "行程规划失败或任务已过期");
-                } else if (task.getStatus() == TaskStatus.COMPLETED) {
-                    completeTask(taskId, task.getResult());
-                } else {
-                    TaskQueue.StageSnapshot snapshot = taskQueue.getStageSnapshot(taskId);
-                    if (snapshot != null) sendSnapshot(taskId, snapshot);
+                taskQueue.getTask(taskId);
+                deliverAll(taskId);
+            } catch (RuntimeException e) {
+                log.warn("检查规划任务执行状态失败，taskId={}", taskId, e);
+            }
+        }
+    }
+
+    private void deliverAll(String taskId) {
+        for (Connection connection : List.copyOf(connections.getOrDefault(taskId, Set.of()))) {
+            deliver(connection);
+        }
+    }
+
+    private void deliver(Connection connection) {
+        synchronized (connection) {
+            if (connection.closed) return;
+            try {
+                while (!connection.closed) {
+                    TaskQueue.EventBatch batch = taskQueue.getEventsAfter(
+                            connection.taskId, connection.cursor, REPLAY_BATCH_SIZE);
+                    if (batch == null) {
+                        sendTerminal(connection, "failed", "行程规划失败或任务已过期", connection.cursor);
+                        return;
+                    }
+                    if (batch.historyExpired()) {
+                        TaskQueue.ReplayState state = taskQueue.getReplayState(connection.taskId);
+                        if (state == null) {
+                            sendTerminal(connection, "failed", "行程规划失败或任务已过期", connection.cursor);
+                        } else if (state.status() == TaskStatus.COMPLETED) {
+                            sendTerminal(connection, "complete", state.result(), state.lastId());
+                        } else if (state.status() == TaskStatus.FAILED) {
+                            sendTerminal(connection, "failed", state.failureMessage(), state.lastId());
+                        } else if (send(connection, "snapshot", state.snapshot(), state.lastId())) {
+                            connection.cursor = state.lastId();
+                        }
+                        return;
+                    }
+                    if (batch.events().isEmpty()) return;
+                    for (TaskQueue.TaskEvent event : batch.events()) {
+                        Object payload = event.data();
+                        if ("complete".equals(event.type())) {
+                            TaskQueue.ReplayState state = taskQueue.getReplayState(connection.taskId);
+                            payload = state == null ? null : state.result();
+                        }
+                        if (!send(connection, event.type(), payload, event.id())) return;
+                        connection.cursor = event.id();
+                        if ("complete".equals(event.type()) || "failed".equals(event.type())) {
+                            close(connection);
+                            return;
+                        }
+                    }
+                    if (batch.events().size() < REPLAY_BATCH_SIZE) return;
                 }
             } catch (RuntimeException e) {
-                log.warn("检查规划任务终态失败，taskId={}", taskId, e);
+                log.warn("补推规划进度失败，taskId={}", connection.taskId, e);
+                // Redis 暂时不可用时保留连接，下一轮再从已投递 ID 继续。
             }
         }
     }
 
-    private void removeEmitter(String taskId, SseEmitter emitter) {
-        if (emitters.remove(taskId, emitter)) deliveredSnapshotSeq.remove(taskId);
+    private boolean send(Connection connection, String type, Object payload, long id) {
+        try {
+            connection.emitter.send(SseEmitter.event().id(Long.toString(id)).name(type).data(payload));
+            return true;
+        } catch (IOException | IllegalStateException e) {
+            remove(connection);
+            return false;
+        }
+    }
+
+    private void sendTerminal(Connection connection, String type, Object payload, long id) {
+        synchronized (connection) {
+            if (!connection.closed && send(connection, type, payload, id)) close(connection);
+        }
+    }
+
+    private void close(Connection connection) {
+        remove(connection);
+        connection.emitter.complete();
+    }
+
+    private void remove(Connection connection) {
+        connection.closed = true;
+        Set<Connection> taskConnections = connections.get(connection.taskId);
+        if (taskConnections != null) {
+            taskConnections.remove(connection);
+            if (taskConnections.isEmpty()) connections.remove(connection.taskId, taskConnections);
+        }
+    }
+
+    private static Long parseEventId(String value) {
+        if (value == null || !value.matches("[0-9]{1,18}")) return null;
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static final class Connection {
+        private final String taskId;
+        private final SseEmitter emitter;
+        private volatile long cursor;
+        private volatile boolean closed;
+
+        private Connection(String taskId, SseEmitter emitter) {
+            this.taskId = taskId;
+            this.emitter = emitter;
+        }
     }
 }

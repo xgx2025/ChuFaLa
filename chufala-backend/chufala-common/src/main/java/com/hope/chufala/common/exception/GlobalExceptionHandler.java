@@ -6,6 +6,7 @@ import com.hope.chufala.common.model.vo.Result;
 import com.hope.chufala.common.exception.biz.BizException;
 import com.hope.chufala.common.exception.user.*;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import javax.mail.MessagingException;
 import java.io.UnsupportedEncodingException;
+import java.io.IOException;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -211,7 +214,11 @@ public class GlobalExceptionHandler {
      * @return 统一失败响应
      */
     @ExceptionHandler(value = RuntimeException.class)
-    public Result handleRuntimeException(RuntimeException e){
+    public Result handleRuntimeException(RuntimeException e, HttpServletResponse response){
+        if (isSseResponse(response)) {
+            logSseException(e);
+            return null;
+        }
         log.error("运行时异常",e);
         return Result.fail(ResultCode.SYSTEM_BUSY, e.getMessage());
     }
@@ -224,8 +231,29 @@ public class GlobalExceptionHandler {
      * @return 统一失败响应
      */
     @ExceptionHandler(value=Exception.class)
-    public Result handleOtherException(Exception e){
+    public Result handleOtherException(Exception e, HttpServletResponse response){
+        if (isSseResponse(response)) {
+            logSseException(e);
+            return null;
+        }
         log.info(e.getMessage(),e);
         return Result.fail(ResultCode.UNKNOWN_ERROR, "未知错误");
+    }
+
+    /** SSE 响应已经开始后，不能再用 JSON Result 覆盖其内容类型。 */
+    private boolean isSseResponse(HttpServletResponse response) {
+        String contentType = response.getContentType();
+        return contentType != null
+                && contentType.toLowerCase(Locale.ROOT).startsWith("text/event-stream");
+    }
+
+    private void logSseException(Exception e) {
+        for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+            if (cause instanceof IOException) {
+                log.debug("SSE 客户端连接已断开：{}", cause.getMessage());
+                return;
+            }
+        }
+        log.error("SSE 流处理异常", e);
     }
 }

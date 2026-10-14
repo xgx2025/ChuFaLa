@@ -69,9 +69,8 @@ class TaskQueueRedisTest {
 
     @Test
     void terminalUpdatesUseTwoHourExpiryAndDoNotRecreateMissingTask() {
-        when(redis.execute(any(RedisScript.class), anyList(), anyString(), anyString()))
-                .thenReturn(1L, 0L);
-        when(redis.execute(any(RedisScript.class), anyList(), anyString())).thenReturn(1L);
+        when(redis.execute(any(RedisScript.class), anyList(), anyString(), anyString(), anyString()))
+                .thenReturn(1L, 0L, 1L);
         TaskQueue queue = new TaskQueue(redis, mapper);
         assertTrue(queue.completeTask("done", new TravelItineraryVO()));
         assertFalse(queue.completeTask("missing", new TravelItineraryVO()));
@@ -85,9 +84,11 @@ class TaskQueueRedisTest {
         when(hashes.entries("task:plan:done")).thenReturn(completed);
         assertNotNull(new TaskQueue(redis, mapper).getTask("done").getResult());
         verify(redis, times(2)).execute(any(RedisScript.class), anyList(), anyString(),
-                eq(Long.toString(TaskQueue.FINISHED_TTL.toMillis())));
+                eq(Long.toString(TaskQueue.FINISHED_TTL.toMillis())),
+                eq(Integer.toString(TaskQueue.EVENT_HISTORY_LIMIT)));
         verify(redis).execute(any(RedisScript.class), eq(List.of("task:plan:failed")),
-                eq(Long.toString(TaskQueue.FINISHED_TTL.toMillis())));
+                eq(Long.toString(TaskQueue.FINISHED_TTL.toMillis())), anyString(),
+                eq(Integer.toString(TaskQueue.EVENT_HISTORY_LIMIT)));
     }
 
     @Test
@@ -103,17 +104,19 @@ class TaskQueueRedisTest {
         failed.put("status", "FAILED");
         when(hashes.entries("task:plan:old")).thenReturn(active, failed);
         when(redis.hasKey("task:plan:worker:dead-worker")).thenReturn(false);
-        when(redis.execute(any(RedisScript.class), anyList(), anyString())).thenReturn(1L);
+        when(redis.execute(any(RedisScript.class), anyList(), anyString(), anyString(), anyString()))
+                .thenReturn(1L);
 
         assertEquals(TaskStatus.FAILED, queue.getTask("old").getStatus());
         verify(redis).execute(any(RedisScript.class), eq(List.of("task:plan:old")),
-                eq(Long.toString(TaskQueue.FINISHED_TTL.toMillis())));
+                eq(Long.toString(TaskQueue.FINISHED_TTL.toMillis())), anyString(),
+                eq(Integer.toString(TaskQueue.EVENT_HISTORY_LIMIT)));
     }
 
     @Test
     void latestNodeProgressCanBeReadAfterReconnect() {
         when(redis.execute(any(RedisScript.class), anyList(),
-                anyString(), anyString(), anyString())).thenReturn(1L);
+                anyString(), anyString(), anyString(), anyString())).thenReturn(1L);
         when(hashes.multiGet("task:plan:task-1",
                 List.of("progressNode", "progressMessage", "progressAt")))
                 .thenReturn(List.of("PlanItineraryNode", "正在规划行程", "123"));
@@ -127,7 +130,8 @@ class TaskQueueRedisTest {
     void stageSnapshotRestoresEveryStageAndKeepsMonotonicSequence() {
         when(redis.execute(any(RedisScript.class), eq(List.of("task:plan:task-1")),
                 eq("routes"), eq("COMPLETED"), eq("每日路线已编排"),
-                eq("已安排 3 天路线"), anyString())).thenReturn(4L);
+                eq("已安排 3 天路线"), anyString(), eq(""),
+                eq(Integer.toString(TaskQueue.EVENT_HISTORY_LIMIT)))).thenReturn(4L);
         Map<Object, Object> stored = new HashMap<>();
         stored.put("progressSeq", "4");
         stored.put("currentStage", "routes");
@@ -155,7 +159,8 @@ class TaskQueueRedisTest {
     @Test
     void weatherPreviewIsPersistedAndRestoredWithStageSnapshot() {
         when(redis.execute(any(RedisScript.class), eq(List.of("task:plan:task-1")),
-                eq("logistics"), eq("RUNNING"), anyString(), anyString(), anyString(), anyString()))
+                eq("logistics"), eq("RUNNING"), anyString(), anyString(), anyString(), anyString(),
+                eq(Integer.toString(TaskQueue.EVENT_HISTORY_LIMIT))))
                 .thenReturn(5L);
         Map<Object, Object> stored = new HashMap<>();
         stored.put("progressSeq", "5");
@@ -169,5 +174,34 @@ class TaskQueueRedisTest {
         assertEquals(5L, queue.updateWeatherStage("task-1", "天气已查询", "已核对 1 天的天气", days));
         assertEquals(days, new TaskQueue(redis, mapper).getStageSnapshot("task-1")
                 .stages().get(2).weatherDays());
+    }
+
+    @Test
+    void eventHistoryReturnsOnlyEventsAfterCursorInOrder() {
+        String key = "task:plan:task-1";
+        when(hashes.multiGet(key, List.of("eventSeq", "status")))
+                .thenReturn(List.of("3", "PROCESSING"));
+        when(hashes.multiGet(key, List.of("event:2:type", "event:2:data",
+                "event:3:type", "event:3:data")))
+                .thenReturn(List.of("progress", "{\"message\":\"第一步\"}",
+                        "snapshot", "{\"seq\":2}"));
+
+        TaskQueue.EventBatch batch = new TaskQueue(redis, mapper).getEventsAfter("task-1", 1, 100);
+
+        assertFalse(batch.historyExpired());
+        assertEquals(List.of(
+                new TaskQueue.TaskEvent(2, "progress", "{\"message\":\"第一步\"}"),
+                new TaskQueue.TaskEvent(3, "snapshot", "{\"seq\":2}")), batch.events());
+    }
+
+    @Test
+    void eventHistoryReportsExpiredCursor() {
+        when(hashes.multiGet("task:plan:task-1", List.of("eventSeq", "status")))
+                .thenReturn(List.of("600", "PROCESSING"));
+
+        TaskQueue.EventBatch batch = new TaskQueue(redis, mapper).getEventsAfter("task-1", 1, 100);
+
+        assertTrue(batch.historyExpired());
+        assertTrue(batch.events().isEmpty());
     }
 }

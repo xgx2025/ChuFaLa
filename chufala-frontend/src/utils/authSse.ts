@@ -2,10 +2,11 @@
 import { useTokenStore } from '@/stores/token'
 
 interface SseOptions {
-  onMessage: (data: string, event?: string) => void
+  onMessage: (data: string, event?: string, id?: string) => void
   onError?: (error: Error) => void
   onOpen?: () => void
   onClose?: () => void
+  lastEventId?: string
 }
 
 export class SseHttpError extends Error {
@@ -19,7 +20,7 @@ export class SseHttpError extends Error {
  */
 export function authSse(url: string, options: SseOptions) {
   const tokenStore = useTokenStore()
-  const { onMessage, onError, onOpen, onClose } = options
+  const { onMessage, onError, onOpen, onClose, lastEventId } = options
 
   // 获取 token（和 axios 拦截器逻辑一致）
   if (!tokenStore.accessToken) {
@@ -38,6 +39,7 @@ export function authSse(url: string, options: SseOptions) {
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
       'Authorization': `Bearer ${tokenStore.accessToken}`,
+      ...(lastEventId ? { 'Last-Event-ID': lastEventId } : {}),
     },
     signal,
   })
@@ -52,13 +54,15 @@ export function authSse(url: string, options: SseOptions) {
       const decoder = new TextDecoder('utf-8')
       let buffer = ''
       let event = 'message'
+      let id: string | undefined
       let dataLines: string[] = []
 
       const processLine = (rawLine: string) => {
         const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine
         if (line === '') {
-          if (dataLines.length > 0) onMessage(dataLines.join('\n'), event)
+          if (dataLines.length > 0) onMessage(dataLines.join('\n'), event, id)
           event = 'message'
+          id = undefined
           dataLines = []
           return
         }
@@ -68,6 +72,7 @@ export function authSse(url: string, options: SseOptions) {
         const value = colon < 0 ? '' : line.slice(colon + 1).replace(/^ /, '')
         if (field === 'event') event = value
         else if (field === 'data') dataLines.push(value)
+        else if (field === 'id' && !value.includes('\0')) id = value
       }
 
       while (true) {
@@ -84,7 +89,7 @@ export function authSse(url: string, options: SseOptions) {
       }
       buffer += decoder.decode()
       if (buffer) processLine(buffer)
-      if (dataLines.length > 0) onMessage(dataLines.join('\n'), event)
+      if (dataLines.length > 0) onMessage(dataLines.join('\n'), event, id)
       if (!signal.aborted) onClose?.()
     })
     .catch((err) => {

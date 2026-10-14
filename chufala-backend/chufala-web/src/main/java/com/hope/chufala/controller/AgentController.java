@@ -16,7 +16,6 @@ import com.hope.chufala.model.vo.TravelItineraryVO;
 import com.hope.chufala.service.*;
 import com.hope.chufala.agent.AgentService;
 import com.hope.chufala.agent.AgentTask;
-import com.hope.chufala.agent.TaskStatus;
 import com.hope.chufala.common.exception.ResourceNotFoundException;
 import com.hope.chufala.agent.tool.*;
 import io.jsonwebtoken.Claims;
@@ -163,7 +162,8 @@ public class AgentController {
      * @return SSE 发射器，超时时间 5 分钟
      */
     @GetMapping("/progress/{taskId}")
-    public SseEmitter subscribeProgress(@PathVariable String taskId){
+    public SseEmitter subscribeProgress(@PathVariable String taskId,
+                                        @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId){
         log.info("进度订阅---任务ID：{}", taskId);
         Claims claims = ThreadLocalUtils.get();
         Long userId = claims.get("userId", Long.class);
@@ -172,16 +172,7 @@ public class AgentController {
             throw new ResourceNotFoundException("任务不存在");
         }
         SseEmitter emitter = new SseEmitter(300_000L);
-        sseManager.registerEmitter(taskId, emitter);
-        // 注册后再读一次状态，补发注册前已经完成的任务，也封住查询和注册之间的竞态。
-        AgentTask latest = taskQueue.getTask(taskId);
-        if (latest == null || latest.getStatus() == TaskStatus.FAILED) {
-            sseManager.failTask(taskId, "行程规划失败或任务已过期");
-        } else if (latest.getStatus() == TaskStatus.COMPLETED) {
-            sseManager.completeTask(taskId, latest.getResult());
-        } else {
-            sseManager.replayProgress(taskId);
-        }
+        sseManager.subscribe(taskId, emitter, lastEventId);
         return emitter;
     }
 

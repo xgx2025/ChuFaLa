@@ -131,7 +131,7 @@ public class AgentService {
         } catch (Exception e) {
             log.error("旅游行程规划失败！", e);
             try {
-                taskQueue.failTask(taskId);
+                taskQueue.failTask(taskId, "旅游行程规划失败！");
             } catch (Exception persistenceError) {
                 log.error("持久化任务失败状态时出错，taskId={}", taskId, persistenceError);
             }

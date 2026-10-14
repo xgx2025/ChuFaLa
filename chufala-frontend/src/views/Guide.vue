@@ -1020,6 +1020,7 @@ const clearSavedPlanningTask = () => {
   catch (error) { console.warn('清理本地规划任务失败', error); }
 };
 const activePlanningTaskId = ref('');
+let planningLastEventId = '';
 let planningConnection = null;
 let planningReconnectTimer = null;
 let planningReconnectAttempts = 0;
@@ -1037,6 +1038,7 @@ const closePlanningConnection = () => {
 const finishPlanningTask = () => {
   closePlanningConnection();
   activePlanningTaskId.value = '';
+  planningLastEventId = '';
   clearSavedPlanningTask();
   isPlanning.value = false;
 };
@@ -1055,26 +1057,36 @@ const schedulePlanningReconnect = error => {
     return;
   }
   planningConnection = null;
-  if (planningReconnectAttempts >= 5) {
-    planningConnectionState.value = 'offline';
-    planningProgress.value = '进度连接暂时中断，任务可能仍在后台继续。';
-    return;
-  }
   planningConnectionState.value = 'reconnecting';
   planningProgress.value = '正在恢复进度连接，已完成的阶段会自动补回。';
   const delay = Math.min(1000 * 2 ** planningReconnectAttempts, 10000);
-  planningReconnectAttempts += 1;
+  planningReconnectAttempts = Math.min(planningReconnectAttempts + 1, 5);
   planningReconnectTimer = setTimeout(() => connectPlanningTask(activePlanningTaskId.value), delay);
 };
 
 const applyPlanningSnapshot = snapshot => {
-  if (!snapshot || !Array.isArray(snapshot.stages)) return;
-  if (snapshot.seq < (planningSnapshot.value?.seq ?? -1)) return;
+  if (!snapshot || !Array.isArray(snapshot.stages)) return false;
+  if (snapshot.seq < (planningSnapshot.value?.seq ?? -1)) return true;
   planningSnapshot.value = snapshot;
   const index = planningStages.findIndex(stage => stage.id === snapshot.currentStage);
   if (index >= 0) planningStage.value = index;
   const current = snapshot.stages.find(stage => stage.id === snapshot.currentStage);
   planningProgress.value = current?.message || '正在准备你的行程，请稍候。';
+  return true;
+};
+
+const savePlanningStreamState = () => {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(PLANNING_TASK_KEY) || 'null');
+    if (saved?.taskId !== activePlanningTaskId.value) return;
+    sessionStorage.setItem(PLANNING_TASK_KEY, JSON.stringify({
+      ...saved,
+      lastEventId: planningLastEventId,
+      snapshot: planningSnapshot.value,
+    }));
+  } catch (error) {
+    console.warn('保存规划进度失败', error);
+  }
 };
 
 const markPlanningStageFailed = () => {
@@ -1126,24 +1138,32 @@ const connectPlanningTask = taskId => {
   const version = planningConnectionVersion;
   planningConnectionState.value = planningReconnectAttempts ? 'reconnecting' : 'connecting';
   planningConnection = authSse(`/api/agent/progress/${encodeURIComponent(taskId)}`, {
+    lastEventId: planningLastEventId,
     onOpen: () => {
       if (version !== planningConnectionVersion) return;
       planningConnectionState.value = 'connected';
+      planningReconnectAttempts = 0;
     },
-    onMessage: (message, event) => {
+    onMessage: (message, event, id) => {
       if (version !== planningConnectionVersion) return;
+      if (id && /^[0-9]+$/.test(id) && planningLastEventId
+        && BigInt(id) <= BigInt(planningLastEventId)) return;
+      let handled = false;
       if (event === 'snapshot') {
         try {
-          applyPlanningSnapshot(JSON.parse(message));
+          handled = applyPlanningSnapshot(JSON.parse(message));
           planningReconnectAttempts = 0;
         }
         catch (error) { console.error('解析规划进度失败', error); }
-      } else if (event === 'progress' && !planningSnapshot.value) {
+      } else if (event === 'progress') {
         try {
           const data = JSON.parse(message);
-          planningProgress.value = data.message || planningProgress.value;
-          const stage = planningStageByNode[data.node];
-          if (Number.isInteger(stage)) planningStage.value = Math.max(planningStage.value, stage);
+          if (!planningSnapshot.value) {
+            planningProgress.value = data.message || planningProgress.value;
+            const stage = planningStageByNode[data.node];
+            if (Number.isInteger(stage)) planningStage.value = Math.max(planningStage.value, stage);
+          }
+          handled = true;
         } catch (error) { console.error('解析节点进度失败', error); }
       } else if (event === 'failed') {
         finishPlanningTask();
@@ -1152,6 +1172,10 @@ const connectPlanningTask = taskId => {
         ElMessage.error(planningFailure.value);
       } else if (event === 'complete') {
         void showPlanningResult(message);
+      }
+      if (handled && id && /^[0-9]+$/.test(id)) {
+        planningLastEventId = id;
+        savePlanningStreamState();
       }
     },
     onError: error => {
@@ -1174,11 +1198,13 @@ const resumePlanningTask = () => {
     const saved = JSON.parse(sessionStorage.getItem(PLANNING_TASK_KEY) || 'null');
     if (!saved?.taskId) return;
     activePlanningTaskId.value = saved.taskId;
+    planningLastEventId = /^[0-9]+$/.test(saved.lastEventId || '') ? saved.lastEventId : '';
+    if (saved.snapshot) applyPlanningSnapshot(saved.snapshot);
     planDestination.value = saved.destination || planDestination.value;
     planPeople.value = saved.people || planPeople.value;
     planBudget.value = saved.budget || planBudget.value;
     isPlanning.value = true;
-    planningProgress.value = '正在恢复上次的规划进度…';
+    if (!saved.snapshot) planningProgress.value = '正在恢复上次的规划进度…';
     connectPlanningTask(saved.taskId);
   } catch (error) {
     console.warn('恢复规划任务失败', error);
@@ -1418,6 +1444,7 @@ const generateItinerary = async () => {
   planningReconnectAttempts = 0;
   planningProgress.value = '正在准备你的行程，请稍候。';
   planningStage.value = -1;
+  planningLastEventId = '';
   planBudget.value = travelForm.value.budget;
   planPeople.value = travelForm.value.people;
   planDestination.value = travelForm.value.destination.trim();

@@ -27,6 +27,7 @@ public class TaskQueue {
     // 异步执行器中的任务不会跨服务重启恢复，运行中记录也必须有过期上限。
     static final Duration ACTIVE_TTL = Duration.ofHours(24);
     static final Duration FINISHED_TTL = Duration.ofHours(2);
+    static final int EVENT_HISTORY_LIMIT = 512;
     private static final Duration WORKER_TTL = Duration.ofMinutes(1);
     private static final List<String> STAGE_IDS = List.of("candidates", "routes", "logistics", "stays", "budget");
 
@@ -46,19 +47,33 @@ public class TaskQueue {
     private static final DefaultRedisScript<Long> COMPLETE_SCRIPT = script("""
             if redis.call('HGET', KEYS[1], 'status') ~= 'PROCESSING' then return 0 end
             redis.call('HSET', KEYS[1], 'status', 'COMPLETED', 'result', ARGV[1])
+            local id = redis.call('HINCRBY', KEYS[1], 'eventSeq', 1)
+            redis.call('HSET', KEYS[1], 'event:' .. id .. ':type', 'complete',
+                'event:' .. id .. ':data', '')
+            if id > tonumber(ARGV[3]) then
+                local old = id - tonumber(ARGV[3])
+                redis.call('HDEL', KEYS[1], 'event:' .. old .. ':type', 'event:' .. old .. ':data')
+            end
             redis.call('PEXPIRE', KEYS[1], ARGV[2])
             return 1
             """);
     private static final DefaultRedisScript<Long> FAIL_SCRIPT = script("""
             local status = redis.call('HGET', KEYS[1], 'status')
             if status ~= 'PENDING' and status ~= 'PROCESSING' then return 0 end
-            redis.call('HSET', KEYS[1], 'status', 'FAILED')
+            redis.call('HSET', KEYS[1], 'status', 'FAILED', 'failureMessage', ARGV[2])
             local currentStage = redis.call('HGET', KEYS[1], 'currentStage')
             if currentStage then
                 redis.call('HSET', KEYS[1], 'stage:' .. currentStage .. ':state', 'FAILED')
                 redis.call('HINCRBY', KEYS[1], 'progressSeq', 1)
             end
             redis.call('HDEL', KEYS[1], 'result')
+            local id = redis.call('HINCRBY', KEYS[1], 'eventSeq', 1)
+            redis.call('HSET', KEYS[1], 'event:' .. id .. ':type', 'failed',
+                'event:' .. id .. ':data', ARGV[2])
+            if id > tonumber(ARGV[3]) then
+                local old = id - tonumber(ARGV[3])
+                redis.call('HDEL', KEYS[1], 'event:' .. old .. ':type', 'event:' .. old .. ':data')
+            end
             redis.call('PEXPIRE', KEYS[1], ARGV[1])
             return 1
             """);
@@ -66,6 +81,14 @@ public class TaskQueue {
             if redis.call('HGET', KEYS[1], 'status') ~= 'PROCESSING' then return 0 end
             redis.call('HSET', KEYS[1], 'progressNode', ARGV[1],
                 'progressMessage', ARGV[2], 'progressAt', ARGV[3])
+            local id = redis.call('HINCRBY', KEYS[1], 'eventSeq', 1)
+            redis.call('HSET', KEYS[1], 'event:' .. id .. ':type', 'progress',
+                'event:' .. id .. ':data', cjson.encode({node=ARGV[1], message=ARGV[2],
+                    timestamp=tonumber(ARGV[3])}))
+            if id > tonumber(ARGV[4]) then
+                local old = id - tonumber(ARGV[4])
+                redis.call('HDEL', KEYS[1], 'event:' .. old .. ':type', 'event:' .. old .. ':data')
+            end
             return 1
             """);
     private static final DefaultRedisScript<Long> STAGE_SCRIPT = script("""
@@ -76,8 +99,27 @@ public class TaskQueue {
             redis.call('HSET', KEYS[1], prefix .. 'state', ARGV[2],
                 prefix .. 'message', ARGV[3], prefix .. 'summary', ARGV[4],
                 prefix .. 'updatedAt', ARGV[5], 'currentStage', ARGV[1])
-            if ARGV[6] then redis.call('HSET', KEYS[1], prefix .. 'weatherDays', ARGV[6]) end
-            return redis.call('HINCRBY', KEYS[1], 'progressSeq', 1)
+            if ARGV[6] ~= '' then redis.call('HSET', KEYS[1], prefix .. 'weatherDays', ARGV[6]) end
+            local stageSeq = redis.call('HINCRBY', KEYS[1], 'progressSeq', 1)
+            local stages = {}
+            for _, stageId in ipairs({'candidates', 'routes', 'logistics', 'stays', 'budget'}) do
+                local p = 'stage:' .. stageId .. ':'
+                table.insert(stages, {id=stageId,
+                    state=redis.call('HGET', KEYS[1], p .. 'state') or 'PENDING',
+                    message=redis.call('HGET', KEYS[1], p .. 'message') or '',
+                    summary=redis.call('HGET', KEYS[1], p .. 'summary') or '',
+                    updatedAt=tonumber(redis.call('HGET', KEYS[1], p .. 'updatedAt') or '0'),
+                    weatherDays=cjson.decode(redis.call('HGET', KEYS[1], p .. 'weatherDays') or '[]')})
+            end
+            local id = redis.call('HINCRBY', KEYS[1], 'eventSeq', 1)
+            redis.call('HSET', KEYS[1], 'event:' .. id .. ':type', 'snapshot',
+                'event:' .. id .. ':data', cjson.encode({seq=stageSeq,
+                    currentStage=ARGV[1], stages=stages}))
+            if id > tonumber(ARGV[7]) then
+                local old = id - tonumber(ARGV[7])
+                redis.call('HDEL', KEYS[1], 'event:' .. old .. ':type', 'event:' .. old .. ':data')
+            end
+            return stageSeq
             """);
 
     private final StringRedisTemplate redisTemplate;
@@ -137,17 +179,23 @@ public class TaskQueue {
 
     public boolean completeTask(String taskId, TravelItineraryVO result) {
         return Long.valueOf(1).equals(redisTemplate.execute(COMPLETE_SCRIPT, List.of(key(taskId)),
-                toJson(result), Long.toString(FINISHED_TTL.toMillis())));
+                toJson(result), Long.toString(FINISHED_TTL.toMillis()),
+                Integer.toString(EVENT_HISTORY_LIMIT)));
     }
 
     public boolean failTask(String taskId) {
+        return failTask(taskId, "行程规划失败或任务已过期");
+    }
+
+    public boolean failTask(String taskId, String message) {
         return Long.valueOf(1).equals(redisTemplate.execute(FAIL_SCRIPT, List.of(key(taskId)),
-                Long.toString(FINISHED_TTL.toMillis())));
+                Long.toString(FINISHED_TTL.toMillis()), message,
+                Integer.toString(EVENT_HISTORY_LIMIT)));
     }
 
     public boolean updateProgress(String taskId, String node, String message, long timestamp) {
         return Long.valueOf(1).equals(redisTemplate.execute(PROGRESS_SCRIPT, List.of(key(taskId)),
-                node, message, Long.toString(timestamp)));
+                node, message, Long.toString(timestamp), Integer.toString(EVENT_HISTORY_LIMIT)));
     }
 
     /** 供新建立的 SSE 连接补收最近一次节点进度。 */
@@ -169,14 +217,16 @@ public class TaskQueue {
             throw new IllegalArgumentException("未知规划阶段：" + stageId);
         }
         Long seq = redisTemplate.execute(STAGE_SCRIPT, List.of(key(taskId)), stageId, state,
-                message, summary, Long.toString(System.currentTimeMillis()));
+                message, summary, Long.toString(System.currentTimeMillis()), "",
+                Integer.toString(EVENT_HISTORY_LIMIT));
         return seq == null ? 0 : seq;
     }
 
     /** 天气阶段同时持久化逐日预览；后续路程进度更新不会覆盖它。 */
     public long updateWeatherStage(String taskId, String message, String summary, List<WeatherPreview> days) {
         Long seq = redisTemplate.execute(STAGE_SCRIPT, List.of(key(taskId)), "logistics", "RUNNING",
-                message, summary, Long.toString(System.currentTimeMillis()), toJson(days));
+                message, summary, Long.toString(System.currentTimeMillis()), toJson(days),
+                Integer.toString(EVENT_HISTORY_LIMIT));
         return seq == null ? 0 : seq;
     }
 
@@ -184,6 +234,10 @@ public class TaskQueue {
     public StageSnapshot getStageSnapshot(String taskId) {
         Map<Object, Object> fields = redisTemplate.opsForHash().entries(key(taskId));
         if (fields.isEmpty()) return null;
+        return stageSnapshot(fields);
+    }
+
+    private StageSnapshot stageSnapshot(Map<Object, Object> fields) {
         List<StageState> stages = STAGE_IDS.stream().map(id -> {
             String prefix = "stage:" + id + ":";
             return new StageState(id,
@@ -198,6 +252,57 @@ public class TaskQueue {
         return new StageSnapshot(Long.parseLong((String) fields.getOrDefault("progressSeq", "0")),
                 (String) fields.getOrDefault("currentStage", "candidates"), stages);
     }
+
+    /** 同一次 Redis 读取中的任务状态、快照与最新事件 ID，供初次订阅建立基线。 */
+    public ReplayState getReplayState(String taskId) {
+        Map<Object, Object> fields = redisTemplate.opsForHash().entries(key(taskId));
+        if (fields.isEmpty()) return null;
+        long lastId = Long.parseLong((String) fields.getOrDefault("eventSeq", "0"));
+        TravelItineraryVO result = fields.containsKey("result")
+                ? fromJson((String) fields.get("result"), TravelItineraryVO.class) : null;
+        return new ReplayState(lastId, Math.max(1, lastId - EVENT_HISTORY_LIMIT + 1),
+                TaskStatus.valueOf((String) fields.get("status")), stageSnapshot(fields), result,
+                (String) fields.getOrDefault("failureMessage", "行程规划失败或任务已过期"));
+    }
+
+    /** 按 ID 顺序读取事件；游标落在已淘汰的历史之前时由调用方发送当前快照。 */
+    public EventBatch getEventsAfter(String taskId, long afterId, int limit) {
+        List<Object> metadata = redisTemplate.opsForHash().multiGet(key(taskId), List.of("eventSeq", "status"));
+        if (metadata == null || metadata.size() != 2 || metadata.get(1) == null) return null;
+        long lastId = metadata.get(0) == null ? 0 : Long.parseLong((String) metadata.get(0));
+        long firstId = Math.max(1, lastId - EVENT_HISTORY_LIMIT + 1);
+        if (afterId < firstId - 1) return new EventBatch(firstId, lastId, true, List.of());
+        long endId = Math.min(lastId, afterId + limit);
+        if (endId <= afterId) return new EventBatch(firstId, lastId, false, List.of());
+        List<Object> names = new java.util.ArrayList<>();
+        for (long id = afterId + 1; id <= endId; id++) {
+            names.add("event:" + id + ":type");
+            names.add("event:" + id + ":data");
+        }
+        List<Object> values = redisTemplate.opsForHash().multiGet(key(taskId), names);
+        if (values == null || values.size() != names.size()) {
+            return new EventBatch(firstId, lastId, true, List.of());
+        }
+        List<TaskEvent> events = new java.util.ArrayList<>();
+        for (int index = 0; index < values.size(); index += 2) {
+            if (values.get(index) == null || values.get(index + 1) == null) {
+                return new EventBatch(firstId, lastId, true, List.of());
+            }
+            events.add(new TaskEvent(afterId + index / 2 + 1,
+                    (String) values.get(index), (String) values.get(index + 1)));
+        }
+        return new EventBatch(firstId, lastId, false, events);
+    }
+
+    public record ReplayState(long lastId, long firstId, TaskStatus status,
+                              StageSnapshot snapshot, TravelItineraryVO result, String failureMessage) {
+        public ReplayState(long lastId, long firstId, TaskStatus status,
+                           StageSnapshot snapshot, TravelItineraryVO result) {
+            this(lastId, firstId, status, snapshot, result, "行程规划失败或任务已过期");
+        }
+    }
+    public record TaskEvent(long id, String type, String data) {}
+    public record EventBatch(long firstId, long lastId, boolean historyExpired, List<TaskEvent> events) {}
 
     public record WeatherPreview(int day, String weather, String temperature) {}
     public record StageState(String id, String state, String message, String summary,
