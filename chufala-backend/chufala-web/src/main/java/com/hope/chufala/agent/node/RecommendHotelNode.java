@@ -52,7 +52,7 @@ public class RecommendHotelNode implements NodeAction<TravelPlanState>{
     public Map<String, Object> apply(TravelPlanState state) throws Exception {
         log.info("===RecommendHotelNode节点===");
         log.info("开始推荐酒店");
-        sseManager.sendProgress(state.taskId(),"RecommendHotelNode", "正在推荐酒店...");
+        sseManager.stageStarted(state.taskId(), "stays", "正在匹配每日住宿");
         UserPlanDTO userPlan = state.userPlan();
         //查询酒店列表
         String userPrompt = """
@@ -70,22 +70,37 @@ public class RecommendHotelNode implements NodeAction<TravelPlanState>{
 
         TravelItineraryVO itinerary = state.itinerarySkeleton();
         List<DailyScheduleVO> dailyScheduleList = itinerary.getDailySchedules();
-        if (response != null) {
-            for (int i = 0; i < dailyScheduleList.size(); i++) {
+        if (response != null && response.getDailyHotels() != null) {
+            List<DailyHotel> dailyHotels = response.getDailyHotels();
+            if (dailyHotels.size() < dailyScheduleList.size()) {
+                log.warn("酒店推荐结果不足：行程 {} 天，返回 {} 天；缺失日期不展示酒店候选",
+                        dailyScheduleList.size(), dailyHotels.size());
+            }
+            for (int i = 0; i < Math.min(dailyScheduleList.size(), dailyHotels.size()); i++) {
                 DailyScheduleVO dailySchedule = dailyScheduleList.get(i);
-                DailyHotel  dailyHotel = response.getDailyHotels().get(i);
-                int num = response.dailyHotels.get(i).ids.size();
+                DailyHotel dailyHotel = dailyHotels.get(i);
                 List<HotelInfoVO> recommendHotels = new ArrayList<>();
-                for (int j = 0; j < num; j++) {
-                    HotelInfoVO hotelInfo = hotelService.findHotelSimpleById(Long.parseLong(dailyHotel.ids.get(j)));
-                    recommendHotels.add(hotelInfo);
+                if (dailyHotel != null && dailyHotel.getIds() != null) {
+                    for (String id : dailyHotel.getIds()) {
+                        try {
+                            HotelInfoVO hotelInfo = hotelService.findHotelSimpleById(Long.parseLong(id));
+                            if (hotelInfo != null) recommendHotels.add(hotelInfo);
+                        } catch (NumberFormatException e) {
+                            log.warn("忽略模型返回的无效酒店 ID：{}", id);
+                        }
+                    }
                 }
                 dailySchedule.setRecommendHotels(recommendHotels);
                 dailyScheduleList.set(i, dailySchedule);
             }
             itinerary.setDailySchedules(dailyScheduleList);
         }
-        sseManager.sendProgress(state.taskId(), "RecommendHotelNode", "酒店推荐完成");
+        long daysWithHotels = dailyScheduleList.stream()
+                .filter(day -> day.getRecommendHotels() != null && !day.getRecommendHotels().isEmpty())
+                .count();
+        sseManager.stageCompleted(state.taskId(), "stays",
+                daysWithHotels > 0 ? "每日住宿已安排" : "酒店候选暂未匹配到",
+                daysWithHotels > 0 ? "已为 " + daysWithHotels + " 天安排酒店候选" : "暂无可用的酒店候选");
         log.info("酒店推荐结果: {}", itinerary);
         return Map.of(TravelPlanState.ITINERARY_SKELETON,itinerary);
     }

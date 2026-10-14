@@ -11,6 +11,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,6 +33,7 @@ public class SseManager implements Serializable {
      * 一个任务ID对应一个SSE Emitter
      */
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
+    private final Map<String, Long> deliveredSnapshotSeq = new ConcurrentHashMap<>();
     private final transient TaskQueue taskQueue;
 
     public SseManager(TaskQueue taskQueue) {
@@ -46,10 +48,11 @@ public class SseManager implements Serializable {
      */
     public void registerEmitter(String taskId, SseEmitter emitter) {
         emitters.put(taskId, emitter);
+        deliveredSnapshotSeq.put(taskId, -1L);
         log.info("已为任务 {} 注册 SSE 连接", taskId);
         // 设置完成和超时回调，自动清理
-        emitter.onCompletion(() -> emitters.remove(taskId, emitter));
-        emitter.onTimeout(() -> emitters.remove(taskId, emitter));
+        emitter.onCompletion(() -> removeEmitter(taskId, emitter));
+        emitter.onTimeout(() -> removeEmitter(taskId, emitter));
     }
 
     /**
@@ -72,8 +75,57 @@ public class SseManager implements Serializable {
     }
 
     public void replayProgress(String taskId) {
+        TaskQueue.StageSnapshot snapshot = taskQueue.getStageSnapshot(taskId);
+        if (snapshot != null) {
+            sendSnapshot(taskId, snapshot);
+            return;
+        }
         TaskQueue.TaskProgress progress = taskQueue.getProgress(taskId);
         if (progress != null) sendProgressEvent(taskId, progress);
+    }
+
+    public void stageStarted(String taskId, String stageId, String message) {
+        publishStage(taskId, stageId, "RUNNING", message, "");
+    }
+
+    public void stageUpdated(String taskId, String stageId, String message, String summary) {
+        publishStage(taskId, stageId, "RUNNING", message, summary);
+    }
+
+    public void weatherUpdated(String taskId, String message, String summary,
+                               List<TaskQueue.WeatherPreview> days) {
+        try {
+            if (taskQueue.updateWeatherStage(taskId, message, summary, days) == 0) return;
+            TaskQueue.StageSnapshot snapshot = taskQueue.getStageSnapshot(taskId);
+            if (snapshot != null) sendSnapshot(taskId, snapshot);
+        } catch (RuntimeException e) {
+            log.warn("保存逐日天气预览失败，taskId={}", taskId, e);
+        }
+    }
+
+    public void stageCompleted(String taskId, String stageId, String message, String summary) {
+        publishStage(taskId, stageId, "COMPLETED", message, summary);
+    }
+
+    private void publishStage(String taskId, String stageId, String state, String message, String summary) {
+        try {
+            if (taskQueue.updateStage(taskId, stageId, state, message, summary) == 0) return;
+            TaskQueue.StageSnapshot snapshot = taskQueue.getStageSnapshot(taskId);
+            if (snapshot != null) sendSnapshot(taskId, snapshot);
+        } catch (RuntimeException e) {
+            log.warn("保存规划阶段失败，taskId={}, stageId={}", taskId, stageId, e);
+        }
+    }
+
+    private void sendSnapshot(String taskId, TaskQueue.StageSnapshot snapshot) {
+        SseEmitter emitter = emitters.get(taskId);
+        if (emitter == null || snapshot.seq() <= deliveredSnapshotSeq.getOrDefault(taskId, -1L)) return;
+        try {
+            emitter.send(SseEmitter.event().name("snapshot").data(snapshot));
+            deliveredSnapshotSeq.put(taskId, snapshot.seq());
+        } catch (IOException | IllegalStateException e) {
+            removeEmitter(taskId, emitter);
+        }
     }
 
     private void sendProgressEvent(String taskId, TaskQueue.TaskProgress progress) {
@@ -88,7 +140,7 @@ public class SseManager implements Serializable {
                                 "timestamp", progress.timestamp()
                         )));
             }catch (IOException | IllegalStateException e){
-                emitters.remove(taskId, emitter);
+                removeEmitter(taskId, emitter);
             }
         }
     }
@@ -103,6 +155,7 @@ public class SseManager implements Serializable {
      */
     public void completeTask(String taskId, TravelItineraryVO result){
         SseEmitter emitter = emitters.remove(taskId);
+        deliveredSnapshotSeq.remove(taskId);
         if (emitter != null){
             try{
                 emitter.send(SseEmitter.event().name("complete").data(result));
@@ -121,6 +174,7 @@ public class SseManager implements Serializable {
     /** 推送失败终态并关闭连接。 */
     public void failTask(String taskId, String message) {
         SseEmitter emitter = emitters.remove(taskId);
+        deliveredSnapshotSeq.remove(taskId);
         if (emitter != null) {
             try {
                 emitter.send(SseEmitter.event().name("failed").data(message));
@@ -137,7 +191,7 @@ public class SseManager implements Serializable {
     }
 
     /** 补发其他进程写入的终态，以及执行进程退出后的失败状态。 */
-    @Scheduled(fixedDelay = 15_000)
+    @Scheduled(fixedDelay = 5_000)
     public void deliverFinishedTasks() {
         for (String taskId : emitters.keySet()) {
             try {
@@ -146,10 +200,17 @@ public class SseManager implements Serializable {
                     failTask(taskId, "行程规划失败或任务已过期");
                 } else if (task.getStatus() == TaskStatus.COMPLETED) {
                     completeTask(taskId, task.getResult());
+                } else {
+                    TaskQueue.StageSnapshot snapshot = taskQueue.getStageSnapshot(taskId);
+                    if (snapshot != null) sendSnapshot(taskId, snapshot);
                 }
             } catch (RuntimeException e) {
                 log.warn("检查规划任务终态失败，taskId={}", taskId, e);
             }
         }
+    }
+
+    private void removeEmitter(String taskId, SseEmitter emitter) {
+        if (emitters.remove(taskId, emitter)) deliveredSnapshotSeq.remove(taskId);
     }
 }

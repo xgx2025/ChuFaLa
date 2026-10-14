@@ -47,10 +47,14 @@ public class DistanceCalculationNode implements NodeAction<TravelPlanState> {
     public Map<String, Object> apply(TravelPlanState state) throws Exception {
         log.info("===DistanceCalculateNode节点===");
         log.info("开始计算景点之间的距离和耗时");
-        sseManager.sendProgress(state.taskId(), "DistanceCalculationNode", "正在计算景点间距离和路程时间...");
         //获取景点列表
         TravelItineraryVO travelItinerary = state.itinerarySkeleton();
         List<DailyScheduleVO> dailyScheduleList = travelItinerary.getDailySchedules();
+        long weatherDays = dailyScheduleList.stream()
+                .filter(day -> day.getWeather() != null && !day.getWeather().isBlank())
+                .count();
+        sseManager.stageUpdated(state.taskId(), "logistics", "正在计算景点间距离和路程时间",
+                weatherDays > 0 ? "已核对 " + weatherDays + " 天的天气" : "天气信息暂未取得");
         //填充地理信息
         for (int i = 0; i < dailyScheduleList.size(); i++) {
             List<AttractionInfoVO> activities = dailyScheduleList.get(i).getActivities();
@@ -78,7 +82,10 @@ public class DistanceCalculationNode implements NodeAction<TravelPlanState> {
             }
         }
         travelItinerary.setDailySchedules(dailyScheduleList);
-        sseManager.sendProgress(state.taskId(), "DistanceCalculationNode", "景点间路程计算完成");
+        sseManager.stageCompleted(state.taskId(), "logistics", "景点间路线已核对",
+                weatherDays > 0
+                        ? "已核对 " + weatherDays + " 天的天气，并完善 " + dailyScheduleList.size() + " 天的景点间路线"
+                        : "已完善 " + dailyScheduleList.size() + " 天的景点间路线，天气信息暂缺");
         return TravelPlanState.updateState(state, Map.of(TravelPlanState.ITINERARY_SKELETON, travelItinerary), TravelPlanState.SCHEMA);
     }
 

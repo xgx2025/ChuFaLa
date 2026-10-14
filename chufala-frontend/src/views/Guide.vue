@@ -72,7 +72,7 @@
     </el-drawer>
 
     <!-- 主要内容区：行程定制模式 -->
-    <div class="planner-container" :class="{ 'planner-container--has-result': itinerary.length > 0 && !isGenerating }" v-show="currentMode === 'planning'">
+    <div class="planner-container" :class="{ 'planner-container--has-result': itinerary.length > 0 && !isPlanning }" v-show="currentMode === 'planning'">
       <!-- 左侧输入面板 -->
       <div class="input-panel">
         <el-card class="input-card" shadow="never">
@@ -112,11 +112,12 @@
             </el-form-item>
             
             <el-form-item>
-              <el-button type="primary" @click="generateItinerary" :loading="isGenerating" class="generate-btn">
+              <el-button type="primary" @click="generateItinerary" :loading="isPlanning" class="generate-btn">
                 <el-icon><MagicStick /></el-icon>
-                {{ isGenerating ? '正在规划旅程...' : '生成我的行程' }}
+                {{ isPlanning ? '正在规划旅程...' : '生成我的行程' }}
               </el-button>
             </el-form-item>
+            <p v-if="planningFailure && !planningSnapshot" class="planning-failure" role="alert">{{ planningFailure }}</p>
           </el-form>
         </el-card>
       </div>
@@ -139,7 +140,7 @@
             </div>
           </template>
           
-          <div v-if="!itinerary.length && !isGenerating" class="empty-state">
+          <div v-if="!itinerary.length && !isPlanning && !(planningFailure && planningSnapshot)" class="empty-state">
             <div class="empty-state__route" aria-hidden="true">
               <span class="route-stamp">出发<br>啦</span>
               <span class="route-line"></span>
@@ -161,28 +162,54 @@
             </div>
           </div>
           
-          <div v-else-if="isGenerating" class="loading-state">
-            <div class="loading-state__eyebrow"><span class="loading-state__pulse"></span> 正在规划 {{ planDestination }} 的旅程</div>
-            <h2>正在串联你的旅行灵感</h2>
-            <p aria-live="polite">{{ planningProgress }}</p>
-            <ol class="planning-steps" aria-label="规划进度">
-              <li v-for="(step, index) in planningSteps" :key="step" :class="{ 'is-active': planningStage === index, 'is-complete': planningStage > index }">
-                <span>{{ String(index + 1).padStart(2, '0') }}</span>{{ step }}
-              </li>
-            </ol>
-            <div class="loading-preview" aria-hidden="true">
-              <div class="loading-preview__day"><span>DAY 01</span><i></i></div>
-              <div class="loading-preview__stop"><b></b><span><i></i><i></i></span></div>
-              <div class="loading-preview__stop"><b></b><span><i></i><i></i></span></div>
-              <div class="loading-preview__stop"><b></b><span><i></i><i></i></span></div>
+          <div v-else-if="isPlanning || (planningFailure && planningSnapshot)" class="loading-state">
+            <div class="loading-state__topline">
+              <span class="loading-state__eyebrow"><span v-if="isPlanning" class="loading-state__pulse"></span> {{ planDestination }} · {{ isPlanning ? '行程编排中' : '行程编排中断' }}</span>
+              <span class="planning-connection" :class="`planning-connection--${planningConnectionState}`">{{ planningConnectionLabel }}</span>
             </div>
-            <small class="loading-state__note">完成后会自动显示每日路线和费用概览</small>
+            <h2>{{ isPlanning ? '你的旅程，正在成形' : '这段旅程暂时停在这里' }}</h2>
+            <p class="loading-state__current" aria-live="polite">{{ planningFailure || planningProgress }}</p>
+            <div class="planning-workbench">
+              <ol class="planning-steps" aria-label="行程规划阶段">
+                <li v-for="stage in planningStageView" :key="stage.id" :class="`planning-step--${stage.state.toLowerCase()}`">
+                  <span class="planning-step__index" aria-hidden="true"><el-icon><component :is="stage.icon" /></el-icon></span>
+                  <span class="planning-step__copy"><strong>{{ stage.label }}</strong><small>{{ stage.summary || stage.message || stage.hint }}</small></span>
+                  <span class="planning-step__state">{{ planningStageStateLabel(stage.state) }}</span>
+                </li>
+              </ol>
+              <aside class="planning-evidence" aria-live="polite">
+                <div class="planning-evidence__header"><span>已确认的行程线索</span><strong>{{ completedPlanningStages }} / 5</strong></div>
+                <div v-if="planningSummaries.length" class="planning-evidence__items">
+                  <div v-for="item in planningSummaries" :key="item.id" class="planning-evidence__item">
+                    <el-icon><component :is="item.icon" /></el-icon>
+                    <span><strong>{{ item.label }}</strong><small>{{ item.summary }}</small></span>
+                  </div>
+                </div>
+                <p v-else class="planning-evidence__empty">每完成一个环节，这里就会出现一条真实的规划成果。</p>
+                <div v-if="planningWeatherDays.length" class="planning-weather">
+                  <div class="planning-weather__heading"><strong>逐日天气参考</strong><span>{{ planningWeatherDays.length }} 天已查询</span></div>
+                  <div class="planning-weather__days" aria-label="已查询的逐日天气">
+                    <div v-for="day in planningWeatherDays" :key="day.day" class="planning-weather__day">
+                      <span>DAY {{ String(day.day).padStart(2, '0') }}</span>
+                      <img v-if="day.icon" :src="day.icon" :alt="day.weather" />
+                      <el-icon v-else aria-hidden="true"><Picture /></el-icon>
+                      <strong>{{ day.weather }}</strong>
+                      <small v-if="day.temperature">{{ day.temperature }}</small>
+                    </div>
+                  </div>
+                </div>
+                <div class="planning-evidence__footer">路线、住宿和费用会在核算完成后汇成完整行程</div>
+              </aside>
+            </div>
+            <button v-if="planningConnectionState === 'offline'" class="planning-retry" type="button" @click="retryPlanningConnection">重新连接进度</button>
+            <button v-else-if="!isPlanning" class="planning-retry" type="button" @click="generateItinerary">重新生成行程</button>
           </div>
           
           <el-timeline v-else>
             <el-timeline-item v-for="(day, index) in itinerary" :id="`itinerary-day-${index}`" :key="index" :timestamp="`DAY ${day.day}`" placement="top" :hollow="true" class="custom-timeline-item">
               <div class="day-weather">
-                <img :src="`/weather/${day.weather}.png`" :alt="day.weather" />
+                <img v-if="weatherIconNames.has(day.weather)" :src="`/weather/${day.weather}.png`" :alt="day.weather" />
+                <el-icon v-else aria-hidden="true"><Picture /></el-icon>
                 <span>{{ day.temperature }} · {{ day.weather }}</span>
               </div>
               <div class="day-card" shadow="hover">
@@ -237,7 +264,7 @@
       </div>
 
       <!-- 地图和预算概览 -->
-       <div class="map-panel" v-show="itinerary.length > 0 && !isGenerating">
+       <div class="map-panel" v-show="itinerary.length > 0 && !isPlanning">
         <div class="result-banner">
           <div class="result-banner__main">
             <span class="result-banner__eyebrow">YOUR ITINERARY</span>
@@ -247,7 +274,7 @@
               <button v-for="(day, index) in itinerary" :key="day.day ?? index" type="button" @click="scrollToDay(index)">第 {{ day.day }} 天 <el-icon><ArrowRight /></el-icon></button>
             </div>
           </div>
-          <button type="button" class="result-banner__chat" :disabled="isGenerating" @click="continueWithAdvisor">
+          <button type="button" class="result-banner__chat" :disabled="isPlanning" @click="continueWithAdvisor">
             <el-icon><ChatDotRound /></el-icon>
             和旅行顾问聊聊这份行程
             <el-icon><ArrowRight /></el-icon>
@@ -521,7 +548,7 @@ import { getTripPlanService,getPlanHistoryService,getHistoricalItineraryService,
 import { useUserInfoStore } from '@/stores/userInfo';
 import { config } from '@/utils/config';
 import { useTokenStore } from '@/stores/token';
-import { authSse } from '@/utils/authSse';
+import { authSse, SseHttpError } from '@/utils/authSse';
 import MarkdownRender from 'markstream-vue';
 import 'markstream-vue/index.css';
 
@@ -938,17 +965,226 @@ const applyTripIdea = (idea) => {
 };
 
 const isGenerating = ref(false);
+const isPlanning = ref(false);
 const planningProgress = ref('正在准备你的行程，请稍候。');
-const planningSteps = ['收集旅行线索', '编排每日路线', '核对花费预算'];
+const planningStages = [
+  { id: 'candidates', label: '搜集目的地线索', hint: '筛选景点和酒店候选', icon: MapLocation },
+  { id: 'routes', label: '编排每日路线', hint: '为每天安排值得停留的地方', icon: Promotion },
+  { id: 'logistics', label: '核对天气与交通', hint: '校验天气和景点间路程', icon: Van },
+  { id: 'stays', label: '安排每日住宿', hint: '匹配行程中的酒店', icon: House },
+  { id: 'budget', label: '核算旅行费用', hint: '汇总门票、住宿、交通与餐饮', icon: Ticket },
+];
 const planningStageByNode = {
   fetchCandidate: 0,
   PlanItineraryNode: 1,
-  WeatherInquiryNode: 1,
-  DistanceCalculationNode: 1,
-  RecommendHotelNode: 1,
-  CalculateBudgetNode: 2,
+  WeatherInquiryNode: 2,
+  DistanceCalculationNode: 2,
+  RecommendHotelNode: 3,
+  CalculateBudgetNode: 4,
 };
 const planningStage = ref(0);
+const planningSnapshot = ref(null);
+const planningConnectionState = ref('connecting');
+const planningFailure = ref('');
+const planningConnectionLabel = computed(() => ({
+  connecting: '正在连接', connected: '实时同步', reconnecting: '正在恢复连接', offline: '连接已中断', failed: '任务已中断',
+})[planningConnectionState.value] || '正在连接');
+const planningStageView = computed(() => planningStages.map((stage, index) => {
+  const saved = planningSnapshot.value?.stages?.find(item => item.id === stage.id);
+  return {
+    ...stage,
+    state: saved?.state || (index < planningStage.value ? 'COMPLETED' : index === planningStage.value ? 'RUNNING' : 'PENDING'),
+    message: saved?.message || '',
+    summary: saved?.summary || '',
+    weatherDays: saved?.weatherDays || [],
+  };
+}));
+const completedPlanningStages = computed(() => planningStageView.value.filter(stage => stage.state === 'COMPLETED').length);
+const planningSummaries = computed(() => planningStageView.value.filter(stage => stage.state === 'COMPLETED' && stage.summary));
+const weatherIconNames = new Set(['晴天', '多云', '阴天', '小雨', '中雨', '大雨']);
+const planningWeatherDays = computed(() => {
+  const days = planningStageView.value.find(stage => stage.id === 'logistics')?.weatherDays;
+  if (!Array.isArray(days)) return [];
+  return days.filter(day => Number.isInteger(day.day) && day.day > 0
+    && typeof day.weather === 'string' && day.weather.trim())
+    .map(day => ({
+      ...day,
+      weather: day.weather.trim(),
+      icon: weatherIconNames.has(day.weather.trim()) ? `/weather/${day.weather.trim()}.png` : null,
+    }));
+});
+const planningStageStateLabel = state => ({ PENDING: '待开始', RUNNING: '进行中', COMPLETED: '已完成', FAILED: '未完成' })[state] || '待开始';
+const PLANNING_TASK_KEY = 'chufala:planning-task';
+const clearSavedPlanningTask = () => {
+  try { sessionStorage.removeItem(PLANNING_TASK_KEY); }
+  catch (error) { console.warn('清理本地规划任务失败', error); }
+};
+const activePlanningTaskId = ref('');
+let planningConnection = null;
+let planningReconnectTimer = null;
+let planningReconnectAttempts = 0;
+let planningConnectionVersion = 0;
+let isPlannerMounted = true;
+
+const closePlanningConnection = () => {
+  planningConnectionVersion += 1;
+  planningConnection?.close();
+  planningConnection = null;
+  if (planningReconnectTimer) clearTimeout(planningReconnectTimer);
+  planningReconnectTimer = null;
+};
+
+const finishPlanningTask = () => {
+  closePlanningConnection();
+  activePlanningTaskId.value = '';
+  clearSavedPlanningTask();
+  isPlanning.value = false;
+};
+
+const schedulePlanningReconnect = error => {
+  if (!activePlanningTaskId.value || !isPlannerMounted) return;
+  if (error instanceof SseHttpError && error.status === 404) {
+    finishPlanningTask();
+    planningSnapshot.value = null;
+    planningFailure.value = '上一次规划任务已过期，请重新生成行程。';
+    return;
+  }
+  if (error instanceof SseHttpError && [401, 403].includes(error.status)) {
+    planningConnectionState.value = 'offline';
+    planningProgress.value = '登录状态已失效，请重新登录后连接进度。';
+    return;
+  }
+  planningConnection = null;
+  if (planningReconnectAttempts >= 5) {
+    planningConnectionState.value = 'offline';
+    planningProgress.value = '进度连接暂时中断，任务可能仍在后台继续。';
+    return;
+  }
+  planningConnectionState.value = 'reconnecting';
+  planningProgress.value = '正在恢复进度连接，已完成的阶段会自动补回。';
+  const delay = Math.min(1000 * 2 ** planningReconnectAttempts, 10000);
+  planningReconnectAttempts += 1;
+  planningReconnectTimer = setTimeout(() => connectPlanningTask(activePlanningTaskId.value), delay);
+};
+
+const applyPlanningSnapshot = snapshot => {
+  if (!snapshot || !Array.isArray(snapshot.stages)) return;
+  if (snapshot.seq < (planningSnapshot.value?.seq ?? -1)) return;
+  planningSnapshot.value = snapshot;
+  const index = planningStages.findIndex(stage => stage.id === snapshot.currentStage);
+  if (index >= 0) planningStage.value = index;
+  const current = snapshot.stages.find(stage => stage.id === snapshot.currentStage);
+  planningProgress.value = current?.message || '正在准备你的行程，请稍候。';
+};
+
+const markPlanningStageFailed = () => {
+  const currentStage = planningSnapshot.value?.currentStage || planningStages[Math.max(planningStage.value, 0)].id;
+  const stages = planningStages.map(stage => {
+    const saved = planningSnapshot.value?.stages?.find(item => item.id === stage.id);
+    return { id: stage.id, state: stage.id === currentStage ? 'FAILED' : (saved?.state || 'PENDING'),
+      message: saved?.message || '', summary: saved?.summary || '', weatherDays: saved?.weatherDays || [] };
+  });
+  planningSnapshot.value = { seq: planningSnapshot.value?.seq ?? 0, currentStage, stages };
+  planningConnectionState.value = 'failed';
+};
+
+const showPlanningResult = async message => {
+  finishPlanningTask();
+  try {
+    const data = JSON.parse(message);
+    currentHistoryId.value = null;
+    itinerary.value = data.dailySchedules || [];
+    budgetSummary.value = data.budgetSummary;
+    itinerary.value.forEach(day => {
+      day.activities?.forEach(activity => {
+        activity.tags = typeof activity.tags === 'string' && activity.tags
+          ? activity.tags.split(',') : [];
+      });
+    });
+    await nextTick();
+    renderBudgetChart();
+    if (!map.value) await initMap();
+    else {
+      map.value.resize();
+      addMarkersToMap();
+    }
+    ElMessage.success('行程规划成功！');
+    await loadHistory();
+    currentHistoryId.value = historyList.value[0]?.id;
+  } catch (error) {
+    console.error('处理行程规划结果失败', error);
+    planningSnapshot.value = null;
+    planningFailure.value = '行程结果加载失败，请从历史行程中查看。';
+    ElMessage.error(planningFailure.value);
+    await loadHistory();
+  }
+};
+
+const connectPlanningTask = taskId => {
+  if (!taskId || !isPlannerMounted) return;
+  closePlanningConnection();
+  const version = planningConnectionVersion;
+  planningConnectionState.value = planningReconnectAttempts ? 'reconnecting' : 'connecting';
+  planningConnection = authSse(`/api/agent/progress/${encodeURIComponent(taskId)}`, {
+    onOpen: () => {
+      if (version !== planningConnectionVersion) return;
+      planningConnectionState.value = 'connected';
+    },
+    onMessage: (message, event) => {
+      if (version !== planningConnectionVersion) return;
+      if (event === 'snapshot') {
+        try {
+          applyPlanningSnapshot(JSON.parse(message));
+          planningReconnectAttempts = 0;
+        }
+        catch (error) { console.error('解析规划进度失败', error); }
+      } else if (event === 'progress' && !planningSnapshot.value) {
+        try {
+          const data = JSON.parse(message);
+          planningProgress.value = data.message || planningProgress.value;
+          const stage = planningStageByNode[data.node];
+          if (Number.isInteger(stage)) planningStage.value = Math.max(planningStage.value, stage);
+        } catch (error) { console.error('解析节点进度失败', error); }
+      } else if (event === 'failed') {
+        finishPlanningTask();
+        markPlanningStageFailed();
+        planningFailure.value = message || '行程规划失败，请调整需求后重试。';
+        ElMessage.error(planningFailure.value);
+      } else if (event === 'complete') {
+        void showPlanningResult(message);
+      }
+    },
+    onError: error => {
+      if (version === planningConnectionVersion) schedulePlanningReconnect(error);
+    },
+    onClose: () => {
+      if (version === planningConnectionVersion) schedulePlanningReconnect();
+    },
+  });
+};
+
+const retryPlanningConnection = () => {
+  if (!activePlanningTaskId.value) return;
+  planningReconnectAttempts = 0;
+  connectPlanningTask(activePlanningTaskId.value);
+};
+
+const resumePlanningTask = () => {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(PLANNING_TASK_KEY) || 'null');
+    if (!saved?.taskId) return;
+    activePlanningTaskId.value = saved.taskId;
+    planDestination.value = saved.destination || planDestination.value;
+    planPeople.value = saved.people || planPeople.value;
+    planBudget.value = saved.budget || planBudget.value;
+    isPlanning.value = true;
+    planningProgress.value = '正在恢复上次的规划进度…';
+    connectPlanningTask(saved.taskId);
+  } catch (error) {
+    console.warn('恢复规划任务失败', error);
+    clearSavedPlanningTask();
+  }
+};
 const itinerary = ref([]);
 const mapActivityCount = computed(() => itinerary.value.reduce((count, day) => count + (day.activities?.length || 0), 0));
 const activeActivity = ref(null);
@@ -1150,6 +1386,7 @@ const resizeBudgetChart = () => {
 
 
 const generateItinerary = async () => { 
+  if (isPlanning.value) return;
   if (!travelForm.value.destination?.trim()) {
     ElMessage.warning('请先填写目的地');
     return;
@@ -1173,9 +1410,14 @@ const generateItinerary = async () => {
     });
   }
 
-  isGenerating.value = true;
+  closePlanningConnection();
+  isPlanning.value = true;
+  planningFailure.value = '';
+  planningSnapshot.value = null;
+  planningConnectionState.value = 'connecting';
+  planningReconnectAttempts = 0;
   planningProgress.value = '正在准备你的行程，请稍候。';
-  planningStage.value = 0;
+  planningStage.value = -1;
   planBudget.value = travelForm.value.budget;
   planPeople.value = travelForm.value.people;
   planDestination.value = travelForm.value.destination.trim();
@@ -1190,63 +1432,24 @@ const generateItinerary = async () => {
   try {
     const result = await getTripPlanService(userPlan);
     const taskId = result.data;
-    const eventSource = authSse(`/api/agent/progress/${taskId}`, {
-      onMessage: async (message, event) => {
-        if (event === 'progress') {
-          const data = JSON.parse(message);
-          planningProgress.value = data.message || '正在安排每日路线、景点和预算。';
-          const stage = planningStageByNode[data.node];
-          if (Number.isInteger(stage)) planningStage.value = Math.max(planningStage.value, stage);
-          return;
-        }
-        if (event === 'failed') {
-          eventSource.close();
-          isGenerating.value = false;
-          ElMessage.error('行程规划失败，请稍后重试！');
-          return;
-        }
-        if (event !== 'complete') return;
-
-        eventSource.close();
-        try {
-          const data = JSON.parse(message);
-          currentHistoryId.value = null;
-          itinerary.value = data.dailySchedules;
-          budgetSummary.value = data.budgetSummary;
-          itinerary.value.forEach(day => {
-            day.activities.forEach(activity => {
-              activity.tags = typeof activity.tags === 'string' && activity.tags
-                ? activity.tags.split(',')
-                : [];
-            });
-          });
-
-          isGenerating.value = false;
-          await nextTick();
-          renderBudgetChart();
-          if (!map.value) await initMap();
-          else {
-            map.value.resize();
-            addMarkersToMap();
-          }
-          ElMessage.success('行程规划成功！');
-          await loadHistory();
-          currentHistoryId.value = historyList.value[0]?.id;
-        } catch (error) {
-          console.error('处理行程规划结果失败', error);
-          isGenerating.value = false;
-          ElMessage.error('行程结果加载失败，请稍后重试');
-        }
-      },
-      onError: () => {
-        isGenerating.value = false;
-        ElMessage.error('服务器繁忙，请稍后重试！');
-      }
-    });
+    if (!taskId) throw new Error('未收到规划任务 ID');
+    activePlanningTaskId.value = taskId;
+    try {
+      sessionStorage.setItem(PLANNING_TASK_KEY, JSON.stringify({
+        taskId,
+        destination: planDestination.value,
+        people: planPeople.value,
+        budget: planBudget.value,
+      }));
+    } catch (error) {
+      console.warn('保存规划任务失败，刷新后将无法恢复进度', error);
+    }
+    connectPlanningTask(taskId);
   } catch (error) {
     console.error('启动行程规划失败', error);
-    isGenerating.value = false;
-    ElMessage.error('行程规划启动失败，请稍后重试');
+    finishPlanningTask();
+    planningFailure.value = '行程规划启动失败，请稍后重试。';
+    ElMessage.error(planningFailure.value);
   }
 }
 
@@ -1407,11 +1610,17 @@ watch(currentMode, (newVal) => {
 
 // --- 生命周期 ---
 onMounted(async () => {
+  isPlannerMounted = true;
   window.addEventListener('resize', resizeBudgetChart);
+  resumePlanningTask();
   await loadHistory();
   await loadChatHistory();
 });
-onUnmounted(() => window.removeEventListener('resize', resizeBudgetChart));
+onUnmounted(() => {
+  isPlannerMounted = false;
+  closePlanningConnection();
+  window.removeEventListener('resize', resizeBudgetChart);
+});
 </script>
 
 <style scoped>
@@ -2673,6 +2882,7 @@ onUnmounted(() => window.removeEventListener('resize', resizeBudgetChart));
 :deep(.itinerary-card .el-timeline) { padding-left: 6px; }
 .day-weather { display: flex; align-items: center; gap: 7px; margin: 0 0 12px; color: #63788a; font-size: 13px; }
 .day-weather img { width: 30px; height: 30px; object-fit: contain; }
+.day-weather .el-icon { width: 30px; height: 30px; color: #8aa7aa; font-size: 22px; }
 .day-card { gap: 0; }
 .activity-item { padding: 17px; border: 1px solid #e7edf1; border-radius: 12px; background: #fff; }
 .activity-item:hover { background: #f7fbfd; border-color: #b9d9e8; }
@@ -2837,28 +3047,56 @@ onUnmounted(() => window.removeEventListener('resize', resizeBudgetChart));
 .inspiration-card small { padding-right: 12px; color: #7c8e98; font-size: 11px; line-height: 1.45; }
 .inspiration-card .el-icon { position: absolute; right: 13px; top: 16px; color: #418c9e; font-size: 14px; }
 
-.loading-state { min-height: 520px; padding: 34px 24px; }
-.loading-state__eyebrow { display: inline-flex; align-items: center; gap: 8px; color: #287d8b; font-size: 12px; font-weight: 700; letter-spacing: .04em; }
-.loading-state__pulse { width: 8px; height: 8px; border-radius: 50%; background: #4a9ca5; box-shadow: 0 0 0 5px rgba(74, 156, 165, .13); }
-.loading-state h2 { margin-top: 15px; }
-.loading-state p { max-width: 540px; font-size: 13px; }
-.planning-steps { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; width: min(100%, 510px); margin: 24px auto 0; padding: 0; list-style: none; }
-.planning-steps li { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid #e2eaea; border-radius: var(--r-full); color: #95a4a9; background: #f9fbfa; font-size: 11px; }
-.planning-steps li span { font: 700 10px var(--font-num); }
-.planning-steps li.is-active { border-color: #a9cdd0; background: #eaf5f4; color: #226f80; font-weight: 700; }
-.planning-steps li.is-complete { border-color: #c8e3dc; color: #4a8c7d; }
-.loading-preview { width: min(100%, 510px); margin: 28px auto 12px; padding: 18px 22px; border: 1px solid #e3ecec; border-radius: 13px; background: #fbfdfc; text-align: left; }
-.loading-preview__day { display: flex; align-items: center; gap: 12px; margin-bottom: 17px; color: #4a8291; font: 700 12px var(--font-num); letter-spacing: .08em; }
-.loading-preview__day i, .loading-preview__stop i { display: block; height: 10px; margin-bottom: 0; font-size: inherit; border-radius: 6px; background: linear-gradient(90deg, #e8f0ef 15%, #f6f9f8 45%, #e8f0ef 75%); background-size: 200% 100%; animation: guide-shimmer 1.7s linear infinite; }
-.loading-preview__day i { width: 95px; }
-.loading-preview__stop { display: flex; align-items: center; gap: 15px; margin: 0 0 14px; }
-.loading-preview__stop:last-child { margin-bottom: 0; }
-.loading-preview__stop b { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 8px; background: #e8f0ef; }
-.loading-preview__stop span { display: flex; flex-direction: column; gap: 8px; width: 62%; }
-.loading-preview__stop i:first-child { width: 78%; }
-.loading-preview__stop i:last-child { width: 52%; height: 8px; }
-.loading-state__note { color: #8697a0; font-size: 11px; }
-@keyframes guide-shimmer { to { background-position-x: -200%; } }
+.loading-state { align-items: stretch; min-height: 520px; padding: 34px 24px; text-align: left; }
+.loading-state__topline { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; }
+.loading-state__eyebrow { display: inline-flex; align-items: center; gap: 9px; color: #287d8b; font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+.loading-state__pulse { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #4a9ca5; box-shadow: 0 0 0 5px rgba(74, 156, 165, .13); animation: planning-pulse 2.4s ease-in-out infinite; }
+.loading-state h2 { margin: 17px 0 7px; font-size: 25px; }
+.loading-state__current { max-width: none !important; color: #627c88; font-size: 13px; }
+.planning-connection { padding: 5px 10px; border: 1px solid #cfe5de; border-radius: var(--r-full); color: #367c6d; background: #f2faf5; font-size: 11px; white-space: nowrap; }
+.planning-connection--reconnecting, .planning-connection--offline { border-color: #eadab7; color: #9a6c2d; background: #fff9ed; }
+.planning-connection--failed { border-color: #eed2ca; color: #a05a4e; background: #fff8f4; }
+.planning-workbench { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(220px, .75fr); gap: 17px; width: 100%; margin-top: 24px; }
+.planning-steps { display: grid; gap: 8px; width: 100%; margin: 0; padding: 0; list-style: none; }
+.planning-steps li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 11px; min-height: 64px; padding: 10px 13px; border: 1px solid #e4eceb; border-radius: 11px; background: #fafcfb; color: #8b9da3; transition: border-color .25s, background-color .25s, box-shadow .25s; }
+.planning-step__index { display: grid; place-items: center; width: 33px; height: 33px; border: 1px solid #dce6e4; border-radius: 50%; color: #9aadb0; background: #fff; font: 700 11px var(--font-num); }
+.loading-state .planning-step__index i { margin: 0; font-size: 16px; }
+.planning-step__copy { display: grid; gap: 3px; min-width: 0; }
+.planning-step__copy strong { font-size: 12px; color: inherit; }
+.planning-step__copy small { overflow: hidden; color: #899da3; font-size: 11px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
+.planning-step__state { font-size: 10px; white-space: nowrap; }
+.planning-steps li.planning-step--running { border-color: #85b9bb; background: #eef8f5; color: #246d7b; box-shadow: inset 3px 0 #65a7aa, 0 9px 24px -18px rgba(27, 95, 103, .5); }
+.planning-step--running .planning-step__index { border-color: #9cc8c8; color: #287c83; background: #e1f1ec; animation: planning-pulse 2.4s ease-in-out infinite; }
+.planning-steps li.planning-step--completed { border-color: #c9e3d8; background: #f5faf6; color: #38806b; }
+.planning-step--completed .planning-step__index { border-color: #add7bd; color: #2f8061; background: #e7f5e9; }
+.planning-steps li.planning-step--failed { border-color: #eac8c2; color: #a65f55; background: #fff7f4; }
+.planning-evidence { display: flex; flex-direction: column; min-width: 0; padding: 18px; border: 1px solid #dce8e2; border-radius: 13px; background: radial-gradient(circle at 88% 6%, rgba(244, 213, 157, .38), transparent 38%), #f9fbf7; }
+.planning-evidence__header { display: flex; justify-content: space-between; gap: 10px; padding-bottom: 13px; border-bottom: 1px dashed #d4e2da; color: #426b73; font-size: 11px; font-weight: 700; }
+.planning-evidence__header strong { font: 700 12px var(--font-num); }
+.planning-evidence__items { display: grid; align-content: start; gap: 8px; padding-top: 14px; }
+.planning-evidence__item { display: flex; align-items: flex-start; gap: 9px; padding: 8px 9px; border: 1px solid #e3eee8; border-radius: 9px; background: rgba(255, 255, 255, .7); }
+.planning-evidence__item > .el-icon { flex: 0 0 24px; width: 24px; height: 24px; border-radius: 7px; color: #498c79; background: #e8f5eb; }
+.loading-state .planning-evidence__item i { margin: 0; font-size: 13px; }
+.planning-evidence__item span { display: grid; gap: 2px; min-width: 0; }
+.planning-evidence__item strong { color: #44706e; font-size: 10px; }
+.planning-evidence__item small { color: #6f8c87; font-size: 11px; line-height: 1.45; }
+.planning-evidence__empty { max-width: none !important; margin: 18px 0; color: #91a4a1; font-size: 11px; line-height: 1.7; }
+.planning-weather { min-width: 0; margin-top: 16px; padding-top: 14px; border-top: 1px dashed #d4e2da; }
+.planning-weather__heading { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; margin-bottom: 10px; }
+.planning-weather__heading strong { color: #416a73; font-size: 11px; }
+.planning-weather__heading span { color: #8da49f; font-size: 10px; }
+.planning-weather__days { display: flex; gap: 8px; overflow-x: auto; padding: 1px 1px 8px; scrollbar-width: thin; }
+.planning-weather__day { display: flex; flex: 0 0 88px; flex-direction: column; align-items: center; gap: 3px; min-height: 106px; padding: 9px 5px; border: 1px solid #dde9e6; border-radius: 10px; background: #fff; text-align: center; }
+.planning-weather__day > span { align-self: flex-start; color: #87a1a2; font: 700 9px var(--font-num); letter-spacing: .04em; }
+.planning-weather__day img { width: 31px; height: 31px; object-fit: contain; }
+.loading-state .planning-weather__day i { display: grid; place-items: center; width: 31px; height: 31px; margin: 0; color: #8aa7aa; font-size: 23px; }
+.planning-weather__day strong { color: #3a6870; font-size: 11px; }
+.planning-weather__day small { color: #91a1a0; font-size: 10px; }
+.planning-evidence__footer { margin-top: auto; padding-top: 16px; color: #9baa9f; font-size: 10px; line-height: 1.55; }
+.planning-retry { align-self: flex-start; margin-top: 18px; padding: 9px 14px; border: 1px solid #b3d3d0; border-radius: 7px; color: #256c76; background: #fff; font: inherit; font-size: 12px; cursor: pointer; }
+.planning-retry:hover { background: #f0f9f7; }
+.planning-failure { margin-top: 12px !important; padding: 9px 13px; border: 1px solid #eed2ca; border-radius: 7px; color: #a05a4e !important; background: #fff8f4; }
+@keyframes planning-pulse { 50% { box-shadow: 0 0 0 7px rgba(74, 156, 165, .06); } }
 
 .result-banner { align-items: center; gap: 20px; padding: 19px 24px; background: linear-gradient(110deg, #eaf5f4, #fff8eb); border-color: #e2e9df; scroll-margin-top: 84px; }
 .result-banner__main { min-width: 0; }
@@ -2883,7 +3121,7 @@ onUnmounted(() => window.removeEventListener('resize', resizeBudgetChart));
 .plan-reference-tag__dot { flex: 0 0 6px; width: 6px; height: 6px; border-radius: 50%; background: #5da88d; }
 .plan-reference-tag .el-icon { margin-left: 1px; font-size: 12px; }
 @media (prefers-reduced-motion: reduce) {
-  .loading-preview__day i, .loading-preview__stop i { animation: none; }
+  .loading-state__pulse, .planning-step--running .planning-step__index { animation: none; }
   .inspiration-card, .result-banner__chat { transition: none; }
 }
 
@@ -2896,6 +3134,7 @@ onUnmounted(() => window.removeEventListener('resize', resizeBudgetChart));
 }
 
 @media (max-width: 960px) {
+  .planning-workbench { grid-template-columns: minmax(0, 1fr) minmax(220px, .75fr); }
   .planner-container,
   .planner-container--has-result {
     grid-template-columns: minmax(0, 1fr);
@@ -2911,6 +3150,8 @@ onUnmounted(() => window.removeEventListener('resize', resizeBudgetChart));
 }
 
 @media (max-width: 760px) {
+  .planning-workbench { grid-template-columns: minmax(0, 1fr); }
+  .planning-evidence { min-height: 150px; }
   .planner-header {
     grid-template-columns: minmax(0, 1fr);
     gap: 20px;
@@ -2921,6 +3162,11 @@ onUnmounted(() => window.removeEventListener('resize', resizeBudgetChart));
 }
 
 @media (max-width: 600px) {
+  .loading-state { min-height: 0; padding: 25px 14px; }
+  .loading-state__topline { align-items: flex-start; }
+  .loading-state h2 { font-size: 22px; }
+  .planning-steps li { grid-template-columns: 31px minmax(0, 1fr) auto; gap: 8px; padding: 9px; }
+  .planning-step__index { width: 30px; height: 30px; }
   .planner-header { gap: 18px; padding: 22px 16px; }
   .header-content .main-title { font-size: 25px; }
   .header-actions, .mode-switcher { width: 100%; }

@@ -5,6 +5,13 @@ interface SseOptions {
   onMessage: (data: string, event?: string) => void
   onError?: (error: Error) => void
   onOpen?: () => void
+  onClose?: () => void
+}
+
+export class SseHttpError extends Error {
+  constructor(public readonly status: number) {
+    super(`SSE 连接失败: ${status}`)
+  }
 }
 
 /**
@@ -12,11 +19,11 @@ interface SseOptions {
  */
 export function authSse(url: string, options: SseOptions) {
   const tokenStore = useTokenStore()
-  const { onMessage, onError, onOpen } = options
+  const { onMessage, onError, onOpen, onClose } = options
 
   // 获取 token（和 axios 拦截器逻辑一致）
   if (!tokenStore.accessToken) {
-    onError?.(new Error('未登录，无法建立 SSE 连接'))
+    onError?.(new SseHttpError(401))
     return { close: () => {} }
   }
 
@@ -36,7 +43,7 @@ export function authSse(url: string, options: SseOptions) {
   })
     .then(async (response) => {
       if (!response.ok || !response.body) {
-        throw new Error(`SSE 连接失败: ${response.status} ${response.statusText}`)
+        throw new SseHttpError(response.status)
       }
 
       onOpen?.()
@@ -78,6 +85,7 @@ export function authSse(url: string, options: SseOptions) {
       buffer += decoder.decode()
       if (buffer) processLine(buffer)
       if (dataLines.length > 0) onMessage(dataLines.join('\n'), event)
+      if (!signal.aborted) onClose?.()
     })
     .catch((err) => {
       if (signal.aborted) {

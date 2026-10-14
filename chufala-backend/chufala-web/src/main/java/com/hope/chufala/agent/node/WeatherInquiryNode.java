@@ -1,6 +1,7 @@
 package com.hope.chufala.agent.node;
 
 import com.hope.chufala.infra.SseManager;
+import com.hope.chufala.infra.TaskQueue;
 import com.hope.chufala.model.dto.UserPlanDTO;
 import com.hope.chufala.model.vo.DailyScheduleVO;
 import com.hope.chufala.model.vo.TravelItineraryVO;
@@ -47,7 +48,7 @@ public class WeatherInquiryNode implements NodeAction<TravelPlanState> {
     public Map<String, Object> apply(TravelPlanState state) throws Exception {
         log.info("===WeatherInquiryNode节点===");
         log.info("===开始查询天气===");
-        sseManager.sendProgress(state.taskId(), "WeatherInquiryNode", "正在查询天气...");
+        sseManager.stageStarted(state.taskId(), "logistics", "正在核对出行天气");
         UserPlanDTO userPlan = state.userPlan();
         String prompt = """
         请查询%s地区从%s开始以来连续%d天的天气（天气情况和最低温与最高温）。天气词请使用【晴天、多云、阴天、小雨、中雨、大雨】
@@ -63,15 +64,27 @@ public class WeatherInquiryNode implements NodeAction<TravelPlanState> {
             List<DailyWeather.WeatherInfo> weatherInfos = response.getWeatherInfos();
             List<DailyScheduleVO> dailyScheduleList = itinerary.getDailySchedules();
 
-            for (int i = 0; i < dailyScheduleList.size(); i++) {
+            int availableDays = weatherInfos == null ? 0 : weatherInfos.size();
+            if (availableDays < dailyScheduleList.size()) {
+                log.warn("天气结果不足：行程 {} 天，返回 {} 天；缺失日期保留空白",
+                        dailyScheduleList.size(), availableDays);
+            }
+            for (int i = 0; i < Math.min(dailyScheduleList.size(), availableDays); i++) {
                 DailyScheduleVO schedule = dailyScheduleList.get(i);
                 DailyWeather.WeatherInfo weather = weatherInfos.get(i);
+                if (weather == null) continue;
                 schedule.setWeather(weather.getWeather());
                 schedule.setTemperature(weather.getTemperature());
             }
             itinerary.setDailySchedules(dailyScheduleList);
 
-            sseManager.sendProgress(state.taskId(), "WeatherInquiryNode", "天气查询完成");
+            List<TaskQueue.WeatherPreview> preview = dailyScheduleList.stream()
+                    .filter(day -> day.getWeather() != null && !day.getWeather().isBlank())
+                    .map(day -> new TaskQueue.WeatherPreview(day.getDay(), day.getWeather(), day.getTemperature()))
+                    .toList();
+            sseManager.weatherUpdated(state.taskId(), "天气查询结束，正在计算景点间路程",
+                    preview.isEmpty() ? "天气信息暂未取得" : "已核对 " + preview.size() + " 天的天气",
+                    preview);
             return Map.of(TravelPlanState.ITINERARY_SKELETON, itinerary);
         }
         return Map.of();

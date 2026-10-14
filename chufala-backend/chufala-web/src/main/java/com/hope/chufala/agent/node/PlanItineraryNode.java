@@ -47,13 +47,13 @@ public class PlanItineraryNode implements NodeAction<TravelPlanState> {
      * 生成逐日行程骨架与总计划。
      *
      * @param state 规划状态（需含 userPlan 与候选景点）
-     * @return 含 masterPlan 与 itinerarySkeleton 的状态增量；模型无返回时为空 Map
+     * @return 含 masterPlan 与 itinerarySkeleton 的状态增量；模型未返回日程时抛出异常
      */
     @Override
     public Map<String, Object> apply(TravelPlanState state) {
         log.info("===PlanItineraryNode节点===");
         log.info("开始规划行程");
-        sseManager.sendProgress(state.taskId(),"PlanItineraryNode", "正在规划行程、选择景点...");
+        sseManager.stageStarted(state.taskId(), "routes", "正在编排每日路线和景点");
         UserPlanDTO userPlan = state.userPlan();
         List<String> preferences = userPlan.getPreferences();
         String preferenesStr =  "无";
@@ -70,7 +70,7 @@ public class PlanItineraryNode implements NodeAction<TravelPlanState> {
         偏好：%s
         预算：%s
         要求：
-        1. 为每天选择景点，输出景点列表,以及对应的tip。
+        1. 为每天选择景点，输出景点列表以及对应的 tip；每一天的 tips 数量必须与 attractionIds 数量相同，顺序一一对应。
         2. 将总旅游计划填充到masterPlan字段。
         """.formatted(userPlan.getDestination(), userPlan.getPeople(), userPlan.getStartDate(),userPlan.getDayNum(),state.candidateAttractions(),
                 preferenesStr, userPlan.getBudget());
@@ -84,23 +84,46 @@ public class PlanItineraryNode implements NodeAction<TravelPlanState> {
 
         log.info("大模型规划结果: {}", response);
 
-        if (response != null) {
+        if (response != null && response.getSchedules() != null && !response.getSchedules().isEmpty()) {
             List<PlanVo.Schedule> scheduleList = response.getSchedules();
             //创建行程
             TravelItineraryVO travelItinerary = new TravelItineraryVO();
             List<DailyScheduleVO> dailyScheduleList = new ArrayList<>();
             int currentDay = 1;
             for (PlanVo.Schedule value : scheduleList) {
+                if (value == null || value.getAttractionIds() == null) {
+                    log.warn("第 {} 天的景点列表缺失，保留空白日程", currentDay);
+                    DailyScheduleVO emptyDay = new DailyScheduleVO();
+                    emptyDay.setDay(currentDay++);
+                    emptyDay.setActivities(List.of());
+                    dailyScheduleList.add(emptyDay);
+                    continue;
+                }
                 //创建每天行程
                 DailyScheduleVO dailySchedule = new DailyScheduleVO();
                 //创建每天活动(景点)
                 ArrayList<AttractionInfoVO> activities = new ArrayList<>();
+                List<String> tips = value.getTips();
+                if (tips == null || tips.size() != value.getAttractionIds().size()) {
+                    log.warn("第 {} 天景点与游玩提示数量不一致：景点 {} 个，提示 {} 条；缺失提示留空",
+                            currentDay, value.getAttractionIds().size(), tips == null ? 0 : tips.size());
+                }
                 for (int j = 0; j < value.getAttractionIds().size(); j++) {
                     AttractionInfoVO attraction = new AttractionInfoVO();
                     attraction.setId(value.getAttractionIds().get(j));
-                    attraction.setTip(value.getTips().get(j));
+                    attraction.setTip(tips != null && j < tips.size() && tips.get(j) != null ? tips.get(j) : "");
                     //填充其他信息
-                    AttractionInfoVO attractionInfo = attractionService.queryAttractionInfoById(Long.parseLong(attraction.getId()));
+                    AttractionInfoVO attractionInfo;
+                    try {
+                        attractionInfo = attractionService.queryAttractionInfoById(Long.parseLong(attraction.getId()));
+                    } catch (NumberFormatException e) {
+                        log.warn("忽略模型返回的无效景点 ID：{}", attraction.getId());
+                        continue;
+                    }
+                    if (attractionInfo == null) {
+                        log.warn("忽略不存在的景点 ID：{}", attraction.getId());
+                        continue;
+                    }
                     attraction.setOtherInfo(attractionInfo);
                     activities.add(attraction);
                 }
@@ -109,10 +132,13 @@ public class PlanItineraryNode implements NodeAction<TravelPlanState> {
                 dailyScheduleList.add(dailySchedule);
             }
             travelItinerary.setDailySchedules(dailyScheduleList);
-            sseManager.sendProgress(state.taskId(), "PlanItineraryNode", "路线规划完成，景点选择完毕");
-            return Map.of(TravelPlanState.MASTER_PLAN,response.getMasterPlan(),TravelPlanState.ITINERARY_SKELETON, travelItinerary);
+            sseManager.stageCompleted(state.taskId(), "routes", "每日路线已编排",
+                    "已安排 " + dailyScheduleList.size() + " 天的游览路线");
+            return Map.of(TravelPlanState.MASTER_PLAN,
+                    response.getMasterPlan() == null ? "" : response.getMasterPlan(),
+                    TravelPlanState.ITINERARY_SKELETON, travelItinerary);
         }
-        return Map.of();
+        throw new IllegalStateException("模型未返回可用的每日行程");
     }
 
 

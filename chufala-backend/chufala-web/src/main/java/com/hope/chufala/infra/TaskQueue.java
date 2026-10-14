@@ -13,6 +13,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -27,6 +28,7 @@ public class TaskQueue {
     static final Duration ACTIVE_TTL = Duration.ofHours(24);
     static final Duration FINISHED_TTL = Duration.ofHours(2);
     private static final Duration WORKER_TTL = Duration.ofMinutes(1);
+    private static final List<String> STAGE_IDS = List.of("candidates", "routes", "logistics", "stays", "budget");
 
     private static final DefaultRedisScript<Long> CREATE_SCRIPT = script("""
             redis.call('HSET', KEYS[1], 'taskId', ARGV[1], 'userId', ARGV[2],
@@ -51,6 +53,11 @@ public class TaskQueue {
             local status = redis.call('HGET', KEYS[1], 'status')
             if status ~= 'PENDING' and status ~= 'PROCESSING' then return 0 end
             redis.call('HSET', KEYS[1], 'status', 'FAILED')
+            local currentStage = redis.call('HGET', KEYS[1], 'currentStage')
+            if currentStage then
+                redis.call('HSET', KEYS[1], 'stage:' .. currentStage .. ':state', 'FAILED')
+                redis.call('HINCRBY', KEYS[1], 'progressSeq', 1)
+            end
             redis.call('HDEL', KEYS[1], 'result')
             redis.call('PEXPIRE', KEYS[1], ARGV[1])
             return 1
@@ -60,6 +67,17 @@ public class TaskQueue {
             redis.call('HSET', KEYS[1], 'progressNode', ARGV[1],
                 'progressMessage', ARGV[2], 'progressAt', ARGV[3])
             return 1
+            """);
+    private static final DefaultRedisScript<Long> STAGE_SCRIPT = script("""
+            if redis.call('HGET', KEYS[1], 'status') ~= 'PROCESSING' then return 0 end
+            local prefix = 'stage:' .. ARGV[1] .. ':'
+            if redis.call('HGET', KEYS[1], prefix .. 'state') == 'COMPLETED'
+                and ARGV[2] == 'RUNNING' then return 0 end
+            redis.call('HSET', KEYS[1], prefix .. 'state', ARGV[2],
+                prefix .. 'message', ARGV[3], prefix .. 'summary', ARGV[4],
+                prefix .. 'updatedAt', ARGV[5], 'currentStage', ARGV[1])
+            if ARGV[6] then redis.call('HSET', KEYS[1], prefix .. 'weatherDays', ARGV[6]) end
+            return redis.call('HINCRBY', KEYS[1], 'progressSeq', 1)
             """);
 
     private final StringRedisTemplate redisTemplate;
@@ -145,6 +163,46 @@ public class TaskQueue {
     }
 
     public record TaskProgress(String node, String message, long timestamp) {}
+
+    public long updateStage(String taskId, String stageId, String state, String message, String summary) {
+        if (!STAGE_IDS.contains(stageId)) {
+            throw new IllegalArgumentException("未知规划阶段：" + stageId);
+        }
+        Long seq = redisTemplate.execute(STAGE_SCRIPT, List.of(key(taskId)), stageId, state,
+                message, summary, Long.toString(System.currentTimeMillis()));
+        return seq == null ? 0 : seq;
+    }
+
+    /** 天气阶段同时持久化逐日预览；后续路程进度更新不会覆盖它。 */
+    public long updateWeatherStage(String taskId, String message, String summary, List<WeatherPreview> days) {
+        Long seq = redisTemplate.execute(STAGE_SCRIPT, List.of(key(taskId)), "logistics", "RUNNING",
+                message, summary, Long.toString(System.currentTimeMillis()), toJson(days));
+        return seq == null ? 0 : seq;
+    }
+
+    /** 返回完整阶段快照，供刷新或断线重连时恢复页面。 */
+    public StageSnapshot getStageSnapshot(String taskId) {
+        Map<Object, Object> fields = redisTemplate.opsForHash().entries(key(taskId));
+        if (fields.isEmpty()) return null;
+        List<StageState> stages = STAGE_IDS.stream().map(id -> {
+            String prefix = "stage:" + id + ":";
+            return new StageState(id,
+                    (String) fields.getOrDefault(prefix + "state", "PENDING"),
+                    (String) fields.getOrDefault(prefix + "message", ""),
+                    (String) fields.getOrDefault(prefix + "summary", ""),
+                    Long.parseLong((String) fields.getOrDefault(prefix + "updatedAt", "0")),
+                    fields.containsKey(prefix + "weatherDays")
+                            ? Arrays.asList(fromJson((String) fields.get(prefix + "weatherDays"), WeatherPreview[].class))
+                            : List.of());
+        }).toList();
+        return new StageSnapshot(Long.parseLong((String) fields.getOrDefault("progressSeq", "0")),
+                (String) fields.getOrDefault("currentStage", "candidates"), stages);
+    }
+
+    public record WeatherPreview(int day, String weather, String temperature) {}
+    public record StageState(String id, String state, String message, String summary,
+                             long updatedAt, List<WeatherPreview> weatherDays) {}
+    public record StageSnapshot(long seq, String currentStage, List<StageState> stages) {}
 
     /** 执行器拒绝任务后立即删除 PENDING 记录。 */
     public void removeTask(String taskId) {

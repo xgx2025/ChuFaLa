@@ -122,4 +122,52 @@ class TaskQueueRedisTest {
         assertEquals(new TaskQueue.TaskProgress("PlanItineraryNode", "正在规划行程", 123L),
                 new TaskQueue(redis, mapper).getProgress("task-1"));
     }
+
+    @Test
+    void stageSnapshotRestoresEveryStageAndKeepsMonotonicSequence() {
+        when(redis.execute(any(RedisScript.class), eq(List.of("task:plan:task-1")),
+                eq("routes"), eq("COMPLETED"), eq("每日路线已编排"),
+                eq("已安排 3 天路线"), anyString())).thenReturn(4L);
+        Map<Object, Object> stored = new HashMap<>();
+        stored.put("progressSeq", "4");
+        stored.put("currentStage", "routes");
+        stored.put("stage:candidates:state", "COMPLETED");
+        stored.put("stage:candidates:summary", "筛选了 12 处景点");
+        stored.put("stage:routes:state", "COMPLETED");
+        stored.put("stage:routes:message", "每日路线已编排");
+        stored.put("stage:routes:summary", "已安排 3 天路线");
+        stored.put("stage:routes:updatedAt", "123");
+        when(hashes.entries("task:plan:task-1")).thenReturn(stored);
+
+        TaskQueue queue = new TaskQueue(redis, mapper);
+        assertEquals(4L, queue.updateStage("task-1", "routes", "COMPLETED",
+                "每日路线已编排", "已安排 3 天路线"));
+        TaskQueue.StageSnapshot snapshot = new TaskQueue(redis, mapper).getStageSnapshot("task-1");
+        assertEquals(4L, snapshot.seq());
+        assertEquals("routes", snapshot.currentStage());
+        assertEquals(5, snapshot.stages().size());
+        assertEquals("筛选了 12 处景点", snapshot.stages().get(0).summary());
+        assertEquals("已安排 3 天路线", snapshot.stages().get(1).summary());
+        assertEquals("PENDING", snapshot.stages().get(2).state());
+        assertEquals(123L, snapshot.stages().get(1).updatedAt());
+    }
+
+    @Test
+    void weatherPreviewIsPersistedAndRestoredWithStageSnapshot() {
+        when(redis.execute(any(RedisScript.class), eq(List.of("task:plan:task-1")),
+                eq("logistics"), eq("RUNNING"), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(5L);
+        Map<Object, Object> stored = new HashMap<>();
+        stored.put("progressSeq", "5");
+        stored.put("currentStage", "logistics");
+        stored.put("stage:logistics:state", "RUNNING");
+        stored.put("stage:logistics:weatherDays", "[{\"day\":1,\"weather\":\"晴天\",\"temperature\":\"20℃\"}]");
+        when(hashes.entries("task:plan:task-1")).thenReturn(stored);
+        TaskQueue queue = new TaskQueue(redis, mapper);
+        List<TaskQueue.WeatherPreview> days = List.of(new TaskQueue.WeatherPreview(1, "晴天", "20℃"));
+
+        assertEquals(5L, queue.updateWeatherStage("task-1", "天气已查询", "已核对 1 天的天气", days));
+        assertEquals(days, new TaskQueue(redis, mapper).getStageSnapshot("task-1")
+                .stages().get(2).weatherDays());
+    }
 }

@@ -43,11 +43,12 @@ public class FetchCandidatesNode implements NodeAction<TravelPlanState> {
     public Map<String, Object> apply(TravelPlanState state) throws Exception {
         log.info("===FetchCandidatesNode节点===");
         log.info("获取候选景点和酒店");
-        sseManager.sendProgress(state.taskId(),"fetchCandidate", "正在查询景点和酒店...");
+        sseManager.stageStarted(state.taskId(), "candidates", "正在搜集目的地的景点和酒店");
         String destination = state.userPlan().getDestination();
         List<AttractionInfoVO> attractions = attractionService.queryAttractionByCity(destination);
         List<HotelInfoVO> hotels = hotelService.findHotelSimpleByCity(destination);
-        sseManager.sendProgress(state.taskId(), "fetchCandidate", "查询完成");
+        sseManager.stageCompleted(state.taskId(), "candidates", "目的地线索已备齐",
+                "找到 " + attractions.size() + " 个景点、" + hotels.size() + " 家酒店候选");
         return Map.of(TravelPlanState.CANDIDATE_ATTRACTIONS, attractions, TravelPlanState.CANDIDATE_HOTELS, hotels);
     }
 }
