@@ -665,7 +665,15 @@ const deleteSession = async (id) => {
 };
 
 // --- 模式切换与聊天逻辑 ---
-const currentMode = ref('planning'); // 'planning' | 'chat'
+const GUIDE_MODE_KEY = 'guide-current-mode';
+const getSavedMode = () => {
+  try {
+    return localStorage.getItem(GUIDE_MODE_KEY) === 'chat' ? 'chat' : 'planning';
+  } catch {
+    return 'planning';
+  }
+};
+const currentMode = ref(getSavedMode()); // 'planning' | 'chat'
 const selectedModel = ref(''); // 当前选择的模型
 
 const handleModelChange = (val) => {
@@ -1586,6 +1594,11 @@ const navigateToDestination = (activity) => {
 
 // 监听模式切换，修复地图显示问题
 watch(currentMode, (newVal) => {
+  try {
+    localStorage.setItem(GUIDE_MODE_KEY, newVal);
+  } catch {
+    // Storage may be unavailable; mode switching still works for this visit.
+  }
   if (newVal === 'planning' && map.value) {
     nextTick(() => {
       map.value.resize();
