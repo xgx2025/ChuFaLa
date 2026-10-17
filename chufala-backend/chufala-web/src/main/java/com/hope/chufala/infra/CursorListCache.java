@@ -165,11 +165,13 @@ public abstract class CursorListCache<T> {
         }
     }
 
-    private void rotateGeneration() {
+    protected boolean rotateGeneration() {
         try {
             redisTemplate.opsForValue().set(generationKey, UUID.randomUUID().toString());
+            return true;
         } catch (RuntimeException e) {
             log.warn("列表缓存失效失败，旧缓存最多保留约 4 分钟，list={}", pagePrefix, e);
+            return false;
         }
     }
 }

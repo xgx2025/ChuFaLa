@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Random;
+import java.util.function.Supplier;
 
 /**
  * 景点服务实现。
@@ -79,8 +80,7 @@ public class AttractionServiceImpl implements IAttractionService {
         String scope = CursorPaginationUtils.scope(query.getKeyword(), query.getStars(), query.getCity(), tags);
         CursorPaginationUtils.Cursor cursor = query.getCursor() != null && !query.getCursor().isBlank()
                 ? CursorPaginationUtils.decode(query.getCursor(), "rating", scope) : null;
-        String cacheKey = attractionListCache.pageKey("rating", scope, size, cursor);
-        PageResult<Attraction> result = attractionListCache.getOrLoad(cacheKey, () -> {
+        Supplier<PageResult<Attraction>> databaseLoader = () -> {
             List<Attraction> rows = attractionMapper.selectAttractionPage(size + 1,
                     query.getKeyword(), query.getStars(), query.getCity(), query.getTags(),
                     cursor == null ? null : cursor.id(), cursor == null ? null : cursor.value());
@@ -97,7 +97,11 @@ public class AttractionServiceImpl implements IAttractionService {
                         cursor == null ? 2 : Math.min(4, cursor.page() + 1)));
             }
             return page;
-        });
+        };
+        PageResult<Attraction> result = cursor == null
+                ? attractionListCache.getFirstPageOrLoad(scope, size, databaseLoader)
+                : attractionListCache.getOrLoad(attractionListCache.pageKey("rating", scope, size, cursor),
+                        databaseLoader);
         calculateDistances(result.getData(), query.getUserLng(), query.getUserLat());
         return result;
     }

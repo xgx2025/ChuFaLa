@@ -44,11 +44,10 @@ class AttractionListCacheFlowTest {
         AttractionMapper mapper = mock(AttractionMapper.class);
         AttractionListCache cache = mock(AttractionListCache.class);
         AttractionServiceImpl service = service(mapper, cache);
-        when(cache.pageKey(eq("rating"), anyString(), eq(1), isNull())).thenReturn("first");
         when(mapper.selectAttractionPage(eq(2), any(), any(), any(), any(), any(), any()))
                 .thenReturn(List.of(attraction(9L, 4.9), attraction(8L, 4.8)));
-        when(cache.getOrLoad(eq("first"), any())).thenAnswer(invocation -> {
-            @SuppressWarnings("unchecked") Supplier<PageResult<Attraction>> loader = invocation.getArgument(1);
+        when(cache.getFirstPageOrLoad(anyString(), eq(1), any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked") Supplier<PageResult<Attraction>> loader = invocation.getArgument(2);
             PageResult<Attraction> page = loader.get();
             assertNull(page.getData().get(0).getDistance());
             return page;
@@ -60,7 +59,7 @@ class AttractionListCacheFlowTest {
         assertNotNull(result.getData().get(0).getDistance());
         String scope = CursorPaginationUtils.scope(null, null, null, List.of());
         assertEquals(2, CursorPaginationUtils.decode(result.getNextCursor(), "rating", scope).page());
-        verify(cache).getOrLoad(eq("first"), any());
+        verify(cache).getFirstPageOrLoad(eq(scope), eq(1), any());
     }
 
     @Test
