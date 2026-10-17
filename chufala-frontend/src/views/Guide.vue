@@ -141,7 +141,8 @@
           </template>
           
           <div v-if="!itinerary.length && !isPlanning && !(planningFailure && planningSnapshot)" class="empty-state">
-            <div class="empty-state__route" aria-hidden="true">
+            <div class="empty-state__route" :class="{ 'empty-state__route--animated': routeMotionReady }" aria-hidden="true">
+              <TravelMotionCanvas variant="route" :active="currentMode === 'planning'" @ready="routeMotionReady = $event" />
               <span class="route-stamp">出发<br>啦</span>
               <span class="route-line"></span>
               <span class="route-point route-point--start"></span>
@@ -169,6 +170,9 @@
             </div>
             <h2>{{ isPlanning ? '你的旅程，正在成形' : '这段旅程暂时停在这里' }}</h2>
             <p class="loading-state__current" aria-live="polite">{{ planningFailure || planningProgress }}</p>
+            <div class="planning-route-visual" aria-hidden="true">
+              <TravelMotionCanvas variant="route" :progress="completedPlanningStages / 5" :running="isPlanning" :active="currentMode === 'planning'" />
+            </div>
             <div class="planning-workbench">
               <ol class="planning-steps" aria-label="行程规划阶段">
                 <li v-for="stage in planningStageView" :key="stage.id" :class="`planning-step--${stage.state.toLowerCase()}`">
@@ -538,6 +542,7 @@ defineOptions({
   name: 'Guide'
 })
 import { ref, shallowRef, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import TravelMotionCanvas from '@/components/TravelMotionCanvas.vue';
 import { ElMessage, ElNotification } from 'element-plus';
 import * as echarts from 'echarts';
 import { loadAMap } from '@/utils/amap-loader';
@@ -594,6 +599,7 @@ const preprocessMarkdown = (content) => {
 const AMAP_KEY = import.meta.env.VITE_AMAP_SERVICE_KEY;
 const userInfoStore = useUserInfoStore();
 const tokenStore = useTokenStore();
+const routeMotionReady = ref(false);
 
 // --- 聊天历史记录逻辑 ---
 const chatHistory = ref([]);
@@ -3021,6 +3027,9 @@ onUnmounted(() => {
 .route-label { position: absolute; color: #476979; font-size: 12px; font-weight: 600; }
 .route-label--start { left: 13%; top: 95px; }
 .route-label--end { left: 61%; top: 79px; }
+.empty-state__route--animated .route-line,
+.empty-state__route--animated .route-point { opacity: 0; }
+.empty-state__route :deep(.travel-motion) { z-index: 0; }
 .empty-state__eyebrow { color: #347a8d; font-size: 11px; }
 .empty-state h2 { margin: 10px 0 6px; font-size: 23px; }
 .empty-state p { max-width: 540px; font-size: 13px; }
@@ -3052,6 +3061,19 @@ onUnmounted(() => {
 .loading-state__pulse { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #4a9ca5; box-shadow: 0 0 0 5px rgba(74, 156, 165, .13); animation: planning-pulse 2.4s ease-in-out infinite; }
 .loading-state h2 { margin: 17px 0 7px; font-size: 25px; }
 .loading-state__current { max-width: none !important; color: #627c88; font-size: 13px; }
+.planning-route-visual { display: none; }
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .planning-route-visual {
+    display: block;
+    position: relative;
+    height: 88px;
+    margin: 12px 0 2px;
+    overflow: hidden;
+    border: 1px solid #dcebe8;
+    border-radius: 12px;
+    background: radial-gradient(circle at 84% 24%, rgba(247, 200, 117, .13), transparent 28%), #f7fbf9;
+  }
+}
 .planning-connection { padding: 5px 10px; border: 1px solid #cfe5de; border-radius: var(--r-full); color: #367c6d; background: #f2faf5; font-size: 11px; white-space: nowrap; }
 .planning-connection--reconnecting, .planning-connection--offline { border-color: #eadab7; color: #9a6c2d; background: #fff9ed; }
 .planning-connection--failed { border-color: #eed2ca; color: #a05a4e; background: #fff8f4; }

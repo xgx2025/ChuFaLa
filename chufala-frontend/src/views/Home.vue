@@ -26,6 +26,7 @@
         <!-- 遮罩层：原实现没有这一层，白色标题直接压在照片上，
              遇到浅色天空/雪景时几乎读不清。改为双向渐变 scrim。 -->
         <div class="hero-section__overlay"></div>
+        <TravelMotionCanvas class="hero-section__motion" variant="hero" />
 
         <!-- 搜索框 + 标题 -->
         <div class="hero-section__content">
@@ -473,6 +474,7 @@
 
 <script setup>
 import BackToTop from '@/components/BackToTop.vue';
+import TravelMotionCanvas from '@/components/TravelMotionCanvas.vue';
 import { ref, computed, nextTick, onMounted, onUnmounted} from 'vue';
 import router from '@/router'
 import {Plane,Hotel,Taxi,TravelPackage,More} from '@/components/Icon.vue'
@@ -812,6 +814,11 @@ html {
       rgba(15, 23, 42, 0.82) 100%
     ),
     linear-gradient(90deg, rgba(15, 23, 42, 0.5) 0%, rgba(15, 23, 42, 0) 68%);
+}
+
+.hero-section__motion {
+  z-index: 3;
+  opacity: 0.88;
 }
 
 .hero-section__content {
