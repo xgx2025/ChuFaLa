@@ -19,7 +19,7 @@
 | 长任务可观测性 | Redis 保存规划任务与事件；SSE 推送阶段进度，支持 `Last-Event-ID` 补发，并校验任务所属用户。聊天流也有独立的事件续传机制。 | [进度流管理](chufala-backend/chufala-web/src/main/java/com/hope/chufala/infra/stream/PlanProgressStreamManager.java) · [聊天流管理](chufala-backend/chufala-web/src/main/java/com/hope/chufala/infra/stream/ChatStreamManager.java) |
 | 热点查询与分页 | 列表采用游标分页；景点首页使用 Caffeine + Redis 两级缓存，更新时通过版本切换和 Redis 通知失效；详情查询包含空值缓存、逻辑过期与异步重建。 | [景点列表缓存](chufala-backend/chufala-web/src/main/java/com/hope/chufala/infra/cache/AttractionListCache.java) · [缓存工具](chufala-backend/chufala-web/src/main/java/com/hope/chufala/infra/cache/CacheClient.java) |
 | 酒店库存与超时关单 | 下单在事务中按入住日期逐晚条件扣库存，任一晚不足即回滚；订单提交后投递 RabbitMQ 延迟消息，定时任务兜底。取消前查询并关闭渠道侧待支付交易，避免本地释放库存后支付仍能完成。 | [酒店订单服务](chufala-backend/chufala-web/src/main/java/com/hope/chufala/service/impl/HotelOrderServiceImpl.java) · [关单保护](chufala-backend/chufala-web/src/main/java/com/hope/chufala/service/impl/HotelPaymentCloseGuard.java) |
-| 支付回调幂等 | 校验支付宝签名、应用与收款方、订单号及金额；支付记录唯一约束与订单条件更新共同处理重复通知、超时取消与支付竞争。 | [支付服务](chufala-backend/chufala-web/src/main/java/com/hope/chufala/service/impl/AlipayServiceImpl.java) · [唯一索引迁移](chufala-backend/db/migration/20261006_pay_record_order_unique.sql) |
+| 支付回调幂等 | 校验支付宝签名、应用与收款方、订单号及金额；支付记录唯一约束与订单条件更新共同处理重复通知、超时取消与支付竞争。 | [支付服务](chufala-backend/chufala-web/src/main/java/com/hope/chufala/service/impl/AlipayServiceImpl.java) · [数据库结构](chufala-backend/db/chufala_db.sql) |
 
 以上是代码中的设计与边界处理，不代表已经完成生产环境压测或真实支付上线。
 
@@ -52,20 +52,27 @@ flowchart LR
 ├── chufala-backend/
 │   ├── chufala-common/           通用模型、工具与异常处理
 │   ├── chufala-web/              API、业务服务、AI 编排与基础设施
-│   └── db/migration/             现有数据库增量迁移脚本
+│   └── db/chufala_db.sql         MySQL 完整表结构
 └── README.md
 ```
 
 ## 运行前须知
 
 1. 准备 **JDK 17**、**Node.js 20.19+ 或 22.12+**（见前端 `package.json`），以及 MySQL、Redis、RabbitMQ、Milvus。RabbitMQ 的酒店订单延迟交换机依赖 delayed-message 插件和 `/chufala` virtual host。
-2. 准备 `chufala_db` 的**基础表结构与业务数据**。仓库的 [`db/migration`](chufala-backend/db/migration) 仅包含增量脚本，不能从空库还原完整业务数据库；这是当前复现项目的主要限制。对已有旧库升级时，请先备份并逐一检查迁移脚本的前置条件。
+2. 使用 [完整表结构](chufala-backend/db/chufala_db.sql) 初始化一个**新建的空** `chufala_db` 数据库。该文件包含 `DROP TABLE IF EXISTS`，会删除目标库中同名表及其数据，不能直接用于升级已有业务数据库。结构文件不包含演示数据，体验景点与酒店功能还需自行导入业务数据。
 3. 准备所需第三方服务的账号和凭据。后端配置模板引用多个环境变量，缺少必需服务或密钥时，应用可能无法启动或相应功能不可用。
 4. 支付宝异步通知需要公网可访问的 `POST /alipay/notify` 地址；本地浏览器回跳不能替代异步通知。
 
 ### 本地启动
 
-在仓库根目录执行：
+先在仓库根目录创建并初始化 MySQL 8 数据库（将 `YOUR_USER` 替换为本地账号，两条命令都会提示输入密码）：
+
+```bash
+mysql -u YOUR_USER -p -e "CREATE DATABASE chufala_db CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci"
+mysql -u YOUR_USER -p chufala_db -e "source chufala-backend/db/chufala_db.sql"
+```
+
+再复制配置模板：
 
 ```bash
 cp chufala-backend/chufala-web/src/main/resources/application.yml.example chufala-backend/chufala-web/src/main/resources/application.yml
@@ -122,11 +129,11 @@ cd chufala-backend
 - 延迟消息负责触发约 30 分钟后的超时处理，定时任务每分钟扫描兜底。**释放库存之前必须确认支付宝交易已关闭或不会再被支付**；渠道状态不确定时保留库存，等待重试或人工核查。
 - 支付页面显示成功或浏览器回到网站，都不等于后端已经收到异步通知。排查时先检查通知地址、回调日志和渠道交易状态；已付款但本地仍待支付的订单应先对账，避免让用户重复付款。
 - 对已取消但确认付款的订单，支付记录标为 `REFUND_REQUIRED`。**目前没有自动退款**，需要在支付宝后台核实并人工处理，之后再将记录更新为 `REFUNDED`。
-- 旧库升级需要关注[逐日库存迁移](chufala-backend/db/migration/20261004_room_daily_stock.sql)、[支付记录唯一索引](chufala-backend/db/migration/20261006_pay_record_order_unique.sql)和[支付表单绝对截止时间](chufala-backend/db/migration/20261007_pay_record_absolute_expiry.sql)。旧支付表单可能仍可提交，迁移前应排查待支付订单，不能直接释放其库存。
+- 当前 SQL 文件是新库结构快照，不提供已有数据库的原地升级能力。若需要迁移历史订单与支付记录，需单独设计数据迁移和对账流程，尤其不能直接释放旧待支付订单占用的库存。
 
 ## 当前限制与后续方向
 
-- 补齐可公开的基础建表与演示数据、容器编排和一键启动流程，降低复现门槛。
+- 补齐演示数据、容器编排和一键启动流程，降低复现门槛。
 - 补全自动退款、失败重试与支付对账；目前退款待办需要人工处理。
 - 增加端到端验证与压测数据，量化缓存、分页和 SSE 在并发场景下的效果。
 - 若计划按开源许可证对外发布，需要另行添加 `LICENSE` 并明确使用范围。

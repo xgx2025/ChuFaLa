@@ -10,15 +10,11 @@ import org.apache.ibatis.session.SqlSessionFactory;
 import org.apache.ibatis.session.SqlSessionFactoryBuilder;
 import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory;
 import org.h2.jdbcx.JdbcDataSource;
-import org.h2.tools.RunScript;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.InputStream;
-import java.io.StringReader;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.LocalDate;
@@ -36,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * 逐日房量库存集成测试（H2 内存库）。
  *
  * <p>加载真实 Mapper XML，在 H2 上验证：跨日库存互不影响、连住取最短板、
- * 历史订单占用计入、迁移幂等、第二晚失败整体回滚、并发不超卖。
+ * 历史订单占用计入、第二晚失败整体回滚、并发不超卖。
  *
  * @author 谢光湘
  */
@@ -185,40 +181,6 @@ class RoomDailyStockIntegrationTest {
         assertEquals(1, available(FIRST_NIGHT));
         assertEquals(1, reserve(FIRST_NIGHT, 1));
         assertEquals(0, available(FIRST_NIGHT));
-        assertEquals(1, available(FIRST_NIGHT.plusDays(1)));
-        assertEquals(2, available(FIRST_NIGHT.plusDays(2)));
-    }
-
-    @Test
-    void migrationRestoresBaseCapacityAndKeepsExistingBookings() throws Exception {
-        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
-            statement.execute("UPDATE room SET stock = 0 WHERE id = 1");
-            statement.execute("INSERT INTO hotel_order VALUES (1, '未支付', DATE '2026-10-05', DATE '2026-10-07', 1)");
-            statement.execute("INSERT INTO hotel_order VALUES (1, '已支付', DATE '2026-10-10', DATE '2026-10-11', 1)");
-            statement.execute("INSERT INTO hotel_order VALUES (1, '已取消', DATE '2026-10-05', DATE '2026-10-06', 1)");
-        }
-        // H2 的 MySQL 模式不支持 START TRANSACTION，事务边界由测试连接提供。
-        String migration = Files.readString(Path.of("..", "db", "migration", "20261004_room_daily_stock.sql"))
-                .replace("START TRANSACTION;", "").replace("COMMIT;", "");
-        try (Connection connection = dataSource.getConnection()) {
-            connection.setAutoCommit(false);
-            RunScript.execute(connection, new StringReader(migration));
-            connection.commit();
-            RunScript.execute(connection, new StringReader(migration));
-            connection.commit();
-        }
-
-        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
-            try (var result = statement.executeQuery("SELECT stock FROM room WHERE id = 1")) {
-                result.next();
-                assertEquals(2, result.getInt(1));
-            }
-            try (var result = statement.executeQuery("SELECT COUNT(*) FROM hotel_order WHERE order_status = '待支付'")) {
-                result.next();
-                assertEquals(1, result.getInt(1));
-            }
-        }
-        assertEquals(1, available(FIRST_NIGHT));
         assertEquals(1, available(FIRST_NIGHT.plusDays(1)));
         assertEquals(2, available(FIRST_NIGHT.plusDays(2)));
     }
