@@ -1,18 +1,8 @@
 import { fileURLToPath, URL } from 'node:url'
-import fs from 'node:fs'
-import path from 'node:path'
 
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-// 读取证书文件（路径相对于 vite.config.js）
-const httpsOptions = {
-  key: fs.readFileSync(path.resolve(__dirname, 'key.pem')),
-  cert: fs.readFileSync(path.resolve(__dirname, 'cert.pem'))
-}
 
 /**
  * 修复 /package 路由被 package.json 抢占的问题
@@ -69,6 +59,6 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, '') // 去除请求路径中的 '/api' 前缀
       }
     },
-    // https: httpsOptions
+    // 如需 HTTPS 本地调试，按 HTTPS_CERT_GUIDE.md 生成证书后再配置 server.https。
   }
 })
