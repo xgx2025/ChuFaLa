@@ -1,142 +1,134 @@
-# chufala
+# 出发啦 Chufala
 
-《出发啦》是一个帮助大家外出旅行的网站。
+一个围绕「找目的地、做行程、订酒店」展开的全栈旅行项目。它将景点与酒店浏览、AI 行程规划、旅行问答和酒店预订放在同一条用户路径中，也把异步任务、缓存、库存、支付这些真实业务问题落到了代码里。
 
-## 项目结构
+> 接入了模型、地图、OSS、邮件和支付宝沙箱等外部服务；完整运行需要准备相应服务、凭据和基础数据，详见[运行前须知](#运行前须知)。
 
+## 可以体验什么
+
+- **旅行规划**：输入目的地和出行偏好，系统从站内景点、酒店数据获取候选项，依次规划景点、生成天气参考、估算相邻景点距离、推荐酒店并估算预算；前端展示分阶段进度和最终行程。天气来自模型生成，路程时间基于直线距离估算，不应作为实时天气或导航结果。
+- **旅行助手**：支持流式对话、会话历史、关联已有行程提问，以及景点、订单等业务工具调用。
+- **景点与酒店**：浏览、筛选和查看详情；酒店支持按入住日期选择房型、创建订单和查询订单。
+- **沙箱支付**：酒店订单接入支付宝沙箱；支付结果以服务端异步通知为准，浏览器回跳只负责返回页面。
+
+## 技术亮点
+
+| 场景 | 设计与实现 | 代码入口 |
+| --- | --- | --- |
+| AI 行程规划 | 用 LangGraph4j 将候选数据、行程、天气、路程、酒店和预算组织成六节点流水线；任务交给专用线程池异步执行，完成后保存历史结果。 | [AgentService](chufala-backend/chufala-web/src/main/java/com/hope/chufala/agent/AgentService.java) |
+| 长任务可观测性 | Redis 保存规划任务与事件；SSE 推送阶段进度，支持 `Last-Event-ID` 补发，并校验任务所属用户。聊天流也有独立的事件续传机制。 | [进度流管理](chufala-backend/chufala-web/src/main/java/com/hope/chufala/infra/stream/PlanProgressStreamManager.java) · [聊天流管理](chufala-backend/chufala-web/src/main/java/com/hope/chufala/infra/stream/ChatStreamManager.java) |
+| 热点查询与分页 | 列表采用游标分页；景点首页使用 Caffeine + Redis 两级缓存，更新时通过版本切换和 Redis 通知失效；详情查询包含空值缓存、逻辑过期与异步重建。 | [景点列表缓存](chufala-backend/chufala-web/src/main/java/com/hope/chufala/infra/cache/AttractionListCache.java) · [缓存工具](chufala-backend/chufala-web/src/main/java/com/hope/chufala/infra/cache/CacheClient.java) |
+| 酒店库存与超时关单 | 下单在事务中按入住日期逐晚条件扣库存，任一晚不足即回滚；订单提交后投递 RabbitMQ 延迟消息，定时任务兜底。取消前查询并关闭渠道侧待支付交易，避免本地释放库存后支付仍能完成。 | [酒店订单服务](chufala-backend/chufala-web/src/main/java/com/hope/chufala/service/impl/HotelOrderServiceImpl.java) · [关单保护](chufala-backend/chufala-web/src/main/java/com/hope/chufala/service/impl/HotelPaymentCloseGuard.java) |
+| 支付回调幂等 | 校验支付宝签名、应用与收款方、订单号及金额；支付记录唯一约束与订单条件更新共同处理重复通知、超时取消与支付竞争。 | [支付服务](chufala-backend/chufala-web/src/main/java/com/hope/chufala/service/impl/AlipayServiceImpl.java) · [唯一索引迁移](chufala-backend/db/migration/20261006_pay_record_order_unique.sql) |
+
+以上是代码中的设计与边界处理，不代表已经完成生产环境压测或真实支付上线。
+
+## 系统结构
+
+```mermaid
+flowchart LR
+    UI[Vue 3 / TypeScript] -->|HTTP + SSE| API[Spring Boot 3]
+    API --> DB[(MySQL)]
+    API --> Redis[(Redis)]
+    API --> MQ[RabbitMQ]
+    API --> AI[模型与地图服务]
+    API --> Pay[支付宝沙箱]
+    API --> Milvus[(Milvus)]
+    API --> OSS[阿里云 OSS]
 ```
+
+| 层次 | 主要技术 |
+| --- | --- |
+| 前端 | Vue 3、TypeScript、Vite、Pinia、Vue Router、Element Plus、ECharts |
+| 后端 | Java 17、Spring Boot 3.5、Spring AI、LangGraph4j、MyBatis-Plus |
+| 数据与消息 | MySQL、Redis、Caffeine、RabbitMQ；Milvus 用于向量检索实验接口 |
+| 外部能力 | 高德地图 MCP 接入代码、模型服务、支付宝沙箱、阿里云 OSS、SMTP |
+
+> Milvus 已有配置与检索测试接口，目前不应将它理解为完整的线上 RAG 产品链路。高德地图 MCP 接入代码目前没有用于行程规划的路程估算。
+
+```text
 .
-├── chufala-backend/     # 后端：Spring Boot 多模块（Maven）
-│   ├── chufala-common/  #   公共模块：工具类、常量、异常、通用配置
-│   └── chufala-web/     #   业务模块：控制层、服务层、AI 编排、Mapper
-└── chufala-frontend/    # 前端：Vue 3 + Vite + TypeScript
+├── chufala-frontend/             Vue 前端与可选的分享截图服务
+├── chufala-backend/
+│   ├── chufala-common/           通用模型、工具与异常处理
+│   ├── chufala-web/              API、业务服务、AI 编排与基础设施
+│   └── db/migration/             现有数据库增量迁移脚本
+└── README.md
 ```
 
----
+## 运行前须知
 
-## 后端（chufala-backend/）
+1. 准备 **JDK 17**、**Node.js 20.19+ 或 22.12+**（见前端 `package.json`），以及 MySQL、Redis、RabbitMQ、Milvus。RabbitMQ 的酒店订单延迟交换机依赖 delayed-message 插件和 `/chufala` virtual host。
+2. 准备 `chufala_db` 的**基础表结构与业务数据**。仓库的 [`db/migration`](chufala-backend/db/migration) 仅包含增量脚本，不能从空库还原完整业务数据库；这是当前复现项目的主要限制。对已有旧库升级时，请先备份并逐一检查迁移脚本的前置条件。
+3. 准备所需第三方服务的账号和凭据。后端配置模板引用多个环境变量，缺少必需服务或密钥时，应用可能无法启动或相应功能不可用。
+4. 支付宝异步通知需要公网可访问的 `POST /alipay/notify` 地址；本地浏览器回跳不能替代异步通知。
 
-### 1. 准备配置文件
+### 本地启动
 
-仓库中只保留了脱敏模板，真实配置需要本地生成：
+在仓库根目录执行：
 
 ```bash
-cd chufala-backend
-cp chufala-web/src/main/resources/application.yml.example  chufala-web/src/main/resources/application.yml
-cp chufala-common/src/main/resources/application.yml.example chufala-common/src/main/resources/application.yml
-cp chufala-web/src/main/resources/mcp-servers-config.json.example chufala-web/src/main/resources/mcp-servers-config.json
+cp chufala-backend/chufala-web/src/main/resources/application.yml.example chufala-backend/chufala-web/src/main/resources/application.yml
+cp chufala-backend/chufala-common/src/main/resources/application.yml.example chufala-backend/chufala-common/src/main/resources/application.yml
+cp chufala-backend/chufala-web/src/main/resources/mcp-servers-config.json.example chufala-backend/chufala-web/src/main/resources/mcp-servers-config.json
+cp chufala-frontend/.env.example chufala-frontend/.env.development
 ```
 
-这三个真实配置文件已被 `.gitignore` 排除，**请勿提交**。
+按本地服务地址修改上述副本并设置环境变量。PowerShell 也可使用 `cp`（`Copy-Item` 的别名）。这些真实配置文件不会被 Git 跟踪。主要配置项如下：
 
-### 2. 设置环境变量
-
-所有敏感值都通过环境变量注入，源码与配置模板中不含任何真实凭据。
-也可以直接把真实值写进本地 `application.yml`（该文件已被 `.gitignore` 排除），效果等同。
-
-| 变量名 | 用途 |
+| 类别 | 环境变量 |
 | --- | --- |
-| `MYSQL_USERNAME` / `MYSQL_PASSWORD` | 数据库账号 |
-| `DRUID_USERNAME` / `DRUID_PASSWORD` | Druid 监控台账号 |
-| `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | RabbitMQ 账号 |
-| `ALIPAY_APP_ID` | 支付宝应用 ID |
-| `ALIPAY_SELLER_ID` | 支付宝收款方 PID |
-| `ALIPAY_MERCHANT_PRIVATE_KEY` | 支付宝商户私钥 |
-| `ALIPAY_PUBLIC_KEY` | 支付宝公钥 |
-| `ALIPAY_NOTIFY_URL` | 支付宝服务器异步通知地址，需能从公网访问 |
-| `ALIPAY_RETURN_URL` | 支付完成后的浏览器回跳入口，例如本机测试用 `http://127.0.0.1:9010/alipay/return` |
-| `ALIPAY_FRONTEND_RETURN_URL` | 回跳入口最终重定向的前端页面，本机测试用 `http://localhost:8881/payment/return` |
-| `ALIYUN_OSS_ACCESS_KEY_ID` / `ALIYUN_OSS_ACCESS_KEY_SECRET` | 阿里云 OSS 凭据 |
-| `AI_DASHSCOPE_API_KEY` | 阿里云百炼 API Key |
-| `ZHIPU_API_KEY` | 智谱 API Key |
-| `DEEPSEEK_API_KEY` | DeepSeek API Key |
-| `DOUBAO_API_KEY` | 豆包 API Key |
-| `AMAP_MAPS_API_KEY` | 高德地图 MCP Key（对应 `amap.api-key`） |
-| `SMTP_USER` / `SMTP_PASSWORD` | QQ 邮箱账号与 SMTP 授权码（对应 `email.smtp.user` / `email.smtp.password`） |
-| `JWT_ACCESS_TOKEN_SECRET` / `JWT_REFRESH_TOKEN_SECRET` | JWT 签名密钥（对应 `jwt.access-token-secret` / `jwt.refresh-token-secret`） |
-| `PRICE_SIGN_SECRET_KEY` | 价格签名 HMAC 密钥（对应 `sign.price-secret-key`） |
+| 数据与消息 | `MYSQL_USERNAME`、`MYSQL_PASSWORD`、`RABBITMQ_USERNAME`、`RABBITMQ_PASSWORD`、`DRUID_USERNAME`、`DRUID_PASSWORD` |
+| AI 与地图 | `AI_DASHSCOPE_API_KEY`、`ZHIPU_API_KEY`、`DEEPSEEK_API_KEY`、`DOUBAO_API_KEY`、`AMAP_MAPS_API_KEY` |
+| 支付 | `ALIPAY_APP_ID`、`ALIPAY_SELLER_ID`、`ALIPAY_MERCHANT_PRIVATE_KEY`、`ALIPAY_PUBLIC_KEY`、`ALIPAY_NOTIFY_URL`、`ALIPAY_RETURN_URL`、`ALIPAY_FRONTEND_RETURN_URL` |
+| 其他 | `ALIYUN_OSS_ACCESS_KEY_ID`、`ALIYUN_OSS_ACCESS_KEY_SECRET`、`SMTP_USER`、`SMTP_PASSWORD`、`JWT_ACCESS_TOKEN_SECRET`、`JWT_REFRESH_TOKEN_SECRET`、`PRICE_SIGN_SECRET_KEY` |
 
-Windows（PowerShell）示例：
+前端地图变量位于 `.env.development`：`VITE_BAIDU_MAP_AK`、`VITE_AMAP_API_KEY`、`VITE_AMAP_SERVICE_KEY`、`VITE_AMAP_SECURITY_CODE`。`VITE_*` 值会进入浏览器产物，务必在地图平台配置域名或 Referer 白名单。后端 MCP 配置副本中的 `AMAP_MAPS_API_KEY` 也需按实际运行方式配置。
 
-```powershell
-$env:MYSQL_PASSWORD = "你的密码"
-$env:JWT_ACCESS_TOKEN_SECRET = "用 openssl rand -base64 32 生成"
-```
-
-### 3. 构建运行
+启动后端（Windows 使用 `mvnw.cmd`，macOS/Linux 使用 `./mvnw`）：
 
 ```bash
 cd chufala-backend
 ./mvnw -pl chufala-web -am spring-boot:run
 ```
 
----
-
-## 前端（chufala-frontend/）
-
-Vue 3 + Vite + TypeScript 项目，默认开发端口 `8881`，并将 `/api` 代理到后端 `http://localhost:9010`。
-
-### 1. 准备环境变量
+另开终端启动前端：
 
 ```bash
 cd chufala-frontend
-cp .env.example .env.development
-```
-
-然后在 `.env.development` 中填入真实 Key。该文件已被 `.gitignore` 排除，**请勿提交**。
-
-| 变量名 | 用途 |
-| --- | --- |
-| `VITE_BAIDU_MAP_AK` | 百度地图 AK |
-| `VITE_AMAP_API_KEY` | 高德地图 Web 端 api-key |
-| `VITE_AMAP_SERVICE_KEY` | 高德地图 Web 服务 api-key |
-| `VITE_AMAP_SECURITY_CODE` | 高德地图安全密钥 |
-
-客户端变量必须带 `VITE_` 前缀，否则不会被注入到前端代码中。
-
-> 这些 Key 会随前端产物下发到浏览器，本质属于公开信息，因此**必须在地图控制台配置域名 / Referer 白名单**，不要依赖「不提交」来保护它们。
-
-### 2. 安装与运行
-
-```bash
-cd chufala-frontend
-npm install
+npm ci
 npm run dev
 ```
 
-### 3. HTTPS 本地调试（可选）
+默认前端地址为 `http://localhost:8881`，`/api` 代理到后端 `http://localhost:9010`。本地 HTTPS 需要另行配置，参见[证书说明](chufala-frontend/HTTPS_CERT_GUIDE.md)。前端的分享截图服务位于 [`chufala-frontend/server`](chufala-frontend/server)，需要时单独安装依赖并运行 `node index.js`（默认端口 `3000`）。
 
-仓库不包含证书文件（`*.pem` / `*.key` / `*.csr` / `*.srl` 均被忽略）。如需 HTTPS 调试，请按 `chufala-frontend/HTTPS_CERT_GUIDE.md` 在本地重新生成证书。
-
-### 4. 分享截图服务（可选）
-
-`chufala-frontend/server/` 是一个基于 Puppeteer 的截图服务，监听 `3000`，依赖本地已启动的前端（`8881`）：
+### 验证与测试
 
 ```bash
-cd chufala-frontend/server
-npm install
-node index.js
+cd chufala-frontend
+npm run build
 ```
 
----
+```bash
+cd chufala-backend
+./mvnw -pl chufala-web -am test
+```
 
-## 安全约定
+后端测试覆盖任务进度续传、缓存、游标分页、酒店库存和支付回调等场景。部分集成测试或本地运行依赖相应的基础设施和配置。
 
-- **禁止**将任何真实密钥、私钥、账号密码提交到仓库
-- 新增配置项请同步更新对应的 `*.example` 模板（后端 `application.yml.example`、前端 `.env.example`）
-- 前端禁止硬编码地图 Key，统一走 `import.meta.env.VITE_*`
-- 若怀疑密钥已泄露，请立即在对应平台轮换，改代码无法挽回已泄露的凭据
+## 酒店订单与支付边界
 
-## 酒店订单状态与库存
+- 逐日库存以 `room_daily_stock` 为准，`room.stock` 仅表示房型基准房量。创建订单时整笔预订处于一个事务；支付只允许“待支付 → 已支付”，取消只允许“待支付 → 已取消”，成功取消后才回补库存。
+- 延迟消息负责触发约 30 分钟后的超时处理，定时任务每分钟扫描兜底。**释放库存之前必须确认支付宝交易已关闭或不会再被支付**；渠道状态不确定时保留库存，等待重试或人工核查。
+- 支付页面显示成功或浏览器回到网站，都不等于后端已经收到异步通知。排查时先检查通知地址、回调日志和渠道交易状态；已付款但本地仍待支付的订单应先对账，避免让用户重复付款。
+- 对已取消但确认付款的订单，支付记录标为 `REFUND_REQUIRED`。**目前没有自动退款**，需要在支付宝后台核实并人工处理，之后再将记录更新为 `REFUNDED`。
+- 旧库升级需要关注[逐日库存迁移](chufala-backend/db/migration/20261004_room_daily_stock.sql)、[支付记录唯一索引](chufala-backend/db/migration/20261006_pay_record_order_unique.sql)和[支付表单绝对截止时间](chufala-backend/db/migration/20261007_pay_record_absolute_expiry.sql)。旧支付表单可能仍可提交，迁移前应排查待支付订单，不能直接释放其库存。
 
-- 酒店订单创建时按房型和入住日期逐晚条件扣减 `room_daily_stock.available_stock`，状态为“待支付”。整笔预订处于一个数据库事务中，任一晚库存不足则全部回滚。付款只允许“待支付 → 已支付”，取消只允许“待支付 → 已取消”；取消成功才逐晚回补库存。删除待支付订单会先取消，再软删除。
-- 订单创建提交后发送延迟消息。延迟消息在实际满 30 分钟时取消待支付订单；定时任务每分钟扫描一次，兜底处理消息丢失或发送失败。
-- 支付宝成功通知需通过签名、应用 ID、收款方 `seller_id`、商户订单号及金额校验。部署时配置 `ALIPAY_SELLER_ID`（收款方 PID）；未配置或不匹配时回调返回 `fail`。支付记录行锁和条件更新保证重复通知只处理一次；支付与超时关单竞争时，仅成功的订单状态变更会产生相应业务效果。
-- 浏览器付款后通过 `ALIPAY_RETURN_URL` 回到 `/alipay/return`，再跳转到 `ALIPAY_FRONTEND_RETURN_URL`。本机测试时前者使用 `127.0.0.1`，后者保持用户打开前端时使用的 `localhost:8881`，以保留同一浏览器来源的登录状态。该跳转不修改订单状态；支付结果以异步通知为准。
-- **沙箱支付注意事项**：`ALIPAY_NOTIFY_URL` 必须是支付宝服务器可访问、能转发到后端 `POST /alipay/notify` 的公网地址；使用 cpolar 等临时隧道时，每次启动或地址变化后都要核对该地址并重启后端，使新支付请求使用更新后的通知地址。支付页面显示成功或浏览器回到网站，只能说明前台支付流程完成，不能证明异步通知已到达。若酒店订单仍显示“待支付”，先检查隧道是否仍有效、是否收到该订单的 `POST /alipay/notify`，再查看后端回调日志中的验签、`app_id`、`seller_id`、金额和支付记录校验结果。对已经付款但未更新的订单，应先按支付宝交易号核实支付结果并对账，再补发通知或按核实结果处理；不要直接让用户重复付款，也不要仅凭浏览器回跳手动改为“已支付”。
-- 若订单已取消，支付记录标为 `REFUND_REQUIRED`，不会重新标记订单为已支付，也不会再次扣减库存。
-- 支付记录采用一单一记录模型。部署前核对重复 `order_id`，处理完毕后执行 [商户订单号唯一索引迁移](chufala-backend/db/migration/20261006_pay_record_order_unique.sql)。数据库唯一键阻止并发创建重复支付记录；并发插入冲突时服务会回查并校验已有记录。旧版 [普通索引迁移](chufala-backend/db/migration/20261005_pay_record_order_index.sql) 不提供唯一性约束。
-- 部署酒店支付统一截止时间前，先执行 [支付表单截止时间标记迁移](chufala-backend/db/migration/20261007_pay_record_absolute_expiry.sql)。新建酒店支付记录的表单使用下单时间加 30 分钟作为支付宝绝对截止时间。超时或主动取消时先查支付宝交易；待付款交易必须成功关单，才可取消本地订单并释放库存。支付宝状态不明时保留库存、由定时任务重试。对于旧流水且支付宝查不到交易的情况，旧表单可能仍可提交，系统会拒绝自动释放库存，需人工核查后处理；升级时应特别排查这些待支付订单。
-- **退款待办需要人工处理**：使用 `SELECT id, order_id, money, trade_no, pay_time FROM pay_record WHERE status = 'REFUND_REQUIRED';` 查出记录，在支付宝后台确认并退款后核对交易记录，再将对应记录更新为 `REFUNDED`。当前项目尚未实现自动退款；上线前应补充自动退款、失败重试与对账。
+## 当前限制与后续方向
 
-数据库中酒店订单的待付款状态以 `待支付` 为准。逐日库存上线前，停用旧版下单和取消入口，执行 [数据库迁移脚本](chufala-backend/db/migration/20261004_room_daily_stock.sql)。脚本也会把旧数据中的 `未支付` 统一为 `待支付`，并将旧的全局剩余库存还原为房型基准房量，保留现有未取消订单；首次访问入住日期时，系统根据已有订单占用初始化该日可用量。上线后 `room.stock` 表示房型基准房量，实际可用量以 `room_daily_stock` 为准。
+- 补齐可公开的基础建表与演示数据、容器编排和一键启动流程，降低复现门槛。
+- 补全自动退款、失败重试与支付对账；目前退款待办需要人工处理。
+- 增加端到端验证与压测数据，量化缓存、分页和 SSE 在并发场景下的效果。
+- 若计划按开源许可证对外发布，需要另行添加 `LICENSE` 并明确使用范围。
+
+欢迎通过 Issue 讨论设计、复现问题与改进建议。提交代码前请运行相关构建或测试，并确保配置模板和实际代码同步更新；不要提交密钥、私钥或真实账号密码。
