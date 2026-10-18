@@ -4,7 +4,7 @@ package com.hope.chufala.controller;
 
 import com.hope.chufala.common.constant.ResultCode;
 import com.hope.chufala.common.util.ThreadLocalUtils;
-import com.hope.chufala.model.dto.HotelOrderDTO;
+import com.hope.chufala.model.dto.CreateHotelOrderRequest;
 import com.hope.chufala.model.entity.HotelOrder;
 import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.common.model.vo.Result;
@@ -37,7 +37,7 @@ public class HotelOrderController {
      * @return 新订单的业务订单号
      */
     @PostMapping
-    public Result createHotelOrder(@RequestBody HotelOrderDTO hotelOrderDTO){
+    public Result createHotelOrder(@RequestBody CreateHotelOrderRequest hotelOrderDTO){
         Claims claims = ThreadLocalUtils.get();
         Long userId = claims.get("userId", Long.class);
         String orderId = hotelOrderService.createHotelOrder(hotelOrderDTO,userId);

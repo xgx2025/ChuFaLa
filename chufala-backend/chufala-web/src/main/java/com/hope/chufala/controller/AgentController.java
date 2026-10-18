@@ -3,9 +3,9 @@ package com.hope.chufala.controller;
 
 import com.hope.chufala.common.util.ThreadLocalUtils;
 import com.hope.chufala.common.constant.ResultCode;
-import com.hope.chufala.infra.SseManager;
-import com.hope.chufala.infra.ChatStreamManager;
-import com.hope.chufala.infra.TaskQueue;
+import com.hope.chufala.infra.stream.PlanProgressStreamManager;
+import com.hope.chufala.infra.stream.ChatStreamManager;
+import com.hope.chufala.infra.task.RedisPlanTaskStore;
 import com.hope.chufala.model.dto.ChatRequest;
 import com.hope.chufala.model.dto.UserPlanDTO;
 import com.hope.chufala.model.entity.AiConversation;
@@ -78,9 +78,9 @@ public class AgentController {
     @Autowired
     private AgentService agentService;
     @Autowired
-    private TaskQueue taskQueue;
+    private RedisPlanTaskStore planTaskStore;
     @Autowired
-    private SseManager sseManager;
+    private PlanProgressStreamManager planProgressStreamManager;
     @Autowired
     private ChatStreamManager chatStreamManager;
     @Resource(name="qwen")
@@ -150,11 +150,11 @@ public class AgentController {
         System.out.println(userPlanDTO);
         Claims claims = ThreadLocalUtils.get();
         Long userId = claims.get("userId", Long.class);
-        String taskId = taskQueue.submitTask(userId, userPlanDTO);
+        String taskId = planTaskStore.submitTask(userId, userPlanDTO);
         try {
             agentService.planTravel(taskId,userId);    //根据任务ID 异步执行规划任务
         } catch (RejectedExecutionException e) {
-            taskQueue.removeTask(taskId);
+            planTaskStore.removeTask(taskId);
             log.warn("行程规划线程池已满，拒绝任务 taskId={}", taskId);
             return Result.fail(ResultCode.SYSTEM_BUSY);
         }
@@ -173,12 +173,12 @@ public class AgentController {
         log.info("进度订阅---任务ID：{}", taskId);
         Claims claims = ThreadLocalUtils.get();
         Long userId = claims.get("userId", Long.class);
-        AgentTask task = taskQueue.getTask(taskId);
+        AgentTask task = planTaskStore.getTask(taskId);
         if (task == null || !userId.equals(task.getUserId())) {
             throw new ResourceNotFoundException("任务不存在");
         }
         SseEmitter emitter = new SseEmitter(300_000L);
-        sseManager.subscribe(taskId, emitter, lastEventId);
+        planProgressStreamManager.subscribe(taskId, emitter, lastEventId);
         return emitter;
     }
 

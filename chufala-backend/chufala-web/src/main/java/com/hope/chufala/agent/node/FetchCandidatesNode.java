@@ -1,7 +1,7 @@
 package com.hope.chufala.agent.node;
 //获取候选景点和酒店
 
-import com.hope.chufala.infra.SseManager;
+import com.hope.chufala.infra.stream.PlanProgressStreamManager;
 import com.hope.chufala.model.vo.AttractionInfoVO;
 import com.hope.chufala.model.vo.HotelInfoVO;
 import com.hope.chufala.service.IAttractionService;
@@ -30,7 +30,7 @@ public class FetchCandidatesNode implements NodeAction<TravelPlanState> {
     @Autowired
     private IHotelService hotelService;
     @Autowired
-    private SseManager sseManager;
+    private PlanProgressStreamManager planProgressStreamManager;
 
     /**
      * 查询目的地的候选景点与酒店。
@@ -43,11 +43,11 @@ public class FetchCandidatesNode implements NodeAction<TravelPlanState> {
     public Map<String, Object> apply(TravelPlanState state) throws Exception {
         log.info("===FetchCandidatesNode节点===");
         log.info("获取候选景点和酒店");
-        sseManager.stageStarted(state.taskId(), "candidates", "正在搜集目的地的景点和酒店");
+        planProgressStreamManager.stageStarted(state.taskId(), "candidates", "正在搜集目的地的景点和酒店");
         String destination = state.userPlan().getDestination();
         List<AttractionInfoVO> attractions = attractionService.queryAttractionByCity(destination);
         List<HotelInfoVO> hotels = hotelService.findHotelSimpleByCity(destination);
-        sseManager.stageCompleted(state.taskId(), "candidates", "目的地线索已备齐",
+        planProgressStreamManager.stageCompleted(state.taskId(), "candidates", "目的地线索已备齐",
                 "找到 " + attractions.size() + " 个景点、" + hotels.size() + " 家酒店候选");
         return Map.of(TravelPlanState.CANDIDATE_ATTRACTIONS, attractions, TravelPlanState.CANDIDATE_HOTELS, hotels);
     }

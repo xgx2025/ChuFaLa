@@ -1,7 +1,7 @@
 package com.hope.chufala.agent.node;
 
 import com.hope.chufala.agent.TravelPlanState;
-import com.hope.chufala.infra.SseManager;
+import com.hope.chufala.infra.stream.PlanProgressStreamManager;
 import com.hope.chufala.model.dto.UserPlanDTO;
 import com.hope.chufala.model.vo.AttractionInfoVO;
 import com.hope.chufala.model.vo.TravelItineraryVO;
@@ -23,11 +23,11 @@ class PlanItineraryNodeTest {
     void missingModelTipsDoNotAbortRoutePlanning() {
         ChatClient chatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
         IAttractionService attractions = mock(IAttractionService.class);
-        SseManager progress = mock(SseManager.class);
+        PlanProgressStreamManager progress = mock(PlanProgressStreamManager.class);
         PlanItineraryNode node = new PlanItineraryNode();
         ReflectionTestUtils.setField(node, "chatClient", chatClient);
         ReflectionTestUtils.setField(node, "attractionService", attractions);
-        ReflectionTestUtils.setField(node, "sseManager", progress);
+        ReflectionTestUtils.setField(node, "planProgressStreamManager", progress);
 
         var modelResult = new PlanItineraryNode.PlanVo("四日行程", List.of(
                 new PlanItineraryNode.PlanVo.Schedule(List.of("1", "2", "3", "4"),

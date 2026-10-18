@@ -1,8 +1,8 @@
 package com.hope.chufala;
 
 import com.hope.chufala.common.model.vo.PageResult;
-import com.hope.chufala.infra.HotelListCache;
-import com.hope.chufala.infra.DetailMissCache;
+import com.hope.chufala.infra.cache.HotelListCache;
+import com.hope.chufala.infra.cache.DetailMissCache;
 import com.hope.chufala.mapper.HotelMapper;
 import com.hope.chufala.model.dto.HotelPageQueryDTO;
 import com.hope.chufala.model.entity.Hotel;

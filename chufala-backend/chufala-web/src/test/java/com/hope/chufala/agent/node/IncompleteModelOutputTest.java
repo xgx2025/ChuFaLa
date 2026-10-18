@@ -1,7 +1,7 @@
 package com.hope.chufala.agent.node;
 
 import com.hope.chufala.agent.TravelPlanState;
-import com.hope.chufala.infra.SseManager;
+import com.hope.chufala.infra.stream.PlanProgressStreamManager;
 import com.hope.chufala.model.dto.UserPlanDTO;
 import com.hope.chufala.model.vo.AttractionInfoVO;
 import com.hope.chufala.model.vo.DailyScheduleVO;
@@ -28,10 +28,10 @@ class IncompleteModelOutputTest {
     @Test
     void fewerWeatherDaysLeaveMissingDaysUnspecified() throws Exception {
         ChatClient client = mock(ChatClient.class, RETURNS_DEEP_STUBS);
-        SseManager progress = mock(SseManager.class);
+        PlanProgressStreamManager progress = mock(PlanProgressStreamManager.class);
         WeatherInquiryNode node = new WeatherInquiryNode();
         ReflectionTestUtils.setField(node, "chatClient", client);
-        ReflectionTestUtils.setField(node, "sseManager", progress);
+        ReflectionTestUtils.setField(node, "planProgressStreamManager", progress);
         when(client.prompt().user(anyString()).call().entity(WeatherInquiryNode.DailyWeather.class))
                 .thenReturn(new WeatherInquiryNode.DailyWeather(List.of(
                         new WeatherInquiryNode.DailyWeather.WeatherInfo("2026-10-20", "晴天", "20℃"))));
@@ -42,18 +42,18 @@ class IncompleteModelOutputTest {
         assertEquals("晴天", itinerary.getDailySchedules().get(0).getWeather());
         assertNull(itinerary.getDailySchedules().get(1).getWeather());
         verify(progress).weatherUpdated(eq("task-1"), anyString(), eq("已核对 1 天的天气"),
-                eq(List.of(new com.hope.chufala.infra.TaskQueue.WeatherPreview(1, "晴天", "20℃"))));
+                eq(List.of(new com.hope.chufala.infra.task.RedisPlanTaskStore.WeatherPreview(1, "晴天", "20℃"))));
     }
 
     @Test
     void fewerHotelDaysDoNotInterruptBudgetStage() throws Exception {
         ChatClient client = mock(ChatClient.class, RETURNS_DEEP_STUBS);
         IHotelService hotels = mock(IHotelService.class);
-        SseManager progress = mock(SseManager.class);
+        PlanProgressStreamManager progress = mock(PlanProgressStreamManager.class);
         RecommendHotelNode node = new RecommendHotelNode();
         ReflectionTestUtils.setField(node, "chatClient", client);
         ReflectionTestUtils.setField(node, "hotelService", hotels);
-        ReflectionTestUtils.setField(node, "sseManager", progress);
+        ReflectionTestUtils.setField(node, "planProgressStreamManager", progress);
         when(client.prompt().system(anyString()).user(anyString()).call()
                 .entity(RecommendHotelNode.HotelList.class))
                 .thenReturn(new RecommendHotelNode.HotelList(List.of(), List.of(
@@ -71,10 +71,10 @@ class IncompleteModelOutputTest {
     @Test
     void singleBudgetCategoryStillProducesFiniteTotal() throws Exception {
         ChatClient client = mock(ChatClient.class, RETURNS_DEEP_STUBS);
-        SseManager progress = mock(SseManager.class);
+        PlanProgressStreamManager progress = mock(PlanProgressStreamManager.class);
         CalculateBudgetNode node = new CalculateBudgetNode();
         ReflectionTestUtils.setField(node, "chatClient", client);
-        ReflectionTestUtils.setField(node, "sseManager", progress);
+        ReflectionTestUtils.setField(node, "planProgressStreamManager", progress);
         when(client.prompt().system(anyString()).user(anyString()).call()
                 .entity(CalculateBudgetNode.TravelBudget.class))
                 .thenReturn(new CalculateBudgetNode.TravelBudget(List.of(

@@ -2,7 +2,7 @@ package com.hope.chufala.agent.node;
 
 
 import com.hope.chufala.common.util.Gcj02DistanceCalculator;
-import com.hope.chufala.infra.SseManager;
+import com.hope.chufala.infra.stream.PlanProgressStreamManager;
 import com.hope.chufala.model.vo.AttractionInfoVO;
 import com.hope.chufala.model.vo.DailyScheduleVO;
 import com.hope.chufala.model.vo.TravelItineraryVO;
@@ -34,7 +34,7 @@ public class DistanceCalculationNode implements NodeAction<TravelPlanState> {
     @Autowired
     private IAttractionService attractionService;
     @Autowired
-    private SseManager sseManager;
+    private PlanProgressStreamManager planProgressStreamManager;
 
     /**
      * 计算每日相邻景点间的距离与驾车耗时，并写回行程骨架。
@@ -53,7 +53,7 @@ public class DistanceCalculationNode implements NodeAction<TravelPlanState> {
         long weatherDays = dailyScheduleList.stream()
                 .filter(day -> day.getWeather() != null && !day.getWeather().isBlank())
                 .count();
-        sseManager.stageUpdated(state.taskId(), "logistics", "正在计算景点间距离和路程时间",
+        planProgressStreamManager.stageUpdated(state.taskId(), "logistics", "正在计算景点间距离和路程时间",
                 weatherDays > 0 ? "已核对 " + weatherDays + " 天的天气" : "天气信息暂未取得");
         //填充地理信息
         for (int i = 0; i < dailyScheduleList.size(); i++) {
@@ -82,7 +82,7 @@ public class DistanceCalculationNode implements NodeAction<TravelPlanState> {
             }
         }
         travelItinerary.setDailySchedules(dailyScheduleList);
-        sseManager.stageCompleted(state.taskId(), "logistics", "景点间路线已核对",
+        planProgressStreamManager.stageCompleted(state.taskId(), "logistics", "景点间路线已核对",
                 weatherDays > 0
                         ? "已核对 " + weatherDays + " 天的天气，并完善 " + dailyScheduleList.size() + " 天的景点间路线"
                         : "已完善 " + dailyScheduleList.size() + " 天的景点间路线，天气信息暂缺");

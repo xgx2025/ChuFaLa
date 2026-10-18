@@ -1,6 +1,6 @@
 package com.hope.chufala.agent.node;
 
-import com.hope.chufala.infra.SseManager;
+import com.hope.chufala.infra.stream.PlanProgressStreamManager;
 import com.hope.chufala.model.dto.UserPlanDTO;
 import com.hope.chufala.model.vo.DailyScheduleVO;
 import com.hope.chufala.model.vo.HotelInfoVO;
@@ -38,7 +38,7 @@ public class RecommendHotelNode implements NodeAction<TravelPlanState>{
     @Autowired
     private IHotelService hotelService;
     @Autowired
-    private SseManager sseManager;
+    private PlanProgressStreamManager planProgressStreamManager;
 
 
     /**
@@ -52,7 +52,7 @@ public class RecommendHotelNode implements NodeAction<TravelPlanState>{
     public Map<String, Object> apply(TravelPlanState state) throws Exception {
         log.info("===RecommendHotelNode节点===");
         log.info("开始推荐酒店");
-        sseManager.stageStarted(state.taskId(), "stays", "正在匹配每日住宿");
+        planProgressStreamManager.stageStarted(state.taskId(), "stays", "正在匹配每日住宿");
         UserPlanDTO userPlan = state.userPlan();
         //查询酒店列表
         String userPrompt = """
@@ -98,7 +98,7 @@ public class RecommendHotelNode implements NodeAction<TravelPlanState>{
         long daysWithHotels = dailyScheduleList.stream()
                 .filter(day -> day.getRecommendHotels() != null && !day.getRecommendHotels().isEmpty())
                 .count();
-        sseManager.stageCompleted(state.taskId(), "stays",
+        planProgressStreamManager.stageCompleted(state.taskId(), "stays",
                 daysWithHotels > 0 ? "每日住宿已安排" : "酒店候选暂未匹配到",
                 daysWithHotels > 0 ? "已为 " + daysWithHotels + " 天安排酒店候选" : "暂无可用的酒店候选");
         log.info("酒店推荐结果: {}", itinerary);

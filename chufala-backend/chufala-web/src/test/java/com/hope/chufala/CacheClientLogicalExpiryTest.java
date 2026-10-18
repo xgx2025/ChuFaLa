@@ -1,6 +1,6 @@
 package com.hope.chufala;
 
-import com.hope.chufala.infra.CacheClient;
+import com.hope.chufala.infra.cache.CacheClient;
 import com.hope.chufala.model.entity.Hotel;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

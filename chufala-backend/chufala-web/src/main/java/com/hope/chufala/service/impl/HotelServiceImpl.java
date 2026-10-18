@@ -10,8 +10,8 @@ import com.hope.chufala.model.entity.Room;
 import com.hope.chufala.model.vo.HotelInfoVO;
 import com.hope.chufala.common.model.vo.PageResult;
 import com.hope.chufala.mapper.HotelMapper;
-import com.hope.chufala.infra.HotelListCache;
-import com.hope.chufala.infra.DetailMissCache;
+import com.hope.chufala.infra.cache.HotelListCache;
+import com.hope.chufala.infra.cache.DetailMissCache;
 
 import com.hope.chufala.mapper.HotelReviewMapper;
 import com.hope.chufala.mapper.RoomMapper;

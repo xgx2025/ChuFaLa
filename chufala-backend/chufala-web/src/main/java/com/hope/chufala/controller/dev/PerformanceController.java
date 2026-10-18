@@ -1,6 +1,6 @@
 package com.hope.chufala.controller.dev;
 
-import com.hope.chufala.common.util.SmartList;
+import com.hope.chufala.common.collection.SmartList;
 import com.hope.chufala.common.util.ThreadLocalUtils;
 import com.hope.chufala.security.AccessControl;
 import io.jsonwebtoken.Claims;

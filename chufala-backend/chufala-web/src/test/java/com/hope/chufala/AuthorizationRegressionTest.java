@@ -1,8 +1,8 @@
 package com.hope.chufala;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.hope.chufala.adapter.HotelAdapter;
-import com.hope.chufala.adapter.VipAdapter;
+import com.hope.chufala.payment.adapter.HotelPaymentAdapter;
+import com.hope.chufala.payment.adapter.MembershipPaymentAdapter;
 import com.hope.chufala.agent.tool.OrderTools;
 import com.hope.chufala.agent.tool.UserInfoTools;
 import com.hope.chufala.common.exception.ForbiddenException;
@@ -90,13 +90,13 @@ class AuthorizationRegressionTest {
     @Test
     void paymentAdaptersRejectOrdersOwnedByAnotherUser() {
         IHotelOrderService hotelOrderService = mock(IHotelOrderService.class);
-        HotelAdapter hotelAdapter = new HotelAdapter();
+        HotelPaymentAdapter hotelAdapter = new HotelPaymentAdapter();
         ReflectionTestUtils.setField(hotelAdapter, "hotelOrderService", hotelOrderService);
         assertThrows(ResourceNotFoundException.class, () -> hotelAdapter.buildPayParam(101L, 202L));
         verify(hotelOrderService).getByOrderIdAndUserId(101L, 202L);
 
         IMembershipService membershipService = mock(IMembershipService.class);
-        VipAdapter vipAdapter = new VipAdapter();
+        MembershipPaymentAdapter vipAdapter = new MembershipPaymentAdapter();
         ReflectionTestUtils.setField(vipAdapter, "membershipService", membershipService);
         VipPaymentRecord record = new VipPaymentRecord();
         record.setUserId(303L);

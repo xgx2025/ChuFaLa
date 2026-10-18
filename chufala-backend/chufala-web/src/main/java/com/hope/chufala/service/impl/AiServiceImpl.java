@@ -2,7 +2,7 @@ package com.hope.chufala.service.impl;
 
 import cn.hutool.core.lang.Snowflake;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.hope.chufala.common.util.AliOSSUtils;
+import com.hope.chufala.infra.storage.AliOssClient;
 import com.hope.chufala.model.entity.UploadedFile;
 import com.hope.chufala.common.exception.ResourceNotFoundException;
 import com.hope.chufala.mapper.UploadedFileMapper;
@@ -36,7 +36,7 @@ public class AiServiceImpl implements IAiService {
     @Autowired
     private IUploadedFileService uploadedFileService;
     @Autowired
-    private AliOSSUtils aliOSSUtils;
+    private AliOssClient aliOSSUtils;
     @Autowired
     private UploadedFileMapper uploadedFileMapper;
     @Autowired

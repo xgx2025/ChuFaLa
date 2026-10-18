@@ -1,6 +1,6 @@
 package com.hope.chufala.listener;
 
-import com.hope.chufala.common.util.DelayMessageProcessor;
+import com.hope.chufala.infra.messaging.DelayMessageProcessor;
 import com.hope.chufala.constant.HotelOrderStatus;
 import com.hope.chufala.mq.MultiDelayMessage;
 import com.hope.chufala.model.entity.HotelOrder;

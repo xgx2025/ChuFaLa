@@ -3,7 +3,7 @@ package com.hope.chufala;
 import com.hope.chufala.common.exception.ResourceNotFoundException;
 import com.hope.chufala.common.util.ThreadLocalUtils;
 import com.hope.chufala.controller.AgentController;
-import com.hope.chufala.infra.ChatStreamManager;
+import com.hope.chufala.infra.stream.ChatStreamManager;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import org.junit.jupiter.api.Test;

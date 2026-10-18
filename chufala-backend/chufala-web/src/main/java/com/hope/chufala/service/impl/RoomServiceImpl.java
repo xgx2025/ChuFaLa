@@ -1,6 +1,6 @@
 package com.hope.chufala.service.impl;
 
-import com.hope.chufala.common.util.SignaturePriceUtils;
+import com.hope.chufala.hotel.pricing.PriceSignatureService;
 import com.hope.chufala.mapper.RoomMapper;
 import com.hope.chufala.mapper.RoomDailyStockMapper;
 import com.hope.chufala.service.IRoomService;
@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * 房型服务实现。
  *
- * <p>总价计算前先校验库存（按入住区间取每晚最短板），再由 SignaturePriceUtils
+ * <p>总价计算前先校验库存（按入住区间取每晚最短板），再由 PriceSignatureService
  * 生成带签名的订单原始数据，供下单时校验价格未被篡改。
  *
  * @author 谢光湘
@@ -27,7 +27,7 @@ public class RoomServiceImpl implements IRoomService {
     @Autowired
     private RoomDailyStockMapper roomDailyStockMapper;
     @Autowired
-    private SignaturePriceUtils signaturePriceUtils;
+    private PriceSignatureService priceSignatureService;
 
     /**
      * 查询房型价格。
@@ -67,7 +67,7 @@ public class RoomServiceImpl implements IRoomService {
         }
         long nightNum = ChronoUnit.DAYS.between(checkIn, checkOut);
         double totalPrice = price * nightNum * roomCount;
-        return signaturePriceUtils.generatePriceWithSignature(roomTypeId.toString(), checkIn.toString(), checkOut.toString(),nightNum,roomCount, totalPrice);
+        return priceSignatureService.generatePriceWithSignature(roomTypeId.toString(), checkIn.toString(), checkOut.toString(),nightNum,roomCount, totalPrice);
     }
 
     /**

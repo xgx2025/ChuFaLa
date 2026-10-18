@@ -1,6 +1,6 @@
 package com.hope.chufala;
 
-import com.hope.chufala.infra.DetailMissCache;
+import com.hope.chufala.infra.cache.DetailMissCache;
 import com.hope.chufala.mapper.AttractionMapper;
 import com.hope.chufala.mapper.HotelMapper;
 import com.hope.chufala.service.impl.AttractionServiceImpl;

@@ -1,7 +1,7 @@
 package com.hope.chufala.interceptor;
 
 
-import com.hope.chufala.common.util.JwtTokenUtils;
+import com.hope.chufala.security.JwtTokenService;
 import com.hope.chufala.common.util.ThreadLocalUtils;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,7 +26,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class LoginInterceptor implements HandlerInterceptor {
 
     @Autowired
-    private JwtTokenUtils jwtTokenUtils;
+    private JwtTokenService jwtTokenUtils;
 
     /**
      * 请求前置校验：解析并缓存登录态。

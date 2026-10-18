@@ -1,8 +1,8 @@
 package com.hope.chufala.controller;
 
 import com.hope.chufala.common.constant.ResultCode;
-import com.hope.chufala.common.util.EmailVerificationCodeUtils;
-import com.hope.chufala.common.util.JwtTokenUtils;
+import com.hope.chufala.security.EmailVerificationCodeService;
+import com.hope.chufala.security.JwtTokenService;
 import com.hope.chufala.model.dto.LoginFormDTO;
 import com.hope.chufala.model.dto.RegisterFormDTO;
 import com.hope.chufala.model.entity.User;
@@ -31,9 +31,9 @@ public class AuthController {
     @Autowired
     private IUserService userService;
     @Autowired
-    private EmailVerificationCodeUtils emailVerificationCodeUtils;
+    private EmailVerificationCodeService emailVerificationCodeUtils;
     @Autowired
-    private JwtTokenUtils jwtTokenUtils;
+    private JwtTokenService jwtTokenUtils;
     /**
      * 用户登录，签发 access / refresh token。
      *

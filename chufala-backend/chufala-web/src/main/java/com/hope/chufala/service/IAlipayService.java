@@ -1,7 +1,7 @@
 package com.hope.chufala.service;
 
 import jakarta.servlet.http.HttpServletRequest;
-import com.hope.chufala.model.dto.ConfirmedAlipayTrade;
+import com.hope.chufala.payment.model.ConfirmedAlipayTrade;
 
 /**
  * 支付宝支付服务。

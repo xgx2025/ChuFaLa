@@ -1,6 +1,6 @@
 package com.hope.chufala;
 
-import com.hope.chufala.infra.DetailMissCache;
+import com.hope.chufala.infra.cache.DetailMissCache;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;

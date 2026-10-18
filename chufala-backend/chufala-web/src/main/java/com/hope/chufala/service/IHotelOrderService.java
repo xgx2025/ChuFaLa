@@ -1,6 +1,6 @@
 package com.hope.chufala.service;
 
-import com.hope.chufala.model.dto.HotelOrderDTO;
+import com.hope.chufala.model.dto.CreateHotelOrderRequest;
 import com.hope.chufala.model.entity.HotelOrder;
 import com.hope.chufala.common.model.vo.PageResult;
 
@@ -41,7 +41,7 @@ public interface IHotelOrderService {
      * @param userId        下单用户 ID
      * @return 新订单的业务订单号
      */
-    String createHotelOrder(HotelOrderDTO hotelOrderDTO,Long userId);
+    String createHotelOrder(CreateHotelOrderRequest hotelOrderDTO,Long userId);
 
     /**
      * 将订单标记为已支付。

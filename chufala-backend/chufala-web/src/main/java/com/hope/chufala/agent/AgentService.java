@@ -3,8 +3,8 @@ package com.hope.chufala.agent;
 import com.hope.chufala.service.IPlanHistoryService;
 import com.hope.chufala.agent.node.*;
 import com.hope.chufala.agent.AgentTask;
-import com.hope.chufala.infra.SseManager;
-import com.hope.chufala.infra.TaskQueue;
+import com.hope.chufala.infra.stream.PlanProgressStreamManager;
+import com.hope.chufala.infra.task.RedisPlanTaskStore;
 import com.hope.chufala.model.dto.UserPlanDTO;
 import com.hope.chufala.agent.TravelPlanState;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +32,7 @@ import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
  *         → calculateBudget（LLM 估交通餐饮 + 本地算门票住宿）
  *         → END
  * </pre>
- * 每个节点通过 SseManager 推送进度；成功后写入 PlanHistory 并推送完成事件。
+ * 每个节点通过 PlanProgressStreamManager 推送进度；成功后写入 PlanHistory 并推送完成事件。
  *
  * @author 谢光湘
  */
@@ -53,9 +53,9 @@ public class AgentService {
     @Autowired
     private CalculateBudgetNode calculateBudgetNode;
     @Autowired
-    private TaskQueue taskQueue;
+    private RedisPlanTaskStore planTaskStore;
     @Autowired
-    private SseManager sseManager;
+    private PlanProgressStreamManager planProgressStreamManager;
     @Autowired
     private IPlanHistoryService planHistoryService;
 
@@ -65,7 +65,7 @@ public class AgentService {
      * <p>节点图按固定拓扑编译后执行；任务不存在时直接推送失败并退出（避免后续 NPE），
      * 任一环节抛异常都会把任务置为 FAILED 并推送失败进度。
      *
-     * @param taskId 任务 ID（需已存在于 TaskQueue）
+     * @param taskId 任务 ID（需已存在于 RedisPlanTaskStore）
      * @param userId 提交用户 ID，用于归属校验与历史落库
      */
     //异步执行任务（指定专用线程池，避免与发信等任务互相抢占线程）
@@ -74,16 +74,16 @@ public class AgentService {
         //获取开始执行的时间
         LocalDateTime createTime = LocalDateTime.now();
         long startTime = System.currentTimeMillis();
-        AgentTask task = taskQueue.getTask(taskId);
+        AgentTask task = planTaskStore.getTask(taskId);
         if (task == null) {
             // 任务不存在或已被清理，直接失败退出，避免后续 task.getUserPlan() 抛 NPE
             log.error("任务不存在或已过期，taskId={}", taskId);
-            sseManager.failTask(taskId, "任务不存在或已过期");
+            planProgressStreamManager.failTask(taskId, "任务不存在或已过期");
             return;
         }
-        if (!taskQueue.startTask(taskId)) {
+        if (!planTaskStore.startTask(taskId)) {
             log.warn("任务状态不允许开始执行，taskId={}", taskId);
-            sseManager.failTask(taskId, "任务不存在或状态不允许执行");
+            planProgressStreamManager.failTask(taskId, "任务不存在或状态不允许执行");
             return;
         }
         UserPlanDTO userPlan = task.getUserPlan();
@@ -120,10 +120,10 @@ public class AgentService {
                var itinerary = result.get().itinerarySkeleton();
                // 历史落库成功后再持久化终态并通知前端，避免先发完成事件后落库失败。
                planHistoryService.addHistory(userId, createTime, userPlan, result.get().masterPlan(), itinerary);
-               if (!taskQueue.completeTask(taskId, itinerary)) {
+               if (!planTaskStore.completeTask(taskId, itinerary)) {
                    throw new IllegalStateException("任务不存在或状态不允许完成：" + taskId);
                }
-               sseManager.completeTask(taskId, itinerary);
+               planProgressStreamManager.completeTask(taskId, itinerary);
                log.info("旅游行程规划结果{}", itinerary);
            } else {
                throw new RuntimeException("任务执行未返回结果");
@@ -131,11 +131,11 @@ public class AgentService {
         } catch (Exception e) {
             log.error("旅游行程规划失败！", e);
             try {
-                taskQueue.failTask(taskId, "旅游行程规划失败！");
+                planTaskStore.failTask(taskId, "旅游行程规划失败！");
             } catch (Exception persistenceError) {
                 log.error("持久化任务失败状态时出错，taskId={}", taskId, persistenceError);
             }
-            sseManager.failTask(taskId, "旅游行程规划失败！");
+            planProgressStreamManager.failTask(taskId, "旅游行程规划失败！");
         }
     }
 }

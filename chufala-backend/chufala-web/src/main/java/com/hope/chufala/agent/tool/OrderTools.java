@@ -1,6 +1,6 @@
 package com.hope.chufala.agent.tool;
 
-import com.hope.chufala.model.dto.HotelOrderDTO;
+import com.hope.chufala.model.dto.CreateHotelOrderRequest;
 import com.hope.chufala.model.entity.HotelOrder;
 import com.hope.chufala.model.entity.User;
 import com.hope.chufala.service.IAiConversationService;
@@ -85,7 +85,7 @@ public class OrderTools {
      */
     @Tool(description = "创建酒店订单")
     public String createHotelOrder(@ToolParam(description = "入住时间") LocalDate checkIn, @ToolParam(description = "退房时间（当晚可住）") LocalDate checkOut, @ToolParam(description = "预定房间数量") Integer roomCount, @ToolParam(description = "房型ID") Long roomTypeId, @ToolParam(description = "预计到店时间，格式如14:00") String arrivalTime, ToolContext toolContext) {
-        HotelOrderDTO hotelOrderDTO = new HotelOrderDTO(null,null,null,null,null,checkIn.toString(),null);
+        CreateHotelOrderRequest hotelOrderDTO = new CreateHotelOrderRequest(null,null,null,null,null,checkIn.toString(),null);
         Long currentUserId = ToolUserContext.getUserId(toolContext);
         User user= userService.getUserById(currentUserId);
         hotelOrderDTO.setGuestEmail(user.getEmail());

@@ -2,7 +2,7 @@ package com.hope.chufala.agent.node;
 
 
 import com.hope.chufala.model.vo.*;
-import com.hope.chufala.infra.SseManager;
+import com.hope.chufala.infra.stream.PlanProgressStreamManager;
 import com.hope.chufala.agent.TravelPlanState;
 import jakarta.annotation.Resource;
 import lombok.AllArgsConstructor;
@@ -33,7 +33,7 @@ public class CalculateBudgetNode implements NodeAction<TravelPlanState> {
     @Resource(name = "deepseek")
     private ChatClient chatClient;
     @Autowired
-    private SseManager sseManager;
+    private PlanProgressStreamManager planProgressStreamManager;
 
     /**
      * 计算行程预算并写回行程骨架。
@@ -48,7 +48,7 @@ public class CalculateBudgetNode implements NodeAction<TravelPlanState> {
     public Map<String, Object> apply(TravelPlanState state) throws Exception {
         log.info("===CalculateBudgetNode节点===");
         log.info("开始计算旅游预算");
-        sseManager.stageStarted(state.taskId(), "budget", "正在核算门票、住宿、交通和餐饮费用");
+        planProgressStreamManager.stageStarted(state.taskId(), "budget", "正在核算门票、住宿、交通和餐饮费用");
         int people = state.userPlan().getPeople();
         //大模型预算餐饮、交通费用
         String userPrompt =
@@ -113,7 +113,7 @@ public class CalculateBudgetNode implements NodeAction<TravelPlanState> {
         log.info("BudgetList{}", budgetList);
         log.info("预算计算结果: {}", budgetList);
         itinerary.setBudgetSummary(new BudgetSummaryVO(totalCost, budgetList));
-        sseManager.stageCompleted(state.taskId(), "budget", "行程预算已汇总",
+        planProgressStreamManager.stageCompleted(state.taskId(), "budget", "行程预算已汇总",
                 String.format("总预算约 ¥%.0f；%s", totalCost,
                         hasTraffic && hasFood ? "含门票、住宿、交通和餐饮"
                                 : "交通或餐饮暂无完整估算"));

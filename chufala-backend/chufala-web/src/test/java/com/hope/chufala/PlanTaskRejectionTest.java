@@ -7,7 +7,7 @@ import com.hope.chufala.common.model.vo.Result;
 import com.hope.chufala.common.util.ThreadLocalUtils;
 import com.hope.chufala.config.ThreadPoolConfig;
 import com.hope.chufala.controller.AgentController;
-import com.hope.chufala.infra.TaskQueue;
+import com.hope.chufala.infra.task.RedisPlanTaskStore;
 import com.hope.chufala.model.dto.UserPlanDTO;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -71,9 +71,9 @@ class PlanTaskRejectionTest {
         when(redis.execute(any(RedisScript.class), anyList(),
                 anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(1L);
-        TaskQueue taskQueue = new TaskQueue(redis, new ObjectMapper().findAndRegisterModules());
+        RedisPlanTaskStore planTaskStore = new RedisPlanTaskStore(redis, new ObjectMapper().findAndRegisterModules());
         ReflectionTestUtils.setField(controller, "agentService", agentService);
-        ReflectionTestUtils.setField(controller, "taskQueue", taskQueue);
+        ReflectionTestUtils.setField(controller, "planTaskStore", planTaskStore);
         doThrow(new RejectedExecutionException("full")).when(agentService).planTravel(anyString(), eq(7L));
         Claims claims = Jwts.claims();
         claims.put("userId", 7L);
@@ -82,7 +82,7 @@ class PlanTaskRejectionTest {
             Result result = controller.submitTask(new UserPlanDTO());
             assertEquals(ResultCode.SYSTEM_BUSY.getCode(), result.getCode());
             assertNull(result.getData());
-            verify(agentService).planTravel(argThat(taskId -> taskQueue.getTask(taskId) == null), eq(7L));
+            verify(agentService).planTravel(argThat(taskId -> planTaskStore.getTask(taskId) == null), eq(7L));
             verify(redis).delete(anyString());
         } finally {
             ThreadLocalUtils.remove();

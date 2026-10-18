@@ -1,6 +1,6 @@
 package com.hope.chufala.config;
 
-import com.hope.chufala.infra.AttractionListCache;
+import com.hope.chufala.infra.cache.AttractionListCache;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;

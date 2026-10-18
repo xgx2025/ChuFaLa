@@ -2,15 +2,15 @@ package com.hope.chufala.service.impl;
 
 import com.alipay.api.AlipayApiException;
 import com.alipay.easysdk.factory.Factory;
-import com.hope.chufala.common.util.EmailUtils;
+import com.hope.chufala.infra.mail.EmailSender;
 import com.hope.chufala.common.util.ThreadLocalUtils;
 import com.hope.chufala.exception.OrderAlreadyCancelledException;
-import com.hope.chufala.model.dto.PayParamDTO;
-import com.hope.chufala.model.dto.ConfirmedAlipayTrade;
+import com.hope.chufala.payment.model.PaymentInstruction;
+import com.hope.chufala.payment.model.ConfirmedAlipayTrade;
 import com.hope.chufala.model.entity.PayRecord;
 import com.hope.chufala.model.entity.HotelOrder;
 import com.hope.chufala.constant.HotelOrderStatus;
-import com.hope.chufala.adapter.BizAdapterFactory;
+import com.hope.chufala.payment.adapter.PaymentBusinessAdapterRegistry;
 import com.hope.chufala.mapper.PayRecordMapper;
 import com.hope.chufala.mapper.HotelOrderMapper;
 import com.hope.chufala.mapper.UserMapper;
@@ -18,8 +18,8 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.hope.chufala.service.IAlipayService;
 import com.hope.chufala.service.IPayRecordService;
-import com.hope.chufala.adapter.BizAdapter;
-import com.hope.chufala.infra.AlipayTemplate;
+import com.hope.chufala.payment.adapter.PaymentBusinessAdapter;
+import com.hope.chufala.infra.payment.AlipayTemplate;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -46,7 +46,7 @@ import java.util.concurrent.Executor;
  *
  * <p>核心在回调处理的「先校验、后幂等、再落库」：验签 → 核对 appId / 收款方 PID /
  * 金额 / 交易号 → 悲观锁读取支付记录 → 同一事务内推进业务状态与支付记录 →
- * 事务提交后再异步发通知邮件。业务差异由 {@link BizAdapter} 隔离，本类只负责通用支付流程。
+ * 事务提交后再异步发通知邮件。业务差异由 {@link PaymentBusinessAdapter} 隔离，本类只负责通用支付流程。
  *
  * @author 谢光湘
  */
@@ -57,7 +57,7 @@ public class AlipayServiceImpl implements IAlipayService {
     @Autowired
     private AlipayTemplate alipayTemplate;
     @Autowired
-    private BizAdapterFactory bizAdapterFactory;
+    private PaymentBusinessAdapterRegistry paymentAdapterRegistry;
     @Autowired
     private PayRecordMapper payRecordMapper;
     @Autowired
@@ -67,7 +67,7 @@ public class AlipayServiceImpl implements IAlipayService {
     @Autowired
     private UserMapper userMapper;
     @Autowired
-    private EmailUtils emailUtils;
+    private EmailSender emailSender;
 
     @Autowired
     @Qualifier("mailExecutor")
@@ -102,8 +102,8 @@ public class AlipayServiceImpl implements IAlipayService {
             }
         }
         // 1. 通过业务适配器获取统一支付参数（隔离业务差异）
-        BizAdapter adapter = bizAdapterFactory.getAdapter(normalizedBizType);
-        PayParamDTO payParam = adapter.buildPayParam(orderId, userId); // 由业务适配器转换参数
+        PaymentBusinessAdapter adapter = paymentAdapterRegistry.getAdapter(normalizedBizType);
+        PaymentInstruction payParam = adapter.buildPayParam(orderId, userId); // 由业务适配器转换参数
         if (payParam.getExpireTime() != null
                 && !payParam.getExpireTime().isAfter(LocalDateTime.now(ZoneId.of("Asia/Shanghai")))) {
             throw new IllegalArgumentException("酒店订单已超过支付时限");
@@ -234,7 +234,7 @@ public class AlipayServiceImpl implements IAlipayService {
         }
 
         // 业务状态变更与支付记录落库处于同一事务。
-        BizAdapter adapter = bizAdapterFactory.getAdapter(record.getBizType());
+        PaymentBusinessAdapter adapter = paymentAdapterRegistry.getAdapter(record.getBizType());
         try {
             adapter.handlePaySuccess(record.getOrderId(), record);
         } catch (OrderAlreadyCancelledException e) {
@@ -285,7 +285,7 @@ public class AlipayServiceImpl implements IAlipayService {
                 try {
                     String email = userMapper.findEmailById(userId);
                     if (email != null && !email.isEmpty()) {
-                        emailUtils.sendEmail(email, "【出发啦】订单通知", "您已成功订购，" + subject
+                        emailSender.sendEmail(email, "【出发啦】订单通知", "您已成功订购，" + subject
                                 + "，订单号：" + orderId + "，您可以前往【出发啦】网站的订单中心查看详情。祝您旅途开心！\uD83E\uDD17");
                     }
                 } catch (Exception e) {

@@ -2,7 +2,7 @@ package com.hope.chufala;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hope.chufala.common.model.vo.PageResult;
-import com.hope.chufala.infra.AttractionListCache;
+import com.hope.chufala.infra.cache.AttractionListCache;
 import com.hope.chufala.model.entity.Attraction;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;

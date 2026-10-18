@@ -1,8 +1,8 @@
 package com.hope.chufala;
 
 import com.hope.chufala.common.model.vo.PageResult;
-import com.hope.chufala.infra.AttractionListCache;
-import com.hope.chufala.infra.DetailMissCache;
+import com.hope.chufala.infra.cache.AttractionListCache;
+import com.hope.chufala.infra.cache.DetailMissCache;
 import com.hope.chufala.mapper.AttractionMapper;
 import com.hope.chufala.model.dto.AttractionPageQueryDTO;
 import com.hope.chufala.model.entity.Attraction;

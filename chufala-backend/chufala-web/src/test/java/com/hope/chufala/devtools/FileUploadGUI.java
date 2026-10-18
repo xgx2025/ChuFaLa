@@ -1,7 +1,7 @@
 package com.hope.chufala.devtools;
 
 
-import com.hope.chufala.common.util.AliOSSUtils;
+import com.hope.chufala.infra.storage.AliOssClient;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -17,7 +17,7 @@ import java.io.IOException;
 /**
  * OSS 上传图形界面（开发辅助工具，非测试）。
  *
- * <p>选择本地文件后调用 AliOSSUtils 上传到 OSS 并展示返回 URL；
+ * <p>选择本地文件后调用 AliOssClient 上传到 OSS 并展示返回 URL；
  * OSS 凭据从环境变量读取，需手动运行。
  *
  * @author 谢光湘
@@ -29,14 +29,14 @@ public class FileUploadGUI extends JFrame {
     private JButton uploadButton;
     private JTextArea resultArea;
     private File selectedFile;
-    private AliOSSUtils ossUtil;
+    private AliOssClient ossUtil;
     // OSS 凭据通过环境变量注入，不再硬编码在源码中
     private String accessKeyId = System.getenv("ALIYUN_OSS_ACCESS_KEY_ID");
     private String accessKeySecret = System.getenv("ALIYUN_OSS_ACCESS_KEY_SECRET");
 
     public FileUploadGUI() {
         // 初始化OSS工具类，实际应用中可能需要通过Spring容器获取
-        ossUtil = new AliOSSUtils();
+        ossUtil = new AliOssClient();
         // 这里需要手动设置OSS参数，实际项目中会通过@Value自动注入
         initOSSUtil();
 

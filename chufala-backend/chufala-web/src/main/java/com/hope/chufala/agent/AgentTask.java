@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 /**
  * 行程规划任务。
  *
- * <p>提交后由 TaskQueue 存入 Redis，供异步执行与进度订阅时按 taskId 检索。
+ * <p>提交后由 RedisPlanTaskStore 存入 Redis，供异步执行与进度订阅时按 taskId 检索。
  *
  * @author 谢光湘
  */

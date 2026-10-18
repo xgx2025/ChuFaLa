@@ -5,8 +5,8 @@ import cn.hutool.crypto.digest.BCrypt;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.hope.chufala.common.exception.user.*;
-import com.hope.chufala.common.util.AliOSSUtils;
-import com.hope.chufala.common.util.EmailVerificationCodeUtils;
+import com.hope.chufala.infra.storage.AliOssClient;
+import com.hope.chufala.security.EmailVerificationCodeService;
 import com.hope.chufala.common.util.SnowFlakeUtils;
 import com.hope.chufala.model.dto.RegisterFormDTO;
 import com.hope.chufala.model.dto.UserUpdateFormDTO;
@@ -38,9 +38,9 @@ public class UserServiceImpl implements IUserService {
     @Autowired
     private UserMapper userMapper;
     @Autowired
-    private EmailVerificationCodeUtils emailVerificationCodeUtils;
+    private EmailVerificationCodeService emailVerificationCodeUtils;
     @Autowired
-    private AliOSSUtils aliOSSUtils;
+    private AliOssClient aliOSSUtils;
 
     /**
      * 历史遗留盐值。早期实现为 MD5("hope" + 明文)，此处仅用于兼容存量数据，

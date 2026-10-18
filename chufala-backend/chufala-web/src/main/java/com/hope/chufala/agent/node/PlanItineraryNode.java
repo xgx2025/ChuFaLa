@@ -4,7 +4,7 @@ import com.hope.chufala.model.dto.UserPlanDTO;
 import com.hope.chufala.model.vo.AttractionInfoVO;
 import com.hope.chufala.model.vo.DailyScheduleVO;
 import com.hope.chufala.model.vo.TravelItineraryVO;
-import com.hope.chufala.infra.SseManager;
+import com.hope.chufala.infra.stream.PlanProgressStreamManager;
 import com.hope.chufala.service.IAttractionService;
 import com.hope.chufala.agent.TravelPlanState;
 import jakarta.annotation.Resource;
@@ -40,7 +40,7 @@ public class PlanItineraryNode implements NodeAction<TravelPlanState> {
     @Autowired
     private IAttractionService attractionService;
     @Autowired
-    private SseManager sseManager;
+    private PlanProgressStreamManager planProgressStreamManager;
 
 
     /**
@@ -53,7 +53,7 @@ public class PlanItineraryNode implements NodeAction<TravelPlanState> {
     public Map<String, Object> apply(TravelPlanState state) {
         log.info("===PlanItineraryNode节点===");
         log.info("开始规划行程");
-        sseManager.stageStarted(state.taskId(), "routes", "正在编排每日路线和景点");
+        planProgressStreamManager.stageStarted(state.taskId(), "routes", "正在编排每日路线和景点");
         UserPlanDTO userPlan = state.userPlan();
         List<String> preferences = userPlan.getPreferences();
         String preferenesStr =  "无";
@@ -132,7 +132,7 @@ public class PlanItineraryNode implements NodeAction<TravelPlanState> {
                 dailyScheduleList.add(dailySchedule);
             }
             travelItinerary.setDailySchedules(dailyScheduleList);
-            sseManager.stageCompleted(state.taskId(), "routes", "每日路线已编排",
+            planProgressStreamManager.stageCompleted(state.taskId(), "routes", "每日路线已编排",
                     "已安排 " + dailyScheduleList.size() + " 天的游览路线");
             return Map.of(TravelPlanState.MASTER_PLAN,
                     response.getMasterPlan() == null ? "" : response.getMasterPlan(),

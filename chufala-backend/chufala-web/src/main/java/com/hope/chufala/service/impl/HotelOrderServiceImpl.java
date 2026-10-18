@@ -5,13 +5,13 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.hope.chufala.util.CursorPaginationUtils;
 import com.hope.chufala.common.exception.InvalidSignatureException;
 import com.hope.chufala.common.exception.ResourceNotFoundException;
-import com.hope.chufala.common.util.DelayMessageProcessor;
-import com.hope.chufala.common.util.RedisWorker;
-import com.hope.chufala.common.util.SignaturePriceUtils;
+import com.hope.chufala.infra.messaging.DelayMessageProcessor;
+import com.hope.chufala.infra.id.RedisIdGenerator;
+import com.hope.chufala.hotel.pricing.PriceSignatureService;
 import com.hope.chufala.mq.MultiDelayMessage;
 import com.hope.chufala.constant.HotelOrderStatus;
 import com.hope.chufala.exception.OrderAlreadyCancelledException;
-import com.hope.chufala.model.dto.HotelOrderDTO;
+import com.hope.chufala.model.dto.CreateHotelOrderRequest;
 import com.hope.chufala.model.entity.HotelOrder;
 import com.hope.chufala.model.entity.Hotel;
 import com.hope.chufala.common.model.vo.PageResult;
@@ -70,9 +70,9 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
     @Autowired
     private HotelMapper hotelMapper;
     @Autowired
-    private RedisWorker redisWorker;
+    private RedisIdGenerator redisIdGenerator;
     @Autowired
-    private SignaturePriceUtils signaturePriceUtils;
+    private PriceSignatureService priceSignatureService;
     @Autowired
     private RabbitTemplate rabbitTemplate;
 
@@ -107,7 +107,7 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
      * 创建酒店订单。
      *
      * <p>签名校验不通过抛 InvalidSignatureException；日期、间夜数或金额不合法抛
-     * IllegalArgumentException；库存不足时在扣减处失败并回滚。订单号由 RedisWorker
+     * IllegalArgumentException；库存不足时在扣减处失败并回滚。订单号由 RedisIdGenerator
      * 生成；延迟消息用于 30 分钟后回收未支付订单，发送失败由定时任务兜底。
      *
      * @param hotelOrderDTO 下单参数（含被签名的原始数据）
@@ -116,14 +116,14 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public String createHotelOrder(HotelOrderDTO hotelOrderDTO,Long userId) {
+    public String createHotelOrder(CreateHotelOrderRequest hotelOrderDTO,Long userId) {
         //验证签名
-        boolean flag = signaturePriceUtils.verifyPriceSignature(hotelOrderDTO.getRawData(),hotelOrderDTO.getSignature());
+        boolean flag = priceSignatureService.verifyPriceSignature(hotelOrderDTO.getRawData(),hotelOrderDTO.getSignature());
         //解析参数
         if (!flag){
            throw new InvalidSignatureException("签名验证失败---"+"用户ID:"+userId);
         }
-        Map<String,String> params = signaturePriceUtils.parseParams(hotelOrderDTO.getRawData());
+        Map<String,String> params = priceSignatureService.parseParams(hotelOrderDTO.getRawData());
         Long roomTypeId = Long.valueOf(params.get("roomId"));
         Long hotelId = roomMapper.selectHotelIdByRoomTypeId(roomTypeId);
         int roomCount = Integer.parseInt(params.get("roomCount"));
@@ -147,7 +147,7 @@ public class HotelOrderServiceImpl implements IHotelOrderService {
         //创建订单
         //在此处计算优惠金额或这在签名中计算
         Double discountPrice = 0.0;
-        Long orderId = redisWorker.nextId("HotelOrder");
+        Long orderId = redisIdGenerator.nextId("HotelOrder");
         HotelOrder hotelOrder = new HotelOrder();
         hotelOrder.setOrderId(orderId);
         hotelOrder.setUserId(userId);

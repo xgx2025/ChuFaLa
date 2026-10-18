@@ -3,13 +3,13 @@ package com.hope.chufala;
 import com.alipay.easysdk.factory.Factory;
 import com.alipay.easysdk.payment.common.Client;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
-import com.hope.chufala.adapter.BizAdapter;
-import com.hope.chufala.adapter.BizAdapterFactory;
+import com.hope.chufala.payment.adapter.PaymentBusinessAdapter;
+import com.hope.chufala.payment.adapter.PaymentBusinessAdapterRegistry;
 import com.hope.chufala.exception.OrderAlreadyCancelledException;
-import com.hope.chufala.infra.AlipayTemplate;
+import com.hope.chufala.infra.payment.AlipayTemplate;
 import com.hope.chufala.mapper.PayRecordMapper;
 import com.hope.chufala.model.entity.PayRecord;
-import com.hope.chufala.model.dto.ConfirmedAlipayTrade;
+import com.hope.chufala.payment.model.ConfirmedAlipayTrade;
 import com.hope.chufala.service.impl.AlipayServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -44,8 +44,8 @@ class PaymentNotifyRegressionTest {
     @Test
     void callbackForCancelledOrderCreatesRefundRequiredRecord() throws Exception {
         PayRecordMapper mapper = mock(PayRecordMapper.class);
-        BizAdapterFactory factory = mock(BizAdapterFactory.class);
-        BizAdapter adapter = mock(BizAdapter.class);
+        PaymentBusinessAdapterRegistry factory = mock(PaymentBusinessAdapterRegistry.class);
+        PaymentBusinessAdapter adapter = mock(PaymentBusinessAdapter.class);
         AlipayTemplate template = mock(AlipayTemplate.class);
         Client client = mock(Client.class);
         AlipayServiceImpl service = service(mapper, factory, template);
@@ -73,7 +73,7 @@ class PaymentNotifyRegressionTest {
     @Test
     void amountMismatchCannotMarkOrderPaid() throws Exception {
         PayRecordMapper mapper = mock(PayRecordMapper.class);
-        BizAdapterFactory factory = mock(BizAdapterFactory.class);
+        PaymentBusinessAdapterRegistry factory = mock(PaymentBusinessAdapterRegistry.class);
         AlipayTemplate template = mock(AlipayTemplate.class);
         Client client = mock(Client.class);
         AlipayServiceImpl service = service(mapper, factory, template);
@@ -94,7 +94,7 @@ class PaymentNotifyRegressionTest {
     @Test
     void malformedAmountIsRejectedWithoutUpdatingBusinessOrder() throws Exception {
         PayRecordMapper mapper = mock(PayRecordMapper.class);
-        BizAdapterFactory factory = mock(BizAdapterFactory.class);
+        PaymentBusinessAdapterRegistry factory = mock(PaymentBusinessAdapterRegistry.class);
         AlipayTemplate template = mock(AlipayTemplate.class);
         Client client = mock(Client.class);
         when(template.getAppId()).thenReturn("merchant-app");
@@ -113,7 +113,7 @@ class PaymentNotifyRegressionTest {
     @Test
     void sellerMismatchCannotMarkOrderPaid() throws Exception {
         PayRecordMapper mapper = mock(PayRecordMapper.class);
-        BizAdapterFactory factory = mock(BizAdapterFactory.class);
+        PaymentBusinessAdapterRegistry factory = mock(PaymentBusinessAdapterRegistry.class);
         AlipayTemplate template = mock(AlipayTemplate.class);
         Client client = mock(Client.class);
         when(template.getAppId()).thenReturn("merchant-app");
@@ -134,7 +134,7 @@ class PaymentNotifyRegressionTest {
     @Test
     void duplicateCallbackOnlyAcknowledgesTheSameTrade() throws Exception {
         PayRecordMapper mapper = mock(PayRecordMapper.class);
-        BizAdapterFactory factory = mock(BizAdapterFactory.class);
+        PaymentBusinessAdapterRegistry factory = mock(PaymentBusinessAdapterRegistry.class);
         AlipayTemplate template = mock(AlipayTemplate.class);
         Client client = mock(Client.class);
         PayRecord record = record();
@@ -159,8 +159,8 @@ class PaymentNotifyRegressionTest {
     @Test
     void finishedTradeCanMarkOrderPaidOnce() throws Exception {
         PayRecordMapper mapper = mock(PayRecordMapper.class);
-        BizAdapterFactory factory = mock(BizAdapterFactory.class);
-        BizAdapter adapter = mock(BizAdapter.class);
+        PaymentBusinessAdapterRegistry factory = mock(PaymentBusinessAdapterRegistry.class);
+        PaymentBusinessAdapter adapter = mock(PaymentBusinessAdapter.class);
         AlipayTemplate template = mock(AlipayTemplate.class);
         Client client = mock(Client.class);
         PayRecord record = record();
@@ -187,8 +187,8 @@ class PaymentNotifyRegressionTest {
     @Test
     void activeQueryUsesTheSameOrderAndPaymentRecordTransition() {
         PayRecordMapper mapper = mock(PayRecordMapper.class);
-        BizAdapterFactory factory = mock(BizAdapterFactory.class);
-        BizAdapter adapter = mock(BizAdapter.class);
+        PaymentBusinessAdapterRegistry factory = mock(PaymentBusinessAdapterRegistry.class);
+        PaymentBusinessAdapter adapter = mock(PaymentBusinessAdapter.class);
         PayRecord record = record();
         when(mapper.selectByOrderIdForUpdate(101L)).thenReturn(List.of(record));
         when(factory.getAdapter("HOTEL")).thenReturn(adapter);
@@ -207,10 +207,10 @@ class PaymentNotifyRegressionTest {
         verify(mapper).update(isNull(), any(UpdateWrapper.class));
     }
 
-    private AlipayServiceImpl service(PayRecordMapper mapper, BizAdapterFactory factory, AlipayTemplate template) {
+    private AlipayServiceImpl service(PayRecordMapper mapper, PaymentBusinessAdapterRegistry factory, AlipayTemplate template) {
         AlipayServiceImpl service = new AlipayServiceImpl();
         ReflectionTestUtils.setField(service, "payRecordMapper", mapper);
-        ReflectionTestUtils.setField(service, "bizAdapterFactory", factory);
+        ReflectionTestUtils.setField(service, "paymentAdapterRegistry", factory);
         ReflectionTestUtils.setField(service, "alipayTemplate", template);
         return service;
     }

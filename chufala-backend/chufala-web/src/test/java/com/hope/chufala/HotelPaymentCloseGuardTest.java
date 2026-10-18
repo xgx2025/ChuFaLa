@@ -2,9 +2,9 @@ package com.hope.chufala;
 
 import com.alipay.api.response.AlipayTradeCloseResponse;
 import com.alipay.api.response.AlipayTradeQueryResponse;
-import com.hope.chufala.infra.AlipayTemplate;
+import com.hope.chufala.infra.payment.AlipayTemplate;
 import com.hope.chufala.mapper.PayRecordMapper;
-import com.hope.chufala.model.dto.ConfirmedAlipayTrade;
+import com.hope.chufala.payment.model.ConfirmedAlipayTrade;
 import com.hope.chufala.model.entity.PayRecord;
 import com.hope.chufala.service.IAlipayService;
 import com.hope.chufala.service.impl.HotelPaymentCloseGuard;

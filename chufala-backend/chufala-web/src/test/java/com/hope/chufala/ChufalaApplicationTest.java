@@ -1,7 +1,7 @@
 package com.hope.chufala;
 
 import cn.hutool.core.util.IdUtil;
-import com.hope.chufala.common.util.EmailVerificationCodeUtils;
+import com.hope.chufala.security.EmailVerificationCodeService;
 import com.hope.chufala.common.util.Gcj02DistanceCalculator;
 import com.hope.chufala.model.vo.AttractionInfoVO;
 import com.hope.chufala.model.vo.HotelInfoVO;
@@ -58,7 +58,7 @@ public class ChufalaApplicationTest {
     @Autowired
     private AttractionTools attractionTools;
     @Autowired
-    private EmailVerificationCodeUtils emailVerificationCodeUtils;
+    private EmailVerificationCodeService emailVerificationCodeUtils;
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
 
