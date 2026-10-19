@@ -24,6 +24,11 @@ target/
 *.log
 logs/
 
+# ===== 本地压测资料与结果 =====
+/perf/
+/PERFORMANCE_TEST_PLAN.md
+/PERFORMANCE_TEST_REPORT.md
+
 # ===== 环境变量（含真实 Key，禁止提交）=====
 # 注意：模板文件 .env.example 必须保留
 .env
