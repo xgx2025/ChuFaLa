@@ -201,8 +201,8 @@ public class HotelServiceImpl implements IHotelService {
             return null;
         }
         List<String> imageList = hotelMapper.findHotelImage(id);
-        hotel.setMainImage(imageList.get(0));
-        hotel.setOtherImages(imageList.subList(1,imageList.size()));
+        hotel.setMainImage(imageList.isEmpty() ? null : imageList.get(0));
+        hotel.setOtherImages(imageList.size() > 1 ? imageList.subList(1, imageList.size()) : List.of());
         List<Room> roomList = roomMapper.selectRoomTypeList(id);
         roomList.forEach(roomType -> {
             List<String> images = roomMapper.findRoomTypeImage(roomType.getId());

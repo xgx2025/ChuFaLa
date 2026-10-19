@@ -176,8 +176,8 @@ public class AttractionServiceImpl implements IAttractionService {
              return null;
          }
          List<String> images = attractionMapper.findAttractionImage(id);
-         attraction.setMainImage(images.get(0));
-         attraction.setOtherImages(images.subList(1,images.size()));
+         attraction.setMainImage(images.isEmpty() ? null : images.get(0));
+         attraction.setOtherImages(images.size() > 1 ? images.subList(1, images.size()) : List.of());
          Random random = new Random();
          attraction.setReviewCount(random.nextInt(1000));
          return attraction;
