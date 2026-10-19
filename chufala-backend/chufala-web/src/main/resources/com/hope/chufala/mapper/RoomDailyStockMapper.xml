@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.hope.chufala.mapper.RoomDailyStockMapper">
-    <insert id="initializeStock">
-        INSERT IGNORE INTO room_daily_stock (room_type_id, stay_date, available_stock)
-        SELECT r.id, #{stayDate}, GREATEST(r.stock - COALESCE((
+    <select id="calculateInitialStock" resultType="java.lang.Integer">
+        SELECT GREATEST(r.stock - COALESCE((
             SELECT SUM(o.room_count) FROM hotel_order o
             WHERE o.room_type_id = r.id
               AND o.order_status IN ('待支付', '未支付', '已支付')
               AND o.check_in &lt;= #{stayDate} AND o.check_out &gt; #{stayDate}
         ), 0), 0)
         FROM room r WHERE r.id = #{roomTypeId}
+    </select>
+    <insert id="upsertInitialStock">
+        INSERT INTO room_daily_stock (room_type_id, stay_date, available_stock)
+        VALUES (#{roomTypeId}, #{stayDate}, #{initialStock})
         ON DUPLICATE KEY UPDATE available_stock = LEAST(available_stock, VALUES(available_stock))
     </insert>
 

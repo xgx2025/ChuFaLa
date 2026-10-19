@@ -229,7 +229,8 @@ CREATE TABLE `hotel_order`  (
   `is_deleted` tinyint NOT NULL DEFAULT 0 COMMENT '0-存在，1-已删除',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `order_number`(`order_id` ASC) USING BTREE,
-  INDEX `idx_hotel_order_user_book`(`user_id` ASC, `is_deleted` ASC, `book_time` DESC, `id` DESC) USING BTREE
+  INDEX `idx_hotel_order_user_book`(`user_id` ASC, `is_deleted` ASC, `book_time` DESC, `id` DESC) USING BTREE,
+  INDEX `idx_hotel_order_room_dates`(`room_type_id` ASC, `check_in` ASC, `check_out` ASC, `order_status` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 2108464824369852419 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------

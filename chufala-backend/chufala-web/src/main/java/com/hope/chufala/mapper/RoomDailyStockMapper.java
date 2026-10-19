@@ -9,7 +9,7 @@ import java.time.LocalDate;
  * 逐日房量库存 Mapper（room_daily_stock 表）。
  *
  * <p>库存按「房型 × 日期」一行存储，扣减/回补都靠条件更新保证不超卖：
- * initializeStock 幂等建行（INSERT IGNORE，并按历史订单反推当日占用），
+ * initializeStock 幂等建行（先读取历史占用，再写入逐日库存），
  * decreaseStock 要求剩余量足够（影响行数为 0 即表示库存不足），
  * increaseStock 用于取消订单时回补。读操作另有实时聚合兜底。
  *
@@ -24,7 +24,16 @@ public interface RoomDailyStockMapper {
      * @param stayDate   住宿日期
      * @return 影响行数（已存在时为 0）
      */
-    int initializeStock(@Param("roomTypeId") Long roomTypeId, @Param("stayDate") LocalDate stayDate);
+    default int initializeStock(Long roomTypeId, LocalDate stayDate) {
+        Integer initialStock = calculateInitialStock(roomTypeId, stayDate);
+        if (initialStock == null) return 0;
+        return upsertInitialStock(roomTypeId, stayDate, initialStock);
+    }
+
+    Integer calculateInitialStock(@Param("roomTypeId") Long roomTypeId, @Param("stayDate") LocalDate stayDate);
+
+    int upsertInitialStock(@Param("roomTypeId") Long roomTypeId, @Param("stayDate") LocalDate stayDate,
+                           @Param("initialStock") int initialStock);
 
     /**
      * 扣减某房型某日库存（条件更新，库存不足时不生效）。
