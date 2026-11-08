@@ -257,7 +257,7 @@ CREATE TABLE `pay_record`  (
   `user_id` bigint NOT NULL COMMENT '用户ID',
   `biz_type` enum('hotel','ticket','vip') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '业务类型(1-酒店)',
   `order_id` bigint NOT NULL COMMENT '订单ID',
-  `status` enum('WAIT_PAY','SUCCESS','FAIL') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'WAIT_PAY' COMMENT '支付状态',
+  `status` enum('WAIT_PAY','SUCCESS','FAIL','REFUND_REQUIRED','REFUNDED') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'WAIT_PAY' COMMENT '支付状态：WAIT_PAY-待支付，SUCCESS-支付成功，FAIL-失败，REFUND_REQUIRED-需退款，REFUNDED-已退款',
   `trade_no` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '第三方支付交易号（支付宝trade_no）',
   `money` decimal(10, 2) NOT NULL COMMENT '支付金额',
   `pay_time` datetime NULL DEFAULT NULL COMMENT '支付时间',
